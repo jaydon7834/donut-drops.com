@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "map-in-slot",
+  "version": "1.0.0",
+  "name": "Map In Slot",
+  "description": "",
+  "authors": [
+    "Crec0",
+    "ella"
+  ],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/casinorigger/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "fabric-datagen": [
+      "dev.verz.casinorigger.client.CasinoriggerDataGenerator"
+    ],
+    "client": [
+      "dev.verz.casinorigger.client.CasinoriggerClient"
+    ],
+    "main": [
+      "dev.verz.casinorigger.Casinorigger"
+    ]
+  },
+  "mixins": [
+    "casinorigger.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.17.2",
+    "java": ">=21",
+    "fabric-api": "*",
+    "minecraft": "1.21.11"
+  }
+}

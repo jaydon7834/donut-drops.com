@@ -1,0 +1,13 @@
+{
+  "providers": [
+    {
+      "type": "bitmap",
+      "file": "casinorigger:textures/font/camera_glyph.png",
+      "ascent": 8,
+      "height": 10,
+      "chars": [
+        "\ue000"
+      ]
+    }
+  ]
+}
