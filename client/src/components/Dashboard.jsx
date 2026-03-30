@@ -810,11 +810,35 @@ export function Dashboard() {
                     </div>
                   </>
                 ) : (
-                  <div className="rounded-[1.6rem] border border-white/6 bg-[#171824] p-6">
-                    <p className="text-lg font-semibold text-white">Withdrawals</p>
-                    <p className="mt-3 text-white/60">
-                      Withdrawals will route through your linked Minecraft account once the deposit bot is enabled.
-                    </p>
+                  <div className="space-y-5">
+                    <div>
+                      <p className="text-lg font-semibold text-white">Minecraft In-Game</p>
+                      <div className="mt-3 overflow-hidden rounded-[1.4rem] border border-yellow-400/10 bg-[linear-gradient(135deg,rgba(67,56,9,0.95),rgba(29,33,49,0.95))] text-left">
+                        <div className="flex min-h-[132px] items-end bg-[radial-gradient(circle_at_left,rgba(250,204,21,0.18),transparent_28%),linear-gradient(90deg,rgba(0,0,0,0.05),rgba(0,0,0,0.35))] px-5 py-4">
+                          <div>
+                            <p className="text-2xl font-black text-white">DonutSMP</p>
+                            <p className="mt-2 text-sm text-white/70">
+                              Withdrawals route through your linked Minecraft account and the in-game bot flow.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-[1.6rem] border border-white/6 bg-[#171824] p-6">
+                      <p className="text-lg font-semibold text-white">Withdrawals</p>
+                      <p className="mt-3 text-white/60">
+                        Join Discord for withdrawal support and live status updates while the DonutSMP bot flow is active.
+                      </p>
+                      <a
+                        href="https://discord.gg/nr3edCRG"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-5 inline-flex rounded-xl border border-indigo-400/35 bg-indigo-500/10 px-4 py-3 font-semibold text-indigo-200 transition hover:bg-indigo-500/20"
+                      >
+                        Join Discord
+                      </a>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1007,16 +1031,24 @@ export function Dashboard() {
                     <p className="text-2xl font-bold text-emerald-300">Deposit Bot Online</p>
                   </div>
                   <p className="mt-3 text-white/70">
-                    DonutSMP in-game deposits are available right now. You can change this status later whenever the bot goes offline.
+                    DonutSMP in-game deposits are available right now. Pay the bot <span className="font-semibold text-white">{depositSession?.botName || "a5ew"}</span>, then wait for payment verification before your balance updates.
                   </p>
                   <div className="mt-4 rounded-2xl bg-black/20 px-4 py-4">
                     <p className="text-xs uppercase tracking-[0.25em] text-white/45">Minecraft Deposit Amount</p>
                     <p className="mt-2 text-4xl font-black tracking-[0.12em] text-white">
-                      {depositSession?.requiredAmount || 950}
+                      {depositSession?.requiredAmount || "---"}
                     </p>
                     <p className="mt-2 text-sm text-white/55">
-                      Pay exactly {depositSession?.requiredAmount || 950} in Minecraft money to the DonutSMP deposit bot. Once your bot confirms that payment for the linked username, the website will credit your balance.
+                      Pay exactly {depositSession?.requiredAmount || "---"} in Minecraft money to <span className="font-semibold text-white">{depositSession?.botName || "a5ew"}</span>. Once payment is verified for your linked username, your DonutDrop balance will update automatically.
                     </p>
+                    <a
+                      href="https://discord.gg/nr3edCRG"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-4 inline-flex rounded-xl border border-indigo-400/35 bg-indigo-500/10 px-4 py-3 text-sm font-semibold text-indigo-200 transition hover:bg-indigo-500/20"
+                    >
+                      Join Discord
+                    </a>
                   </div>
                 </div>
 

@@ -7,7 +7,7 @@ import { createError, sanitizeUser } from "../utils/helpers.js";
 const router = Router();
 const BOT_SECRET = process.env.MINECRAFT_BOT_SECRET || "donutdrop-bot-secret";
 const CRYPTO_CONFIRM_SECRET = process.env.CRYPTO_CONFIRM_SECRET || BOT_SECRET;
-const FIXED_MINECRAFT_DEPOSIT_AMOUNT = 950;
+const MINECRAFT_DEPOSIT_BOT_NAME = "a5ew";
 const USD_PER_MILLION = 0.07;
 const MIN_CRYPTO_ORDER_USD = 5;
 const supportedAssets = {
@@ -36,6 +36,10 @@ const supportedAssets = {
 
 function nextDepositId() {
   return `deposit_${Date.now()}_${crypto.randomBytes(3).toString("hex")}`;
+}
+
+function generateMinecraftDepositAmount() {
+  return 900 + crypto.randomInt(100);
 }
 
 function nextCryptoOrderId() {
@@ -79,10 +83,6 @@ router.post("/deposit/confirm", async (req, res, next) => {
       throw createError("Amount must be greater than 0.");
     }
 
-    if (Number(amount) !== FIXED_MINECRAFT_DEPOSIT_AMOUNT) {
-      throw createError(`Minecraft deposit amount must be exactly ${FIXED_MINECRAFT_DEPOSIT_AMOUNT}.`);
-    }
-
     const session = Array.from(store.pendingDeposits.values()).find(
       (entry) =>
         entry.status === "pending" &&
@@ -91,6 +91,10 @@ router.post("/deposit/confirm", async (req, res, next) => {
 
     if (!session) {
       throw createError("Pending deposit session not found.", 404);
+    }
+
+    if (Number(amount) !== Number(session.requiredAmount)) {
+      throw createError(`Minecraft deposit amount must be exactly ${session.requiredAmount}.`);
     }
 
     const user = store.users.get(session.userId);
@@ -162,14 +166,15 @@ router.post("/deposit/session", (req, res, next) => {
     );
 
     if (existingSession) {
-      return res.json({ session: existingSession });
+      existingSession.status = "replaced";
     }
 
     const session = {
       id: nextDepositId(),
       userId: req.user.id,
       minecraftUsername: req.user.minecraftUsername,
-      requiredAmount: FIXED_MINECRAFT_DEPOSIT_AMOUNT,
+      requiredAmount: generateMinecraftDepositAmount(),
+      botName: MINECRAFT_DEPOSIT_BOT_NAME,
       status: "pending",
       createdAt: new Date().toISOString(),
       amount: 0
