@@ -372,75 +372,77 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
           </div>
         </div>
 
-        <div className="flex h-full min-h-[520px] w-full items-center justify-center xl:min-h-[600px]">
-          <div className="relative flex w-full justify-center">
-            <div className="mt-2 flex origin-top scale-[0.7] flex-col items-center sm:scale-[0.78] xl:scale-[0.88] 2xl:scale-[0.96]">
-              {Array.from({ length: rows }).map((_, row) => (
-                <div key={row} className="flex justify-center">
-                  {Array.from({ length: row + 1 }).map((__, index) => (
-                    <div
-                      key={`${row}-${index}`}
-                      className="m-1.5 h-3 w-3 rounded-full bg-slate-300 shadow-[0_0_18px_rgba(148,163,184,0.45)] xl:m-2 xl:h-3 xl:w-3"
-                    />
-                  ))}
+        <div className="relative min-h-[520px] xl:min-h-[600px]">
+          <div className="flex h-full w-full items-center justify-center pb-12">
+            <div className="relative flex w-full justify-center">
+              <div className="mt-2 flex origin-top scale-[0.7] flex-col items-center sm:scale-[0.78] xl:scale-[0.88] 2xl:scale-[0.96]">
+                {Array.from({ length: rows }).map((_, row) => (
+                  <div key={row} className="flex justify-center">
+                    {Array.from({ length: row + 1 }).map((__, index) => (
+                      <div
+                        key={`${row}-${index}`}
+                        className="m-1.5 h-3 w-3 rounded-full bg-slate-300 shadow-[0_0_18px_rgba(148,163,184,0.45)] xl:m-2 xl:h-3 xl:w-3"
+                      />
+                    ))}
+                  </div>
+                ))}
+              </div>
+
+              {activeBalls.map((ball) => (
+                <div key={ball.id}>
+                  <motion.div
+                    initial={{ x: 0, y: 0, opacity: 0.6 }}
+                    animate={ball.frames.map((frame) => ({ ...frame, opacity: 0.15 }))}
+                    transition={{ duration: 1.45, ease: "easeInOut" }}
+                    className={`absolute left-1/2 top-4 h-3 w-3 -translate-x-1/2 rounded-full blur-sm xl:top-5 ${
+                      ball.risk === "high"
+                        ? "bg-red-400"
+                        : ball.risk === "low"
+                        ? "bg-green-300"
+                        : "bg-yellow-300"
+                    }`}
+                  />
+                  <motion.div
+                    initial={{ x: 0, y: 0, scale: 0.9 }}
+                    animate={ball.frames.map((frame, index) => ({
+                      ...frame,
+                      scale: index === ball.frames.length - 1 ? 1.15 : index % 2 === 0 ? 1.04 : 0.96
+                    }))}
+                    transition={{ duration: 1.5, ease: "easeInOut" }}
+                    className="absolute left-1/2 top-4 h-4 w-4 -translate-x-1/2 rounded-full bg-green-400 shadow-[0_0_24px_rgba(74,222,128,0.8)] xl:top-5 xl:h-4 xl:w-4"
+                  />
                 </div>
               ))}
             </div>
+          </div>
 
-            {activeBalls.map((ball) => (
-              <div key={ball.id}>
-                <motion.div
-                  initial={{ x: 0, y: 0, opacity: 0.6 }}
-                  animate={ball.frames.map((frame) => ({ ...frame, opacity: 0.15 }))}
-                  transition={{ duration: 1.45, ease: "easeInOut" }}
-                  className={`absolute left-1/2 top-4 h-3 w-3 -translate-x-1/2 rounded-full blur-sm xl:top-5 ${
-                    ball.risk === "high"
-                      ? "bg-red-400"
-                      : ball.risk === "low"
-                      ? "bg-green-300"
-                      : "bg-yellow-300"
-                  }`}
-                />
-                <motion.div
-                  initial={{ x: 0, y: 0, scale: 0.9 }}
-                  animate={ball.frames.map((frame, index) => ({
-                    ...frame,
-                    scale: index === ball.frames.length - 1 ? 1.15 : index % 2 === 0 ? 1.04 : 0.96
-                  }))}
-                  transition={{ duration: 1.5, ease: "easeInOut" }}
-                  className="absolute left-1/2 top-4 h-4 w-4 -translate-x-1/2 rounded-full bg-green-400 shadow-[0_0_24px_rgba(74,222,128,0.8)] xl:top-5 xl:h-4 xl:w-4"
-                />
-              </div>
+          <div
+            className="absolute inset-x-0 bottom-0 mx-auto grid w-full max-w-[780px] gap-1 px-1"
+            style={{ gridTemplateColumns: `repeat(${multipliers.length}, minmax(0, 1fr))` }}
+          >
+            {multipliers.map((multiplier, index) => (
+              <motion.div
+                key={index}
+                animate={
+                  result?.bucketIndex === index ? { scale: [1, 1.12, 1.04], y: [0, -4, 0] } : { scale: 1, y: 0 }
+                }
+                transition={{ duration: 0.35 }}
+                className={`rounded-md border px-0.5 py-1 text-center text-[8px] font-black leading-none sm:text-[9px] xl:text-[10px] ${
+                  result?.bucketIndex === index
+                    ? "border-green-300/60 bg-green-500 text-slate-950 shadow-[0_0_18px_rgba(34,197,94,0.45)]"
+                    : multiplier >= 10
+                    ? "border-amber-300/20 bg-amber-300/10 text-amber-100"
+                    : multiplier >= 2
+                    ? "border-cyan-300/15 bg-cyan-400/8 text-cyan-100"
+                    : multiplier >= 1
+                    ? "border-emerald-300/15 bg-emerald-400/8 text-emerald-100"
+                    : "border-white/8 bg-[#111827] text-white/80"
+                }`}
+              >
+                {Number(multiplier).toFixed(multiplier >= 10 ? 0 : multiplier % 1 === 0 ? 0 : 2).replace(/\.00$/, "")}x
+              </motion.div>
             ))}
           </div>
-        </div>
-
-        <div
-          className="mx-auto mt-3 grid w-full max-w-[780px] gap-1 px-1"
-          style={{ gridTemplateColumns: `repeat(${multipliers.length}, minmax(0, 1fr))` }}
-        >
-          {multipliers.map((multiplier, index) => (
-            <motion.div
-              key={index}
-              animate={
-                result?.bucketIndex === index ? { scale: [1, 1.12, 1.04], y: [0, -4, 0] } : { scale: 1, y: 0 }
-              }
-              transition={{ duration: 0.35 }}
-              className={`rounded-md border px-0.5 py-1 text-center text-[8px] font-black leading-none sm:text-[9px] xl:text-[10px] ${
-                result?.bucketIndex === index
-                  ? "border-green-300/60 bg-green-500 text-slate-950 shadow-[0_0_18px_rgba(34,197,94,0.45)]"
-                  : multiplier >= 10
-                  ? "border-amber-300/20 bg-amber-300/10 text-amber-100"
-                  : multiplier >= 2
-                  ? "border-cyan-300/15 bg-cyan-400/8 text-cyan-100"
-                  : multiplier >= 1
-                  ? "border-emerald-300/15 bg-emerald-400/8 text-emerald-100"
-                  : "border-white/8 bg-[#111827] text-white/80"
-              }`}
-            >
-              {Number(multiplier).toFixed(multiplier >= 10 ? 0 : multiplier % 1 === 0 ? 0 : 2).replace(/\.00$/, "")}x
-            </motion.div>
-          ))}
         </div>
 
         {result && (
