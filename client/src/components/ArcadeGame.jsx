@@ -2,7 +2,6 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { api } from "../lib/api.js";
 import { formatBetInput, parseBetInput } from "../lib/betting.js";
-import { FairnessCard } from "./FairnessCard.jsx";
 import { GameLayout } from "./GameLayout.jsx";
 
 const gameCopy = {
@@ -256,22 +255,6 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
               )}
             </motion.div>
         </div>
-      }
-      side={
-        <FairnessCard
-          title={`${meta.title} verification`}
-          data={
-            result
-              ? {
-                  hash: result.provablyFair.hash,
-                  serverSeedHash: result.provablyFair.serverSeedHash,
-                  serverSeed: result.provablyFair.serverSeed,
-                  clientSeed: result.provablyFair.clientSeed,
-                  nonce: result.provablyFair.nonce
-                }
-              : null
-          }
-        />
       }
     />
   );

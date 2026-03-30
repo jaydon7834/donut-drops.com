@@ -6,7 +6,6 @@ export function GameLayout({
   subtitle,
   controls,
   main,
-  side,
   children,
   accent = "from-orange-500/20 via-transparent to-emerald-500/10"
 }) {
@@ -24,7 +23,7 @@ export function GameLayout({
         </motion.aside>
       )}
 
-      <div className="grid gap-4 p-1 xl:grid-cols-[250px_1fr_300px]">
+      <div className="grid gap-4 p-1 xl:grid-cols-[300px_1fr]">
         <motion.aside
           initial={{ opacity: 0, x: -16 }}
           animate={{ opacity: 1, x: 0 }}
@@ -36,18 +35,10 @@ export function GameLayout({
         <motion.section
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white/5 backdrop-blur rounded-xl p-6 flex justify-center items-center"
+          className="bg-white/5 backdrop-blur rounded-xl p-6"
         >
           {main || children}
         </motion.section>
-
-        <motion.aside
-          initial={{ opacity: 0, x: 16 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="bg-white/5 backdrop-blur rounded-xl p-4"
-        >
-          {side || <p className="text-gray-400">Chat coming soon</p>}
-        </motion.aside>
       </div>
     </div>
   );

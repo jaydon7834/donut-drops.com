@@ -2,7 +2,6 @@ import { useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { api } from "../lib/api.js";
 import { formatBetInput, parseBetInput } from "../lib/betting.js";
-import { FairnessCard } from "./FairnessCard.jsx";
 import { GameLayout } from "./GameLayout.jsx";
 
 function Tile({ state, onClick, disabled, shake }) {
@@ -342,22 +341,6 @@ export function MinesGame({ token, user, onBalanceChange }) {
             })}
           </div>
         </div>
-      }
-      side={
-        <FairnessCard
-          title="Mines settlement"
-          data={
-            settledGame
-              ? {
-                  serverSeedHash: settledGame.serverSeedHash,
-                  serverSeed: settledGame.serverSeed,
-                  clientSeed: settledGame.clientSeed,
-                  nonce: settledGame.nonce,
-                  mines: settledGame.minePositions.join(", ")
-                }
-              : null
-          }
-        />
       }
     />
   );

@@ -2,7 +2,6 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { api } from "../lib/api.js";
 import { formatBetInput, parseBetInput } from "../lib/betting.js";
-import { FairnessCard } from "./FairnessCard.jsx";
 import { GameLayout } from "./GameLayout.jsx";
 
 function DiceResult({ roll, loading }) {
@@ -218,22 +217,6 @@ export function DiceGame({ token, user, onBalanceChange }) {
             </div>
           )}
         </div>
-      }
-      side={
-        <FairnessCard
-          title="Dice seed reveal"
-          data={
-            result
-              ? {
-                  hash: result.provablyFair.hash,
-                  serverSeedHash: result.provablyFair.serverSeedHash,
-                  serverSeed: result.provablyFair.serverSeed,
-                  clientSeed: result.provablyFair.clientSeed,
-                  nonce: result.provablyFair.nonce
-                }
-              : null
-          }
-        />
       }
     />
   );
