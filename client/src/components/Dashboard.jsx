@@ -3,6 +3,10 @@ import { motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext.jsx";
 import { MinesGame } from "./MinesGame.jsx";
 import { DiceGame } from "./DiceGame.jsx";
+import { BlackjackGame } from "./BlackjackGame.jsx";
+import { RouletteGame } from "./RouletteGame.jsx";
+import { LimboGame } from "./LimboGame.jsx";
+import { PlinkoGame } from "./PlinkoGame.jsx";
 import { ArcadeGame } from "./ArcadeGame.jsx";
 import { FairnessCard } from "./FairnessCard.jsx";
 import { GameCard } from "./GameCard.jsx";
@@ -71,10 +75,45 @@ export function Dashboard() {
   const [tipMessage, setTipMessage] = useState("");
   const [tipping, setTipping] = useState(false);
   const [trackerOpen, setTrackerOpen] = useState(false);
+  const [walletOpen, setWalletOpen] = useState(false);
+  const [walletStep, setWalletStep] = useState("wallet");
+  const [walletTab, setWalletTab] = useState("deposit");
+  const [minecraftUsername, setMinecraftUsername] = useState(user?.username || "");
+  const [minecraftLinked, setMinecraftLinked] = useState(false);
+  const [depositSession, setDepositSession] = useState(null);
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [walletMessage, setWalletMessage] = useState("");
 
   useEffect(() => {
     setClientSeed(user?.clientSeed || "");
   }, [user?.clientSeed]);
+
+  useEffect(() => {
+    setMinecraftUsername(user?.minecraftUsername || user?.username || "");
+    setMinecraftLinked(Boolean(user?.minecraftUsername));
+  }, [user?.minecraftUsername, user?.username]);
+
+  useEffect(() => {
+    if (!walletOpen || walletStep !== "minecraft" || !depositSession?.id || depositSession.status !== "pending") {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(async () => {
+      try {
+        const data = await api.getDepositSession(token, depositSession.id);
+        setDepositSession(data.session);
+
+        if (data.session.status === "completed") {
+          setWalletMessage(`Deposit received: ${formatMoney(data.session.amount)}`);
+          await refreshBalance();
+        }
+      } catch {
+        // Quiet polling failure.
+      }
+    }, 5000);
+
+    return () => window.clearInterval(intervalId);
+  }, [depositSession?.id, depositSession?.status, refreshBalance, token, walletOpen, walletStep]);
 
   useEffect(() => {
     let cancelled = false;
@@ -218,6 +257,258 @@ export function Dashboard() {
     const seconds = activeTimeoutSeconds % 60;
     return `${minutes}:${String(seconds).padStart(2, "0")}`;
   }, [activeTimeoutSeconds]);
+
+  function openWallet() {
+    setWalletOpen(true);
+    setWalletStep("wallet");
+    setWalletTab("deposit");
+    setWalletMessage("");
+  }
+
+  function closeWallet() {
+    setWalletOpen(false);
+    setWalletStep("wallet");
+    setWalletMessage("");
+  }
+
+  async function ensureDepositSession() {
+    if (depositSession?.status === "pending") {
+      return;
+    }
+
+    setWalletLoading(true);
+    setWalletMessage("");
+
+    try {
+      const data = await api.createDepositSession(token);
+      setDepositSession(data.session);
+    } catch (error) {
+      setWalletMessage(error.message);
+    } finally {
+      setWalletLoading(false);
+    }
+  }
+
+  async function handleLinkMinecraft() {
+    setWalletLoading(true);
+    setWalletMessage("");
+
+    try {
+      const data = await api.linkMinecraft(token, { minecraftUsername });
+      setUser(data.user);
+      setMinecraftLinked(true);
+      setWalletMessage(`Minecraft linked as ${data.user.minecraftUsername}.`);
+      const sessionData = await api.createDepositSession(token);
+      setDepositSession(sessionData.session);
+    } catch (error) {
+      setWalletMessage(error.message);
+    } finally {
+      setWalletLoading(false);
+    }
+  }
+
+  function renderWalletModal() {
+    if (!walletOpen) {
+      return null;
+    }
+
+    return (
+      <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/75 px-4 backdrop-blur-sm">
+        <motion.div
+          initial={{ opacity: 0, y: 18, scale: 0.96 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          className="w-full max-w-[720px] overflow-hidden rounded-[2rem] border border-white/10 bg-[#141521] shadow-[0_30px_80px_rgba(0,0,0,0.45)]"
+        >
+          {walletStep === "wallet" ? (
+            <>
+              <div className="border-b border-white/6 px-6 py-5">
+                <h3 className="text-3xl font-black text-white">Wallet</h3>
+              </div>
+
+              <div className="space-y-6 px-6 py-6">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="rounded-2xl bg-white/5 p-2">
+                    <button
+                      type="button"
+                      onClick={() => setWalletTab("deposit")}
+                      className={`rounded-xl px-5 py-2 font-semibold transition ${
+                        walletTab === "deposit" ? "bg-white/10 text-white" : "text-white/45"
+                      }`}
+                    >
+                      Deposit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setWalletTab("withdraw")}
+                      className={`rounded-xl px-5 py-2 font-semibold transition ${
+                        walletTab === "withdraw" ? "bg-white/10 text-white" : "text-white/45"
+                      }`}
+                    >
+                      Withdraw
+                    </button>
+                  </div>
+
+                  <div className="ml-auto flex overflow-hidden rounded-2xl bg-white/5">
+                    <input
+                      className="bg-transparent px-4 py-3 text-sm text-white outline-none"
+                      placeholder="Promo code"
+                    />
+                    <button type="button" className="bg-white/10 px-4 py-3 text-sm font-semibold text-white">
+                      Claim
+                    </button>
+                  </div>
+                </div>
+
+                {walletTab === "deposit" ? (
+                  <>
+                    <div>
+                      <p className="text-lg font-semibold text-white">Minecraft In-Game</p>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setWalletStep("minecraft");
+                          if (minecraftLinked) {
+                            await ensureDepositSession();
+                          }
+                        }}
+                        className="mt-3 block w-full overflow-hidden rounded-[1.4rem] border border-yellow-400/10 bg-[linear-gradient(135deg,rgba(67,56,9,0.95),rgba(29,33,49,0.95))] text-left transition hover:border-yellow-300/20"
+                      >
+                        <div className="flex min-h-[132px] items-end bg-[radial-gradient(circle_at_left,rgba(250,204,21,0.18),transparent_28%),linear-gradient(90deg,rgba(0,0,0,0.05),rgba(0,0,0,0.35))] px-5 py-4">
+                          <div>
+                            <p className="text-2xl font-black text-white">DonutSMP</p>
+                            <p className="mt-2 text-sm text-white/70">Deposit through the in-game Minecraft server.</p>
+                          </div>
+                        </div>
+                      </button>
+                    </div>
+
+                    <div>
+                      <p className="text-lg font-semibold text-white">Cryptocurrencies</p>
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                        {["Bitcoin", "Ethereum", "Litecoin", "Solana"].map((coin) => (
+                          <div key={coin} className="rounded-2xl bg-white/5 px-4 py-4 text-white/30 blur-[0.4px]">
+                            {coin}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-5 flex flex-col items-center rounded-2xl bg-white/5 px-5 py-6 text-center">
+                        <button type="button" className="rounded-xl bg-white/10 px-5 py-3 font-semibold text-white/70">
+                          Coming Soon
+                        </button>
+                        <p className="mt-3 text-sm text-white/45">Crypto deposits temporarily disabled</p>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="rounded-[1.6rem] border border-white/6 bg-[#171824] p-6">
+                    <p className="text-lg font-semibold text-white">Withdrawals</p>
+                    <p className="mt-3 text-white/60">
+                      Withdrawals will route through your linked Minecraft account once the deposit bot is enabled.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-white/6 px-6 py-5">
+                <button
+                  type="button"
+                  onClick={closeWallet}
+                  className="rounded-xl bg-white/5 px-5 py-3 font-semibold text-white/75 transition hover:bg-white/10 hover:text-white"
+                >
+                  Close
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="border-b border-white/6 px-6 py-5">
+                <h3 className="text-3xl font-black text-white">Deposit Guide</h3>
+                <p className="mt-2 text-white/60">Follow these steps to complete your in-game deposit.</p>
+              </div>
+
+              <div className="space-y-6 px-6 py-6">
+                <div className="rounded-[1.5rem] border border-emerald-500/20 bg-emerald-500/10 p-5">
+                  <div className="flex items-center gap-3">
+                    <span className="inline-flex h-3 w-3 rounded-full bg-emerald-400 shadow-[0_0_16px_rgba(74,222,128,0.8)]" />
+                    <p className="text-2xl font-bold text-emerald-300">Deposit Bot Online</p>
+                  </div>
+                  <p className="mt-3 text-white/70">
+                    DonutSMP in-game deposits are available right now. You can change this status later whenever the bot goes offline.
+                  </p>
+                  <div className="mt-4 rounded-2xl bg-black/20 px-4 py-4">
+                    <p className="text-xs uppercase tracking-[0.25em] text-white/45">Current Deposit Bot Code</p>
+                    <p className="mt-2 text-4xl font-black tracking-[0.35em] text-white">
+                      {depositSession?.code || "---"}
+                    </p>
+                    <p className="mt-2 text-sm text-white/55">
+                      Use this 3-digit number when paying the bot in-game. The website will watch this deposit session and credit your balance when your Minecraft bot confirms it.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-[1.6rem] border border-white/6 bg-[#171824] p-6">
+                  <p className="text-white/75">
+                    You need to link your Minecraft account before you can deposit. This connects your in-game identity for deposits and withdrawals on <span className="font-semibold text-white">DonutSMP</span>.
+                  </p>
+
+                  <label className="mt-5 block">
+                    <span className="text-sm font-semibold text-white">Minecraft Username</span>
+                    <input
+                      value={minecraftUsername}
+                      onChange={(event) => setMinecraftUsername(event.target.value)}
+                      className="mt-3 w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-4 text-white outline-none"
+                      placeholder="Your IGN"
+                    />
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={handleLinkMinecraft}
+                    className="mt-5 w-full rounded-2xl bg-emerald-500 px-4 py-4 text-lg font-bold text-slate-950 transition hover:bg-emerald-400"
+                  >
+                    {walletLoading ? "Linking..." : "Link Minecraft Account"}
+                  </button>
+
+                  <p className="mt-4 text-sm text-white/55">
+                    If you previously played with this Minecraft username, your balance and history will be restored.
+                  </p>
+
+                  {minecraftLinked && (
+                    <div className="mt-5 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-4 text-sm text-emerald-200">
+                      Minecraft account linked: <span className="font-semibold">{minecraftUsername || user.username}</span>
+                    </div>
+                  )}
+
+                  {walletMessage && (
+                    <div className="mt-4 rounded-2xl bg-white/5 px-4 py-4 text-sm text-white/70">
+                      {walletMessage}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between border-t border-white/6 px-6 py-5">
+                <button
+                  type="button"
+                  onClick={() => setWalletStep("wallet")}
+                  className="rounded-xl bg-white/5 px-5 py-3 font-semibold text-white/75 transition hover:bg-white/10 hover:text-white"
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  onClick={closeWallet}
+                  className="rounded-xl bg-white/5 px-5 py-3 font-semibold text-white/75 transition hover:bg-white/10 hover:text-white"
+                >
+                  Close
+                </button>
+              </div>
+            </>
+          )}
+        </motion.div>
+      </div>
+    );
+  }
 
   function renderTopPanel() {
     if (activeTopTab === "bonus") {
@@ -650,6 +941,49 @@ export function Dashboard() {
       );
     }
 
+    if (activeView === "blackjack") {
+      return (
+        <BlackjackGame
+          token={token}
+          onBalanceChange={updateBalance}
+          onBack={() => setActiveView("lobby")}
+        />
+      );
+    }
+
+    if (activeView === "roulette") {
+      return (
+        <RouletteGame
+          token={token}
+          user={user}
+          onBalanceChange={updateBalance}
+          onBack={() => setActiveView("lobby")}
+        />
+      );
+    }
+
+    if (activeView === "limbo") {
+      return (
+        <LimboGame
+          token={token}
+          user={user}
+          onBalanceChange={updateBalance}
+          onBack={() => setActiveView("lobby")}
+        />
+      );
+    }
+
+    if (activeView === "plinko") {
+      return (
+        <PlinkoGame
+          token={token}
+          user={user}
+          onBalanceChange={updateBalance}
+          onBack={() => setActiveView("lobby")}
+        />
+      );
+    }
+
     if (activeView !== "lobby") {
       return (
         <ArcadeGame
@@ -715,6 +1049,8 @@ export function Dashboard() {
 
   return (
     <div className="relative grid min-h-[88vh] gap-5 xl:grid-cols-[220px,1fr,300px]">
+      {renderWalletModal()}
+
       {trackerOpen && (
         <motion.div
           drag
@@ -884,7 +1220,8 @@ export function Dashboard() {
               <WalletDisplay balance={user.balance} />
               <button
                 type="button"
-                className="rounded-2xl bg-emerald-500 px-5 py-4 font-semibold text-slate-950"
+                onClick={openWallet}
+                className="rounded-2xl bg-emerald-500 px-5 py-4 font-semibold text-slate-950 transition hover:bg-emerald-400"
               >
                 Wallet
               </button>

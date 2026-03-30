@@ -6,6 +6,7 @@ export const store = {
   users: new Map(),
   sessions: new Map(),
   games: new Map(),
+  pendingDeposits: new Map(),
   recentGames: [],
   chatMessages: [
     {

@@ -9,6 +9,7 @@ export function sanitizeUser(user) {
     username: user.username,
     email: user.email,
     balance: user.balance,
+    minecraftUsername: user.minecraftUsername || "",
     clientSeed: user.clientSeed,
     nonce: user.nonce
   };

@@ -2,8 +2,13 @@ import express from "express";
 import cors from "cors";
 import authRoutes from "./routes/auth.js";
 import userRoutes from "./routes/user.js";
+import walletRoutes from "./routes/wallet.js";
 import minesRoutes from "./routes/mines.js";
 import diceRoutes from "./routes/dice.js";
+import blackjackRoutes from "./routes/blackjack.js";
+import rouletteRoutes from "./routes/roulette.js";
+import limboRoutes from "./routes/limbo.js";
+import plinkoRoutes from "./routes/plinko.js";
 import instantRoutes from "./routes/instant.js";
 import chatRoutes from "./routes/chat.js";
 import { initializeStore } from "./state/store.js";
@@ -32,8 +37,13 @@ app.get("/health", (req, res) => {
 
 app.use("/auth", authLimiter, authRoutes);
 app.use("/user", userRoutes);
+app.use("/wallet", walletRoutes);
 app.use("/game/mines", gameLimiter, minesRoutes);
 app.use("/game/dice", gameLimiter, diceRoutes);
+app.use("/game/blackjack", gameLimiter, blackjackRoutes);
+app.use("/game/roulette", gameLimiter, rouletteRoutes);
+app.use("/game/limbo", gameLimiter, limboRoutes);
+app.use("/game/plinko", gameLimiter, plinkoRoutes);
 app.use("/game/instant", gameLimiter, instantRoutes);
 app.use("/chat", chatRoutes);
 

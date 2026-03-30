@@ -32,6 +32,24 @@ export const api = {
     }),
   getBalance: (token) => request("/user/balance", {}, token),
   getPlayers: (token) => request("/user/players", {}, token),
+  linkMinecraft: (token, payload) =>
+    request(
+      "/wallet/minecraft/link",
+      {
+        method: "PATCH",
+        body: JSON.stringify(payload)
+      },
+      token
+    ),
+  createDepositSession: (token) =>
+    request(
+      "/wallet/deposit/session",
+      {
+        method: "POST"
+      },
+      token
+    ),
+  getDepositSession: (token, sessionId) => request(`/wallet/deposit/session/${sessionId}`, {}, token),
   tipUser: (token, payload) =>
     request(
       "/user/tip",
@@ -80,6 +98,60 @@ export const api = {
   rollDice: (token, payload) =>
     request(
       "/game/dice/roll",
+      {
+        method: "POST",
+        body: JSON.stringify(payload)
+      },
+      token
+    ),
+  startBlackjack: (token, payload) =>
+    request(
+      "/game/blackjack/start",
+      {
+        method: "POST",
+        body: JSON.stringify(payload)
+      },
+      token
+    ),
+  hitBlackjack: (token, payload) =>
+    request(
+      "/game/blackjack/hit",
+      {
+        method: "POST",
+        body: JSON.stringify(payload)
+      },
+      token
+    ),
+  standBlackjack: (token, payload) =>
+    request(
+      "/game/blackjack/stand",
+      {
+        method: "POST",
+        body: JSON.stringify(payload)
+      },
+      token
+    ),
+  spinRoulette: (token, payload) =>
+    request(
+      "/game/roulette/spin",
+      {
+        method: "POST",
+        body: JSON.stringify(payload)
+      },
+      token
+    ),
+  rollLimbo: (token, payload) =>
+    request(
+      "/game/limbo/roll",
+      {
+        method: "POST",
+        body: JSON.stringify(payload)
+      },
+      token
+    ),
+  dropPlinko: (token, payload) =>
+    request(
+      "/game/plinko/drop",
       {
         method: "POST",
         body: JSON.stringify(payload)
