@@ -6,6 +6,7 @@ export function GameLayout({
   subtitle,
   controls,
   main,
+  rightPanel,
   children,
   accent = "from-orange-500/20 via-transparent to-emerald-500/10"
 }) {
@@ -23,11 +24,11 @@ export function GameLayout({
         </motion.aside>
       )}
 
-      <div className="grid gap-4 p-1 xl:grid-cols-[300px_1fr]">
+      <div className="flex w-full min-w-0 flex-col gap-4 p-1 xl:flex-row">
         <motion.aside
           initial={{ opacity: 0, x: -16 }}
           animate={{ opacity: 1, x: 0 }}
-          className="bg-white/5 backdrop-blur rounded-xl p-4"
+          className="w-full shrink-0 rounded-xl bg-white/5 p-4 backdrop-blur xl:w-[240px]"
         >
           {controls}
         </motion.aside>
@@ -35,10 +36,20 @@ export function GameLayout({
         <motion.section
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white/5 backdrop-blur rounded-xl p-6"
+          className="min-w-0 flex-1 overflow-hidden rounded-xl bg-white/5 p-6 backdrop-blur"
         >
           {main || children}
         </motion.section>
+
+        {rightPanel ? (
+          <motion.aside
+            initial={{ opacity: 0, x: 16 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="w-full shrink-0 rounded-xl bg-white/5 p-4 backdrop-blur xl:w-[300px]"
+          >
+            {rightPanel}
+          </motion.aside>
+        ) : null}
       </div>
     </div>
   );
