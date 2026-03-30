@@ -1,21 +1,52 @@
-import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext.jsx";
 
 const SAVED_LOGIN_KEY = "donutdrop-saved-login";
 const initialForms = {
   login: { username: "", password: "" },
-  register: { username: "", email: "", password: "" }
+  register: { username: "", password: "" }
 };
+
+function PasswordField({ value, onChange, showPassword, onToggle, error }) {
+  return (
+    <label className="block">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-sm font-medium text-white/72">Password</span>
+        <button
+          type="button"
+          onClick={onToggle}
+          className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-300/80 transition hover:text-orange-200"
+        >
+          {showPassword ? "Hide" : "Show"}
+        </button>
+      </div>
+      <input
+        required
+        type={showPassword ? "text" : "password"}
+        value={value}
+        onChange={onChange}
+        className={`w-full rounded-xl border px-4 py-3 text-white transition outline-none ${
+          error
+            ? "border-rose-400/50 bg-rose-500/10 ring-2 ring-rose-500/40"
+            : "border-white/5 bg-[#1e293b] focus:ring-2 focus:ring-orange-500"
+        }`}
+        placeholder="Enter your password"
+      />
+      {error ? <p className="mt-2 text-sm text-rose-300">{error}</p> : null}
+    </label>
+  );
+}
 
 export function AuthPanel() {
   const { login, register, error, setError } = useAuth();
   const [mode, setMode] = useState("login");
   const [form, setForm] = useState(initialForms.login);
   const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    if (typeof window === "undefined") {
+    if (typeof window === "undefined" || mode !== "login") {
       return;
     }
 
@@ -27,43 +58,55 @@ export function AuthPanel() {
       }
 
       const parsedLogin = JSON.parse(savedLogin);
-
-      if (parsedLogin?.username || parsedLogin?.password) {
-        setForm((current) =>
-          mode === "login"
-            ? {
-                ...current,
-                username: parsedLogin.username || "",
-                password: parsedLogin.password || ""
-              }
-            : current
-        );
-      }
+      setForm({
+        username: parsedLogin?.username || "",
+        password: parsedLogin?.password || ""
+      });
     } catch {
-      // Ignore malformed saved login state and keep the form usable.
+      setForm(initialForms.login);
     }
   }, [mode]);
 
+  const fieldErrors = useMemo(() => {
+    if (!error) {
+      return {};
+    }
+
+    const lowered = error.toLowerCase();
+    return {
+      username:
+        lowered.includes("username") || lowered.includes("account") ? error : "",
+      password:
+        lowered.includes("password") || lowered.includes("invalid") ? error : ""
+    };
+  }, [error]);
+
   function switchMode(nextMode) {
     setMode(nextMode);
-    if (nextMode === "login") {
-      try {
-        const savedLogin =
-          typeof window !== "undefined" ? window.localStorage.getItem(SAVED_LOGIN_KEY) : null;
-        const parsedLogin = savedLogin ? JSON.parse(savedLogin) : null;
+    setShowPassword(false);
+    setError("");
 
+    if (nextMode === "login" && typeof window !== "undefined") {
+      try {
+        const parsedLogin = JSON.parse(window.localStorage.getItem(SAVED_LOGIN_KEY) || "{}");
         setForm({
-          ...initialForms.login,
           username: parsedLogin?.username || "",
           password: parsedLogin?.password || ""
         });
+        return;
       } catch {
-        setForm(initialForms.login);
+        // fall through to reset
       }
-    } else {
-      setForm(initialForms[nextMode]);
     }
-    setError("");
+
+    setForm(initialForms[nextMode]);
+  }
+
+  function updateField(key, value) {
+    setForm((current) => ({ ...current, [key]: value }));
+    if (error) {
+      setError("");
+    }
   }
 
   async function handleSubmit(event) {
@@ -93,89 +136,111 @@ export function AuthPanel() {
   }
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="glass-panel mx-auto w-full max-w-md rounded-3xl p-8 shadow-neon"
-    >
-      <div className="mb-6 flex gap-2 rounded-full bg-white/5 p-1">
-        {["login", "register"].map((item) => (
-          <button
-            key={item}
-            type="button"
-            onClick={() => switchMode(item)}
-            className={`flex-1 rounded-full px-4 py-2 text-sm capitalize transition ${
-              mode === item ? "bg-accent text-black" : "text-white/70 hover:text-white"
-            }`}
-          >
-            {item}
-          </button>
-        ))}
+    <div className="flex min-h-screen items-center justify-center bg-[#0b0f1a] px-4 py-10">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute left-1/2 top-0 h-[28rem] w-[28rem] -translate-x-1/2 rounded-full bg-orange-500/10 blur-3xl" />
+        <div className="absolute bottom-[-6rem] right-[-4rem] h-72 w-72 rounded-full bg-emerald-500/10 blur-3xl" />
       </div>
 
-      <h2 className="text-3xl font-semibold text-white">
-        {mode === "login" ? "Back for another run?" : "Create your DonutDrop vault"}
-      </h2>
-      <p className="mt-2 text-sm text-white/60">
-        Track your balance, swap games instantly, and verify every result with a provably fair
-        trail.
-      </p>
+      <motion.section
+        initial={{ opacity: 0, y: 18, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.35, ease: "easeOut" }}
+        className="relative z-10 w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-8 shadow-[0_0_50px_rgba(249,115,22,0.16)] backdrop-blur-xl"
+      >
+        <div className="mb-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.42em] text-orange-300/80">
+            DonutDrop
+          </p>
+          <h2 className="mt-4 text-3xl font-black text-white">
+            {mode === "login" ? "Login to your vault" : "Create your player account"}
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-white/60">
+            Fast login, smooth play, and a dark casino-style experience from the first screen.
+          </p>
+        </div>
 
-      <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-        {mode === "register" && (
-          <label className="block">
-            <span className="mb-2 block text-sm text-white/70">Username</span>
-            <input
-              required
-              value={form.username}
-              onChange={(event) => setForm({ ...form, username: event.target.value })}
-              className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-accent"
-              placeholder="donutking"
-            />
-          </label>
-        )}
-
-        <label className="block">
-            <span className="mb-2 block text-sm text-white/70">
-              {mode === "login" ? "Username" : "Email"}
-            </span>
-            <input
-              required
-            type={mode === "login" ? "text" : "email"}
-            value={mode === "login" ? form.username : form.email}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                [mode === "login" ? "username" : "email"]: event.target.value
-              })
-            }
-              className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-accent"
-              placeholder={mode === "login" ? "donutking" : "player@donutdrop.gg"}
-            />
-          </label>
-
-        <label className="block">
-          <span className="mb-2 block text-sm text-white/70">Password</span>
-          <input
-            required
-            type="password"
-            value={form.password}
-            onChange={(event) => setForm({ ...form, password: event.target.value })}
-            className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-accent"
-              placeholder="********"
+        <div className="relative mb-7 grid grid-cols-2 rounded-2xl bg-[#111827] p-1">
+          <motion.div
+            layout
+            transition={{ type: "spring", stiffness: 340, damping: 30 }}
+            className={`absolute top-1 h-[calc(100%-0.5rem)] w-[calc(50%-0.25rem)] rounded-xl bg-gradient-to-r ${
+              mode === "login"
+                ? "left-1 from-orange-500 to-amber-400"
+                : "left-[calc(50%+0.125rem)] from-emerald-500 to-lime-400"
+            }`}
           />
-        </label>
+          {["login", "register"].map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => switchMode(item)}
+              className={`relative z-10 rounded-xl px-4 py-3 text-sm font-bold uppercase tracking-[0.16em] transition ${
+                mode === item ? "text-slate-950" : "text-white/58 hover:text-white"
+              }`}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
 
-        {error && <p className="rounded-2xl bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{error}</p>}
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={mode}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-4"
+            >
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-white/72">Username</span>
+                <input
+                  required
+                  value={form.username}
+                  onChange={(event) => updateField("username", event.target.value)}
+                  className={`w-full rounded-xl border px-4 py-3 text-white transition outline-none ${
+                    fieldErrors.username
+                      ? "border-rose-400/50 bg-rose-500/10 ring-2 ring-rose-500/40"
+                      : "border-white/5 bg-[#1e293b] focus:ring-2 focus:ring-orange-500"
+                  }`}
+                  placeholder={mode === "login" ? "Enter username" : "Choose a username"}
+                />
+                {fieldErrors.username ? (
+                  <p className="mt-2 text-sm text-rose-300">{fieldErrors.username}</p>
+                ) : null}
+              </label>
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className="w-full rounded-2xl bg-accent px-4 py-3 font-semibold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {submitting ? "Processing..." : mode === "login" ? "Login" : "Register"}
-        </button>
-      </form>
-    </motion.section>
+              <PasswordField
+                value={form.password}
+                onChange={(event) => updateField("password", event.target.value)}
+                showPassword={showPassword}
+                onToggle={() => setShowPassword((current) => !current)}
+                error={fieldErrors.password}
+              />
+            </motion.div>
+          </AnimatePresence>
+
+          {!fieldErrors.username && !fieldErrors.password && error ? (
+            <p className="text-sm text-rose-300">{error}</p>
+          ) : null}
+
+          <motion.button
+            whileHover={submitting ? undefined : { scale: 1.02 }}
+            whileTap={submitting ? undefined : { scale: 0.98 }}
+            type="submit"
+            disabled={submitting}
+            className={`w-full rounded-xl px-4 py-3 font-black uppercase tracking-[0.14em] transition ${
+              mode === "login"
+                ? "bg-orange-500 text-slate-950 hover:bg-orange-400"
+                : "bg-emerald-500 text-slate-950 hover:bg-emerald-400"
+            } disabled:cursor-not-allowed disabled:opacity-60`}
+          >
+            {submitting ? "Loading..." : mode === "login" ? "Login" : "Register"}
+          </motion.button>
+        </form>
+      </motion.section>
+    </div>
   );
 }

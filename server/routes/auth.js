@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { comparePassword, createError, hashPassword, sanitizeUser } from "../utils/helpers.js";
-import { findUserByEmail, findUserByUsername, nextUserId, persistUsers, store } from "../state/store.js";
+import { findUserByUsername, nextUserId, persistUsers, store } from "../state/store.js";
 import { signSession } from "../middleware/auth.js";
 
 const router = Router();
@@ -9,23 +9,27 @@ const SIGN_IN_BALANCE = 1000;
 router.post("/register", async (req, res, next) => {
   try {
     const username = String(req.body.username || "").trim();
-    const email = String(req.body.email || "").trim().toLowerCase();
     const password = String(req.body.password || "");
 
-    if (!username || !email || !password) {
-      throw createError("Username, email, and password are required.");
+    if (!username || !password) {
+      throw createError("Username and password are required.");
     }
 
-    if (findUserByEmail(email)) {
-      throw createError("An account with that email already exists.", 409);
+    if (findUserByUsername(username)) {
+      throw createError("That username is already taken.", 409);
     }
 
     const user = {
       id: nextUserId(),
       username,
-      email,
+      email: "",
       passwordHash: await hashPassword(password),
       balance: SIGN_IN_BALANCE,
+      stats: {
+        winStreak: 0,
+        totalWagered: 0,
+        biggestWin: 0
+      },
       clientSeed: "donutdrop-default",
       nonce: 0
     };
@@ -36,7 +40,10 @@ router.post("/register", async (req, res, next) => {
     const token = signSession(user.id);
 
     return res.status(201).json({
+      success: true,
       token,
+      username: user.username,
+      balance: user.balance,
       user: sanitizeUser(user)
     });
   } catch (error) {
@@ -54,13 +61,14 @@ router.post("/login", async (req, res, next) => {
       throw createError("Invalid username or password.", 401);
     }
 
-    user.balance = SIGN_IN_BALANCE;
+    const token = signSession(user.id);
     await persistUsers();
 
-    const token = signSession(user.id);
-
     return res.json({
+      success: true,
       token,
+      username: user.username,
+      balance: user.balance,
       user: sanitizeUser(user)
     });
   } catch (error) {

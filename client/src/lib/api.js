@@ -223,5 +223,22 @@ export const api = {
         body: JSON.stringify(payload)
       },
       token
+    ),
+  getRain: (token) => request("/rain", {}, token),
+  startRain: (token) =>
+    request(
+      "/rain/start",
+      {
+        method: "POST"
+      },
+      token
+    ),
+  joinRain: (token) =>
+    request(
+      "/rain/join",
+      {
+        method: "POST"
+      },
+      token
     )
 };

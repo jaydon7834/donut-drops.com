@@ -120,7 +120,6 @@ router.post("/spin", async (req, res, next) => {
         provablyFair: {
           hash,
           serverSeedHash: fair.serverSeedHash,
-          serverSeed: fair.serverSeed,
           clientSeed: fair.clientSeed,
           nonce: fair.nonce
         }

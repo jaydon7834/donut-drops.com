@@ -51,10 +51,13 @@ export function LimboGame({ token, user, onBalanceChange, onBack }) {
     setRolling(true);
     setFeedback("");
     setResult(null);
+    setMultiplier("1.00");
 
+    let current = 1;
     rollingIntervalRef.current = window.setInterval(() => {
-      setMultiplier((Math.random() * 5 + 1).toFixed(2));
-    }, 50);
+      current += 0.1;
+      setMultiplier(current.toFixed(2));
+    }, 20);
 
     try {
       const data = await api.rollLimbo(token, {
@@ -167,16 +170,41 @@ export function LimboGame({ token, user, onBalanceChange, onBack }) {
         </div>
       </div>
 
-      <div className="min-w-0 flex-1 rounded-2xl bg-[#0b0f1a] p-6 shadow-[0_0_40px_rgba(34,197,94,0.12)]">
+      <div
+        className={`min-w-0 flex-1 rounded-2xl bg-[#0b0f1a] p-6 transition ${
+          result === "win"
+            ? "shadow-[0_0_50px_rgba(34,197,94,0.22)]"
+            : result === "lose"
+            ? "shadow-[0_0_50px_rgba(244,63,94,0.18)]"
+            : "shadow-[0_0_40px_rgba(34,197,94,0.12)]"
+        }`}
+      >
         <div className="flex h-full w-full flex-col items-center justify-center overflow-hidden">
           <div className="text-gray-400 mb-4">ROLLED MULTIPLIER</div>
 
           <motion.div
             key={multiplier ?? "idle"}
             initial={{ scale: 0.92, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
+            animate={{
+              scale: 1,
+              opacity: 1,
+              boxShadow:
+                result === "win"
+                  ? [
+                      "0 0 0 rgba(34,197,94,0)",
+                      "0 0 30px rgba(34,197,94,0.35)",
+                      "0 0 0 rgba(34,197,94,0)"
+                    ]
+                  : result === "lose"
+                  ? [
+                      "0 0 0 rgba(244,63,94,0)",
+                      "0 0 24px rgba(244,63,94,0.28)",
+                      "0 0 0 rgba(244,63,94,0)"
+                    ]
+                  : "0 0 0 rgba(255,255,255,0)"
+            }}
             transition={{ duration: 0.25 }}
-            className={`text-7xl font-bold ${
+            className={`rounded-3xl px-8 py-5 text-7xl font-bold ${
               result === "win" ? "text-green-400" : result === "lose" ? "text-red-400" : "text-white"
             }`}
           >

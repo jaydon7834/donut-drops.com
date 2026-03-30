@@ -32,7 +32,7 @@ function calculateMultiplier(mines, picks) {
 function Tile({ state, onClick, disabled, shake }) {
   return (
     <motion.div
-      whileHover={{ scale: disabled ? 1 : 1.05 }}
+      whileHover={{ scale: disabled ? 1 : 1.1, y: disabled ? 0 : -2 }}
       whileTap={{ scale: disabled ? 1 : 0.94 }}
       animate={shake ? { x: [0, -2, 2, -2, 2, 0] } : { rotateY: state !== "hidden" ? 180 : 0 }}
       transition={{ duration: 0.35 }}
@@ -337,7 +337,16 @@ export function MinesGame({ token, user, onBalanceChange }) {
               {tiles.map((tile) => {
                 const isRevealed = revealedTiles.includes(tile);
                 const isMine = minePositions.includes(tile);
-                const state = isMine ? "mine" : isRevealed ? "safe" : "hidden";
+                const state =
+                  settledGame && !activeGame
+                    ? isMine
+                      ? "mine"
+                      : "safe"
+                    : isMine
+                    ? "mine"
+                    : isRevealed
+                    ? "safe"
+                    : "hidden";
 
                 return (
                   <Tile
@@ -364,7 +373,14 @@ export function MinesGame({ token, user, onBalanceChange }) {
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
             <p className="text-sm text-white/45">Current Multiplier</p>
-            <p className="mt-2 text-2xl font-black text-white">{currentMultiplier.toFixed(4)}x</p>
+            <motion.p
+              key={currentMultiplier}
+              initial={{ opacity: 0.6, y: 8, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              className="mt-2 text-2xl font-black text-white"
+            >
+              {currentMultiplier.toFixed(4)}x
+            </motion.p>
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
             <p className="text-sm text-white/45">Payout Preview</p>
@@ -400,15 +416,25 @@ export function MinesGame({ token, user, onBalanceChange }) {
         </div>
 
         {feedback.text && (
-          <div className={`mt-4 rounded-2xl px-4 py-3 text-sm ${
+          <motion.div
+            key={feedback.text}
+            initial={{ opacity: 0, y: 10, scale: 0.98 }}
+            animate={{
+              opacity: 1,
+              y: 0,
+              scale: 1,
+              x: feedback.tone === "loss" ? [0, -4, 4, -3, 0] : 0
+            }}
+            className={`mt-4 rounded-2xl px-4 py-3 text-sm ${
             feedback.tone === "loss"
               ? "bg-rose-500/10 text-rose-300"
               : feedback.tone === "win"
               ? "bg-emerald-500/10 text-emerald-300"
               : "bg-white/5 text-white/70"
-          }`}>
+          }`}
+          >
             {feedback.text}
-          </div>
+          </motion.div>
         )}
       </div>
     </div>

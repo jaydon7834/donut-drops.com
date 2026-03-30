@@ -1,38 +1,11 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
-import { nextGameId, persistUsers, pushRecentGame, store } from "../state/store.js";
+import { nextGameId, persistUsers, pushRecentGame, recordHouseStats, store } from "../state/store.js";
 import { createFairContext, generateMinesPositions } from "../utils/provablyFair.js";
 import { createError, ensureIntegerInRange, ensurePositiveBet } from "../utils/helpers.js";
+import { calculateMinesMultiplier } from "../utils/gameMath.js";
 
 const router = Router();
-
-function combination(n, k) {
-  if (k > n) {
-    return 0;
-  }
-
-  if (k === 0 || k === n) {
-    return 1;
-  }
-
-  let result = 1;
-
-  for (let i = 1; i <= k; i += 1) {
-    result = (result * (n - (k - i))) / i;
-  }
-
-  return result;
-}
-
-function calculateMultiplier(mines, picks) {
-  const totalTiles = 25;
-  const houseEdge = 0.99;
-  const numerator = combination(totalTiles, picks);
-  const denominator = combination(totalTiles - mines, picks);
-  const multiplier = (numerator / denominator) * houseEdge;
-
-  return Number(multiplier.toFixed(4));
-}
 
 function sanitizeGame(game) {
   return {
@@ -142,6 +115,7 @@ router.post("/click", (req, res, next) => {
 
     if (game.minePositions.includes(tileIndex)) {
       game.active = false;
+      recordHouseStats("mines", game.bet, 0);
 
       pushRecentGame({
         _id: game.gameId,
@@ -163,7 +137,10 @@ router.post("/click", (req, res, next) => {
       });
     }
 
-    game.multiplier = calculateMultiplier(game.minePositions.length, game.revealedTiles.length);
+    game.multiplier = calculateMinesMultiplier(
+      game.minePositions.length,
+      game.revealedTiles.length
+    );
     const payoutPreview = Number((game.bet * game.multiplier).toFixed(2));
 
     return res.json({
@@ -195,6 +172,7 @@ router.post("/cashout", async (req, res, next) => {
     req.user.balance = Number((req.user.balance + payout).toFixed(2));
     game.active = false;
     game.actionNonce += 1;
+    recordHouseStats("mines", game.bet, payout);
 
     pushRecentGame({
       _id: game.gameId,

@@ -1,10 +1,16 @@
 export function Sidebar({ user, recentGames, clientSeed, setClientSeed, onSaveSeed, savingSeed }) {
+  const stats = {
+    winStreak: user.stats?.winStreak || 0,
+    totalWagered: user.stats?.totalWagered || 0,
+    biggestWin: user.stats?.biggestWin || 0
+  };
+
   return (
     <aside className="space-y-5">
       <section className="glass-panel rounded-3xl p-5">
         <p className="text-xs uppercase tracking-[0.3em] text-white/45">Profile</p>
         <h2 className="mt-2 text-2xl font-semibold text-white">{user.username}</h2>
-        <p className="text-sm text-white/60">{user.email}</p>
+        <p className="text-sm text-white/60">{user.email || "Ready to run it back"}</p>
         <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
           <div className="rounded-2xl bg-white/5 p-4">
             <p className="text-white/45">Balance</p>
@@ -13,6 +19,22 @@ export function Sidebar({ user, recentGames, clientSeed, setClientSeed, onSaveSe
           <div className="rounded-2xl bg-white/5 p-4">
             <p className="text-white/45">Nonce</p>
             <p className="mt-2 text-lg font-semibold text-white">{user.nonce}</p>
+          </div>
+        </div>
+        <div className="mt-4 rounded-2xl bg-slate-950/60 p-4">
+          <div className="grid gap-3 text-sm text-white/80">
+            <div className="flex items-center justify-between rounded-xl bg-white/5 px-3 py-2">
+              <span>🔥 Streak</span>
+              <span className="font-semibold text-orange-300">{stats.winStreak}</span>
+            </div>
+            <div className="flex items-center justify-between rounded-xl bg-white/5 px-3 py-2">
+              <span>💰 Wagered</span>
+              <span className="font-semibold text-emerald-300">${stats.totalWagered.toFixed(2)}</span>
+            </div>
+            <div className="flex items-center justify-between rounded-xl bg-white/5 px-3 py-2">
+              <span>🎯 Biggest Win</span>
+              <span className="font-semibold text-sky-300">${stats.biggestWin.toFixed(2)}</span>
+            </div>
           </div>
         </div>
       </section>

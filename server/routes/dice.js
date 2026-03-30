@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
-import { nextGameId, persistUsers, pushRecentGame, store } from "../state/store.js";
+import { nextGameId, persistUsers, pushRecentGame, recordHouseStats, store } from "../state/store.js";
 import { createFairContext, generateDiceResult } from "../utils/provablyFair.js";
 import { createError, ensurePositiveBet } from "../utils/helpers.js";
+import { calculateDiceMultiplier } from "../utils/gameMath.js";
 
 const router = Router();
 
@@ -22,8 +23,7 @@ router.post("/roll", async (req, res, next) => {
     const fair = createFairContext(req.user, clientSeed);
     const result = generateDiceResult(fair);
     const isWin = over ? result.roll > target : result.roll < target;
-    const chance = over ? 100 - target : target;
-    const multiplier = Number((99 / chance).toFixed(2));
+    const multiplier = calculateDiceMultiplier(target, over);
     const payout = isWin ? Number((bet * multiplier).toFixed(2)) : 0;
     const gameId = nextGameId("dice");
 
@@ -59,6 +59,7 @@ router.post("/roll", async (req, res, next) => {
       profit: Number((payout - bet).toFixed(2)),
       status: isWin ? "won" : "lost"
     });
+    recordHouseStats("dice", bet, payout);
     await persistUsers();
 
     return res.status(201).json({
@@ -77,7 +78,6 @@ router.post("/roll", async (req, res, next) => {
         provablyFair: {
           hash: result.hash,
           serverSeedHash: fair.serverSeedHash,
-          serverSeed: fair.serverSeed,
           clientSeed: fair.clientSeed,
           nonce: fair.nonce
         }

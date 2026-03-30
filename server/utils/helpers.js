@@ -9,6 +9,11 @@ export function sanitizeUser(user) {
     username: user.username,
     email: user.email,
     balance: user.balance,
+    stats: {
+      winStreak: user.stats?.winStreak || 0,
+      totalWagered: user.stats?.totalWagered || 0,
+      biggestWin: user.stats?.biggestWin || 0
+    },
     minecraftUsername: user.minecraftUsername || "",
     clientSeed: user.clientSeed,
     nonce: user.nonce

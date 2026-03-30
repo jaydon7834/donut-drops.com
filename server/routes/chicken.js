@@ -1,20 +1,15 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
-import { nextGameId, persistUsers, pushRecentGame, store } from "../state/store.js";
+import { nextGameId, persistUsers, pushRecentGame, recordHouseStats, store } from "../state/store.js";
 import { createError, ensurePositiveBet } from "../utils/helpers.js";
+import { calculateChickenMultiplier } from "../utils/gameMath.js";
 
 const router = Router();
-const HOUSE_EDGE = 0.97;
 const RISK_MODES = {
   low: 0.8,
   medium: 0.75,
   high: 0.7
 };
-
-function chickenMultiplier(step, surviveChance) {
-  const multiplier = Math.pow(1 / surviveChance, step) * HOUSE_EDGE;
-  return Number(Math.min(multiplier, 100).toFixed(2));
-}
 
 router.use(authMiddleware);
 
@@ -78,6 +73,7 @@ router.post("/step", (req, res, next) => {
 
     if (Math.random() > game.surviveChance) {
       game.active = false;
+      recordHouseStats("chicken", game.bet, 0);
 
       pushRecentGame({
         _id: game.gameId,
@@ -99,7 +95,7 @@ router.post("/step", (req, res, next) => {
     }
 
     game.step += 1;
-    game.multiplier = chickenMultiplier(game.step, game.surviveChance);
+    game.multiplier = calculateChickenMultiplier(game.step, game.surviveChance);
 
     return res.json({
       balance: req.user.balance,
@@ -129,6 +125,7 @@ router.post("/cashout", async (req, res, next) => {
     const payout = Number((game.bet * game.multiplier).toFixed(2));
     req.user.balance = Number((req.user.balance + payout).toFixed(2));
     game.active = false;
+    recordHouseStats("chicken", game.bet, payout);
 
     pushRecentGame({
       _id: game.gameId,

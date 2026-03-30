@@ -1,25 +1,11 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
-import { nextGameId, persistUsers, pushRecentGame, store } from "../state/store.js";
+import { nextGameId, persistUsers, pushRecentGame, recordHouseStats, store } from "../state/store.js";
 import { createFairContext, hashToFloat } from "../utils/provablyFair.js";
 import { createError, ensurePositiveBet } from "../utils/helpers.js";
+import { calculateLimboResultFromHash } from "../utils/gameMath.js";
 
 const router = Router();
-const HOUSE_EDGE = 0.99;
-
-function calculateLimboMultiplier(hash) {
-  const int = parseInt(hash.substring(0, 13), 16);
-  const max = 2 ** 52;
-
-  if (int >= max - 1) {
-    return 1;
-  }
-
-  const raw = Math.floor((100 * max) / (max - int)) / 100;
-  const adjusted = Math.max(1, raw * HOUSE_EDGE);
-
-  return Number(adjusted.toFixed(2));
-}
 
 router.use(authMiddleware);
 
@@ -34,7 +20,7 @@ router.post("/roll", async (req, res, next) => {
 
     const fair = createFairContext(req.user, req.body.clientSeed);
     const { hash } = hashToFloat(fair.serverSeed, fair.clientSeed, fair.nonce);
-    const rolledMultiplier = calculateLimboMultiplier(hash);
+    const rolledMultiplier = calculateLimboResultFromHash(hash);
 
     const win = rolledMultiplier >= target;
     const payout = win ? Number((bet * target).toFixed(2)) : 0;
@@ -71,6 +57,7 @@ router.post("/roll", async (req, res, next) => {
       profit: Number((payout - bet).toFixed(2)),
       status: win ? "won" : "lost"
     });
+    recordHouseStats("limbo", bet, payout);
 
     await persistUsers();
 
@@ -86,7 +73,6 @@ router.post("/roll", async (req, res, next) => {
         provablyFair: {
           hash,
           serverSeedHash: fair.serverSeedHash,
-          serverSeed: fair.serverSeed,
           clientSeed: fair.clientSeed,
           nonce: fair.nonce
         }

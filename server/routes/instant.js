@@ -141,7 +141,6 @@ router.post("/play", async (req, res, next) => {
         provablyFair: {
           hash: fairness.hash,
           serverSeedHash: fair.serverSeedHash,
-          serverSeed: fair.serverSeed,
           clientSeed: fair.clientSeed,
           nonce: fair.nonce
         }

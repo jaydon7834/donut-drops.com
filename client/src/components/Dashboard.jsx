@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext.jsx";
 import { MinesGame } from "./MinesGame.jsx";
 import { DiceGame } from "./DiceGame.jsx";
@@ -14,6 +14,7 @@ import { GameCard } from "./GameCard.jsx";
 import { WalletDisplay } from "./WalletDisplay.jsx";
 import { api } from "../lib/api.js";
 import { parseBetInput } from "../lib/betting.js";
+import { createAppSocket } from "../lib/socket.js";
 
 const topNavItems = ["Fairness", "Affiliate", "Bonus", "Leaderboard", "Profile", "Store"];
 
@@ -56,6 +57,21 @@ function buildProfitPath(recentGames, startingBalance) {
     .join(" ");
 }
 
+function calculateWinStreak(recentGames) {
+  let streak = 0;
+
+  for (const game of recentGames) {
+    if (game.profit > 0) {
+      streak += 1;
+      continue;
+    }
+
+    break;
+  }
+
+  return streak;
+}
+
 export function Dashboard() {
   const {
     token,
@@ -82,6 +98,7 @@ export function Dashboard() {
   const [tipping, setTipping] = useState(false);
   const [trackerOpen, setTrackerOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [walletStep, setWalletStep] = useState("wallet");
   const [walletTab, setWalletTab] = useState("deposit");
   const [minecraftUsername, setMinecraftUsername] = useState(user?.username || "");
@@ -94,6 +111,11 @@ export function Dashboard() {
   const [cryptoOrder, setCryptoOrder] = useState(null);
   const [cryptoTxHash, setCryptoTxHash] = useState("");
   const [cryptoUsdInput, setCryptoUsdInput] = useState("5.00");
+  const [onlineCount, setOnlineCount] = useState(0);
+  const [rain, setRain] = useState({ active: false, amount: 0, participants: 0, endTime: 0 });
+  const [rainMessage, setRainMessage] = useState("");
+  const [joiningRain, setJoiningRain] = useState(false);
+  const [startingRain, setStartingRain] = useState(false);
   const availableCryptoAssets = cryptoAssets.length ? cryptoAssets : FALLBACK_CRYPTO_ASSETS;
   const selectedCryptoAsset =
     availableCryptoAssets.find((asset) => asset.symbol === selectedCrypto) || availableCryptoAssets[0];
@@ -101,6 +123,72 @@ export function Dashboard() {
   useEffect(() => {
     setClientSeed(user?.clientSeed || "");
   }, [user?.clientSeed]);
+
+  useEffect(() => {
+    let ignore = false;
+
+    api.getRain(token)
+      .then((data) => {
+        if (!ignore && data?.rain) {
+          setRain(data.rain);
+        }
+      })
+      .catch(() => {});
+
+    const socket = createAppSocket(user);
+
+    socket.on("online:update", (data) => {
+      setOnlineCount(Number(data?.count || 0));
+    });
+
+    socket.on("rain:start", (data) => {
+      setRain({
+        active: true,
+        amount: Number(data.amount || 0),
+        endTime: Number(data.endTime || 0),
+        participants: 0
+      });
+      setRainMessage("Rain started. Join before it ends.");
+    });
+
+    socket.on("rain:update", (data) => {
+      setRain((current) => ({
+        ...current,
+        participants: Number(data?.count || 0)
+      }));
+    });
+
+    socket.on("rain:end", () => {
+      setRain({ active: false, amount: 0, participants: 0, endTime: 0 });
+      setRainMessage("Rain ended.");
+    });
+
+    socket.on("chat:message", (payload) => {
+      if (payload?.type === "chat" && payload.message?.id) {
+        setChatMessages((current) => {
+          const next = [...current.filter((entry) => entry.id !== payload.message.id), payload.message];
+          return next.slice(-60);
+        });
+      }
+
+      if (payload?.type === "rain" && payload.message) {
+        setChatMessages((current) => {
+          const eventMessage = {
+            id: `rain_${Date.now()}`,
+            username: "system",
+            text: payload.message,
+            createdAt: new Date().toISOString()
+          };
+          return [...current, eventMessage].slice(-60);
+        });
+      }
+    });
+
+    return () => {
+      ignore = true;
+      socket.disconnect();
+    };
+  }, [token, user]);
 
   useEffect(() => {
     setMinecraftUsername(user?.minecraftUsername || user?.username || "");
@@ -317,12 +405,48 @@ export function Dashboard() {
     }
   }
 
+  async function handleJoinRain() {
+    setJoiningRain(true);
+    setRainMessage("");
+
+    try {
+      const data = await api.joinRain(token);
+      setRain(data.rain);
+      setRainMessage("You joined the rain.");
+    } catch (error) {
+      setRainMessage(error.message);
+    } finally {
+      setJoiningRain(false);
+    }
+  }
+
+  async function handleStartRain() {
+    setStartingRain(true);
+    setRainMessage("");
+
+    try {
+      const data = await api.startRain(token);
+      setRain(data.rain);
+      setRainMessage("Rain launched live.");
+    } catch (error) {
+      setRainMessage(error.message);
+    } finally {
+      setStartingRain(false);
+    }
+  }
+
   const totalProfit = recentGames.reduce((sum, game) => sum + game.profit, 0);
-  const totalWagered = recentGames.reduce((sum, game) => sum + game.betAmount, 0);
+  const totalWagered = user.stats?.totalWagered ?? recentGames.reduce((sum, game) => sum + game.betAmount, 0);
   const gamesPlayed = recentGames.length;
   const winCount = recentGames.filter((game) => game.profit > 0).length;
-  const biggestWin = recentGames.reduce((max, game) => Math.max(max, game.profit), 0);
+  const biggestWin = user.stats?.biggestWin ?? recentGames.reduce((max, game) => Math.max(max, game.profit), 0);
+  const winStreak = user.stats?.winStreak ?? calculateWinStreak(recentGames);
   const winRate = gamesPlayed ? ((winCount / gamesPlayed) * 100).toFixed(1) : "0.0";
+  const profileStats = [
+    { label: "🔥 Streak", value: String(winStreak), tone: "text-orange-300" },
+    { label: "💰 Wagered", value: formatMoney(totalWagered), tone: "text-emerald-300" },
+    { label: "🎯 Biggest Win", value: formatMoney(biggestWin), tone: "text-sky-300" }
+  ];
   const trackerPath = buildProfitPath(recentGames, user.balance || 1000);
   const activeTimeoutSeconds = Math.max(0, Math.ceil((chatTimeoutUntil - Date.now()) / 1000));
   const timeoutLabel = useMemo(() => {
@@ -1099,6 +1223,21 @@ export function Dashboard() {
             </div>
 
             <div className="mt-8">
+              <div className="mb-5 grid gap-4 md:grid-cols-3">
+                {[
+                  { label: "Win Streak", value: String(winStreak), accent: "text-orange-300", icon: "🔥" },
+                  { label: "Total Wagered", value: formatMoney(totalWagered), accent: "text-emerald-300", icon: "💰" },
+                  { label: "Biggest Win", value: formatMoney(biggestWin), accent: "text-sky-300", icon: "🎯" }
+                ].map((card) => (
+                  <div key={card.label} className="rounded-[1.3rem] border border-white/6 bg-[#11121a] p-5">
+                    <p className="text-xs uppercase tracking-[0.2em] text-white/45">
+                      {card.icon} {card.label}
+                    </p>
+                    <p className={`mt-3 text-3xl font-black ${card.accent}`}>{card.value}</p>
+                  </div>
+                ))}
+              </div>
+
               <div className="flex items-center justify-between text-sm text-white/60">
                 <span>Progress to Level 2</span>
                 <span>${Math.max(500 - totalWagered, 0).toFixed(2)} remaining</span>
@@ -1548,12 +1687,57 @@ export function Dashboard() {
               >
                 Wallet
               </button>
-              <button
-                type="button"
-                className="rounded-2xl bg-white/5 px-5 py-4 font-medium text-white"
-              >
-                {user.username}
-              </button>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setProfileMenuOpen((current) => !current)}
+                  className="rounded-2xl bg-white/5 px-5 py-4 font-medium text-white transition hover:bg-white/10"
+                >
+                  {user.username}
+                </button>
+                <AnimatePresence>
+                  {profileMenuOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                      transition={{ duration: 0.18 }}
+                      className="absolute right-0 top-[calc(100%+0.75rem)] z-30 w-72 rounded-[1.6rem] border border-white/10 bg-[#0f172a]/95 p-4 shadow-[0_30px_80px_rgba(15,23,42,0.55)] backdrop-blur-xl"
+                    >
+                      <p className="text-xs uppercase tracking-[0.28em] text-white/40">Player Profile</p>
+                      <p className="mt-3 text-xl font-semibold text-white">{user.username}</p>
+                      <div className="mt-4 space-y-2">
+                        {profileStats.map((item) => (
+                          <div key={item.label} className="flex items-center justify-between rounded-2xl bg-white/5 px-4 py-3 text-sm">
+                            <span className="text-white/72">{item.label}</span>
+                            <span className={`font-semibold ${item.tone}`}>{item.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-4 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
+                            setActiveTopTab("profile");
+                            setActiveView("lobby");
+                          }}
+                          className="flex-1 rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
+                        >
+                          Open Profile
+                        </button>
+                        <button
+                          type="button"
+                          onClick={logout}
+                          className="rounded-2xl border border-white/10 px-4 py-3 text-sm text-white/75 transition hover:border-white/25 hover:text-white"
+                        >
+                          Logout
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
               <a
                 href="https://discord.gg/nr3edCRG"
                 target="_blank"
@@ -1611,8 +1795,36 @@ export function Dashboard() {
           <p className="font-semibold text-white">Chat</p>
           <p className="text-sm text-white/55">
             <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-emerald-400" />
-            42 online
+            {onlineCount || 0} online
           </p>
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-sky-400/15 bg-sky-500/10 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.26em] text-sky-100/65">Rain Controls</p>
+              <p className="mt-2 text-sm text-white/72">
+                {rain.active
+                  ? `Live pool ${Number(rain.amount || 0).toLocaleString()} with ${rain.participants} joined`
+                  : "Kick off a live rain event for everyone online."}
+              </p>
+            </div>
+            {rain.canStart ? (
+              <button
+                type="button"
+                onClick={handleStartRain}
+                disabled={startingRain || rain.active}
+                className="rounded-2xl bg-sky-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-300 disabled:opacity-50"
+              >
+                {startingRain ? "Starting..." : "Start Rain"}
+              </button>
+            ) : (
+              <div className="rounded-2xl bg-white/5 px-3 py-2 text-[11px] uppercase tracking-[0.24em] text-white/45">
+                Player View
+              </div>
+            )}
+          </div>
+          {rainMessage && <p className="mt-3 text-xs text-sky-100/75">{rainMessage}</p>}
         </div>
 
         <div className="mt-4 rounded-2xl bg-white/5 p-4">
@@ -1692,6 +1904,29 @@ export function Dashboard() {
           </button>
         </div>
       </aside>
+
+      <AnimatePresence>
+        {rain.active && (
+          <motion.div
+            initial={{ opacity: 0, y: 24, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 18, scale: 0.98 }}
+            className="fixed bottom-6 left-1/2 z-40 w-[min(92vw,320px)] -translate-x-1/2 rounded-[1.6rem] border border-sky-300/20 bg-sky-500/90 px-4 py-4 text-slate-950 shadow-[0_24px_80px_rgba(14,165,233,0.38)] backdrop-blur-xl"
+          >
+            <p className="text-center text-[11px] font-bold uppercase tracking-[0.26em]">Rain Live</p>
+            <p className="mt-1 text-center text-sm font-semibold">Live pool {Number(rain.amount || 0).toLocaleString()}</p>
+            <p className="mt-1 text-center text-xs font-medium">In chat: {rain.participants} joined</p>
+            <button
+              type="button"
+              onClick={handleJoinRain}
+              disabled={joiningRain}
+              className="mt-4 w-full rounded-2xl bg-white px-4 py-3 text-sm font-bold text-slate-950 transition hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60"
+            >
+              {joiningRain ? "Joining..." : "Join Rain"}
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

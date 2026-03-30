@@ -1,3 +1,4 @@
+import http from "http";
 import express from "express";
 import cors from "cors";
 import authRoutes from "./routes/auth.js";
@@ -12,13 +13,17 @@ import limboRoutes from "./routes/limbo.js";
 import plinkoRoutes from "./routes/plinko.js";
 import instantRoutes from "./routes/instant.js";
 import chatRoutes from "./routes/chat.js";
+import rainRoutes from "./routes/rain.js";
 import { initializeStore, USERS_FILE } from "./state/store.js";
 import { createRateLimiter } from "./middleware/rateLimit.js";
+import { processingLock } from "./middleware/processingLock.js";
+import { initializeSocket } from "./socket.js";
 
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 4000;
 const authLimiter = createRateLimiter({ windowMs: 60 * 1000, maxHits: 30, keyPrefix: "auth" });
-const gameLimiter = createRateLimiter({ windowMs: 10 * 1000, maxHits: 50, keyPrefix: "game" });
+const gameLimiter = createRateLimiter({ windowMs: 1000, maxHits: 5, keyPrefix: "game" });
 
 app.use(
   cors({
@@ -39,15 +44,16 @@ app.get("/health", (req, res) => {
 app.use("/auth", authLimiter, authRoutes);
 app.use("/user", userRoutes);
 app.use("/wallet", walletRoutes);
-app.use("/game/mines", gameLimiter, minesRoutes);
-app.use("/game/dice", gameLimiter, diceRoutes);
-app.use("/game/blackjack", gameLimiter, blackjackRoutes);
-app.use("/game/chicken", gameLimiter, chickenRoutes);
-app.use("/game/roulette", gameLimiter, rouletteRoutes);
-app.use("/game/limbo", gameLimiter, limboRoutes);
-app.use("/game/plinko", gameLimiter, plinkoRoutes);
-app.use("/game/instant", gameLimiter, instantRoutes);
+app.use("/game/mines", gameLimiter, processingLock, minesRoutes);
+app.use("/game/dice", gameLimiter, processingLock, diceRoutes);
+app.use("/game/blackjack", gameLimiter, processingLock, blackjackRoutes);
+app.use("/game/chicken", gameLimiter, processingLock, chickenRoutes);
+app.use("/game/roulette", gameLimiter, processingLock, rouletteRoutes);
+app.use("/game/limbo", gameLimiter, processingLock, limboRoutes);
+app.use("/game/plinko", gameLimiter, processingLock, plinkoRoutes);
+app.use("/game/instant", gameLimiter, processingLock, instantRoutes);
 app.use("/chat", chatRoutes);
+app.use("/rain", rainRoutes);
 
 app.use((error, req, res, next) => {
   console.error(error);
@@ -63,8 +69,9 @@ app.use((error, req, res, next) => {
 
 initializeStore()
   .then(() => {
+    initializeSocket(server);
     console.log(`DonutDrop users file: ${USERS_FILE}`);
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       console.log(`DonutDrop API running on http://localhost:${PORT}`);
     });
   })

@@ -73,6 +73,7 @@ export function RouletteGame({ token, user, onBalanceChange, onBack }) {
   const [result, setResult] = useState(null);
   const [feedback, setFeedback] = useState("");
   const [loading, setLoading] = useState(false);
+  const SPIN_SETTLE_MS = 3000;
 
   const selectedNumbers = useMemo(() => {
     if (betType !== "number") {
@@ -99,6 +100,7 @@ export function RouletteGame({ token, user, onBalanceChange, onBack }) {
   async function handleSpin() {
     setLoading(true);
     setFeedback("");
+    let delayedSettle = false;
 
     try {
       const data = await api.spinRoulette(token, {
@@ -112,17 +114,26 @@ export function RouletteGame({ token, user, onBalanceChange, onBack }) {
       const finalAngle = 360 * 5 - data.game.index * pocketAngle;
 
       setSpin((current) => current + finalAngle + 360);
-      setResult(data.game);
-      onBalanceChange(data.balance);
-      setFeedback(
-        data.game.win
-          ? `Landed on ${data.game.number} ${data.game.color}. You won $${data.game.payout.toFixed(2)}.`
-          : `Landed on ${data.game.number} ${data.game.color}. Better luck next spin.`
-      );
+      delayedSettle = true;
+      window.setTimeout(() => {
+        setResult(data.game);
+        onBalanceChange(data.balance);
+        setFeedback(
+          data.game.win
+            ? `Landed on ${data.game.number} ${data.game.color}. You won $${data.game.payout.toFixed(2)}.`
+            : `Landed on ${data.game.number} ${data.game.color}. Better luck next spin.`
+        );
+      }, SPIN_SETTLE_MS);
     } catch (error) {
       setFeedback(error.message);
     } finally {
-      setLoading(false);
+      if (delayedSettle) {
+        window.setTimeout(() => {
+          setLoading(false);
+        }, SPIN_SETTLE_MS);
+      } else {
+        setLoading(false);
+      }
     }
   }
 

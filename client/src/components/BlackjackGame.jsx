@@ -3,6 +3,8 @@ import { motion } from "framer-motion";
 import { api } from "../lib/api.js";
 import { formatBetInput, parseBetInput } from "../lib/betting.js";
 
+const CHIP_VALUES = [10, 25, 100, 500];
+
 function Card({ card }) {
   if (card?.hidden) {
     return <div className="h-24 w-16 rounded-lg bg-slate-700 shadow-lg" />;
@@ -94,6 +96,7 @@ export function BlackjackGame({ token, onBalanceChange, onBack }) {
     setLoading(true);
 
     try {
+      await new Promise((resolve) => window.setTimeout(resolve, 650));
       const data = await api.standBlackjack(token, { gameId: game.gameId });
       setGame(data.game);
       onBalanceChange(data.balance);
@@ -134,6 +137,26 @@ export function BlackjackGame({ token, onBalanceChange, onBack }) {
                   2x
                 </button>
               </div>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-sm text-gray-400">Quick Chips</p>
+            <div className="mt-2 grid grid-cols-4 gap-2">
+              {CHIP_VALUES.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => {
+                    setBetAmount(value);
+                    setBetInput(formatBetInput(value));
+                  }}
+                  disabled={Boolean(game?.active)}
+                  className="rounded-full border border-white/10 bg-white/5 px-2 py-3 text-xs font-bold text-white transition hover:bg-white/10 disabled:opacity-50"
+                >
+                  ${value}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -185,7 +208,16 @@ export function BlackjackGame({ token, onBalanceChange, onBack }) {
             Back To Lobby
           </button>
 
-          {feedback && <p className="text-sm text-white/70">{feedback}</p>}
+          {feedback && (
+            <motion.p
+              key={feedback}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0, x: feedback.includes("wins") || feedback.includes("Bust") ? [0, -3, 3, 0] : 0 }}
+              className="text-sm text-white/70"
+            >
+              {feedback}
+            </motion.p>
+          )}
         </div>
       </div>
 

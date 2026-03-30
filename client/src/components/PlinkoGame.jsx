@@ -116,7 +116,8 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
         const nextBall = {
           id: ballId,
           frames: buildKeyframes(data.game.path || [], rows),
-          bucketIndex: data.game.bucketIndex
+          bucketIndex: data.game.bucketIndex,
+          risk
         };
 
         setActiveBalls((current) => [...current, nextBall]);
@@ -387,24 +388,42 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
             </div>
 
             {activeBalls.map((ball) => (
-              <motion.div
-                key={ball.id}
-                initial={{ x: 0, y: 0 }}
-                animate={ball.frames}
-                transition={{ duration: 1.5, ease: "easeInOut" }}
-                className="absolute left-1/2 top-4 h-4 w-4 -translate-x-1/2 rounded-full bg-green-400 shadow-[0_0_24px_rgba(74,222,128,0.8)] xl:top-5 xl:h-4 xl:w-4"
-              />
+              <div key={ball.id}>
+                <motion.div
+                  initial={{ x: 0, y: 0, opacity: 0.6 }}
+                  animate={ball.frames.map((frame) => ({ ...frame, opacity: 0.15 }))}
+                  transition={{ duration: 1.45, ease: "easeInOut" }}
+                  className={`absolute left-1/2 top-4 h-3 w-3 -translate-x-1/2 rounded-full blur-sm xl:top-5 ${
+                    ball.risk === "high"
+                      ? "bg-red-400"
+                      : ball.risk === "low"
+                      ? "bg-green-300"
+                      : "bg-yellow-300"
+                  }`}
+                />
+                <motion.div
+                  initial={{ x: 0, y: 0, scale: 0.9 }}
+                  animate={ball.frames.map((frame, index) => ({
+                    ...frame,
+                    scale: index === ball.frames.length - 1 ? 1.15 : index % 2 === 0 ? 1.04 : 0.96
+                  }))}
+                  transition={{ duration: 1.5, ease: "easeInOut" }}
+                  className="absolute left-1/2 top-4 h-4 w-4 -translate-x-1/2 rounded-full bg-green-400 shadow-[0_0_24px_rgba(74,222,128,0.8)] xl:top-5 xl:h-4 xl:w-4"
+                />
+              </div>
             ))}
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-9">
+        <div className="mt-4 grid grid-cols-2 gap-1.5 sm:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-9">
           {multipliers.map((multiplier, index) => (
-            <div
+            <motion.div
               key={index}
-              className={`rounded-xl px-2 py-2 text-center text-sm font-bold ${
+              animate={result?.bucketIndex === index ? { scale: [1, 1.1, 1.04], y: [0, -6, 0] } : { scale: 1, y: 0 }}
+              transition={{ duration: 0.35 }}
+              className={`rounded-lg px-1.5 py-1 text-center text-[10px] font-bold leading-none sm:text-[11px] ${
                 result?.bucketIndex === index
-                  ? "bg-green-500 text-slate-950 shadow-[0_0_24px_rgba(34,197,94,0.4)]"
+                  ? "bg-green-500 text-slate-950 shadow-[0_0_28px_rgba(34,197,94,0.45)]"
                   : multiplier >= 10
                   ? "bg-amber-300/15 text-amber-100"
                   : multiplier >= 2
@@ -415,7 +434,7 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
               }`}
             >
               {multiplier}x
-            </div>
+            </motion.div>
           ))}
         </div>
 

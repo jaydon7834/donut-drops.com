@@ -7,8 +7,8 @@ function pruneBucket(bucket, windowMs, now) {
 export function createRateLimiter({ windowMs, maxHits, keyPrefix = "global" }) {
   return function rateLimitMiddleware(req, res, next) {
     const now = Date.now();
-    const ip = req.ip || req.connection?.remoteAddress || "unknown";
-    const key = `${keyPrefix}:${ip}`;
+    const requestKey = req.user?.id || req.ip || req.connection?.remoteAddress || "unknown";
+    const key = `${keyPrefix}:${requestKey}`;
     const bucket = buckets.get(key) || { hits: [] };
 
     pruneBucket(bucket, windowMs, now);

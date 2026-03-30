@@ -15,7 +15,11 @@ function AnimatedRoll({ roll, outcome }) {
     <motion.div
       key={roll ?? "idle"}
       initial={{ y: -50, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
+      animate={{
+        y: 0,
+        opacity: 1,
+        scale: outcome === "win" ? [1, 1.08, 1] : outcome === "loss" ? [1, 0.97, 1.02, 1] : 1
+      }}
       transition={{ duration: 0.4 }}
       className={`text-6xl font-bold ${toneClass}`}
     >
@@ -54,6 +58,7 @@ export function DiceGame({ token, user, onBalanceChange }) {
     return Math.max(parsedBet * Number(multiplier) - parsedBet, 0).toFixed(2);
   }, [betAmount, betInput, multiplier]);
   const outcome = result?.result?.isWin ? "win" : result ? "loss" : "neutral";
+  const rollPosition = Number.isFinite(Number(displayRoll)) ? Math.min(Math.max(Number(displayRoll), 0), 100) : null;
 
   async function handleRoll() {
     setLoading(true);
@@ -252,7 +257,16 @@ export function DiceGame({ token, user, onBalanceChange }) {
           <AnimatedRoll roll={displayRoll} outcome={outcome} />
         </div>
 
-        <div className="w-full max-w-xl h-6 rounded-full overflow-hidden flex">
+        <div className="relative h-6 w-full max-w-xl overflow-hidden rounded-full">
+          {rollPosition !== null && (
+            <motion.div
+              initial={false}
+              animate={{ left: `calc(${rollPosition}% - 8px)` }}
+              transition={{ type: "spring", stiffness: 150, damping: 20 }}
+              className="absolute -top-2 z-10 h-10 w-4 rounded-full border border-white/40 bg-white/80 shadow-[0_0_20px_rgba(255,255,255,0.35)]"
+            />
+          )}
+          <div className="flex h-full w-full">
           {condition === "under" ? (
             <>
               <div className="bg-green-500" style={{ width: `${target}%` }} />
@@ -264,6 +278,7 @@ export function DiceGame({ token, user, onBalanceChange }) {
               <div className="bg-green-500 flex-1" />
             </>
           )}
+          </div>
         </div>
 
         <div className="mt-4 text-sm text-gray-400">
@@ -283,6 +298,20 @@ export function DiceGame({ token, user, onBalanceChange }) {
               </p>
             </div>
           </div>
+        )}
+        {result && (
+          <motion.div
+            key={`${result.gameId}-${result.payout}`}
+            initial={{ opacity: 0, y: 18, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            className={`mt-6 rounded-2xl px-5 py-3 text-lg font-black ${
+              result.result.isWin
+                ? "bg-emerald-500/10 text-emerald-300 shadow-[0_0_45px_rgba(16,185,129,0.22)]"
+                : "bg-rose-500/10 text-rose-300 shadow-[0_0_35px_rgba(244,63,94,0.15)]"
+            }`}
+          >
+            {result.result.isWin ? `+$${(result.payout - result.bet).toFixed(2)}` : `-$${result.bet.toFixed(2)}`}
+          </motion.div>
         )}
         </div>
       </div>

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
 import { createError } from "../utils/helpers.js";
 import { getChatMessages, store } from "../state/store.js";
+import { getIo } from "../socket.js";
 
 const router = Router();
 const SPAM_LIMIT = 5;
@@ -61,6 +62,14 @@ router.post("/", (req, res, next) => {
 
     store.chatMessages.push(message);
     store.chatMessages = store.chatMessages.slice(-60);
+
+    const io = getIo();
+    if (io) {
+      io.emit("chat:message", {
+        type: "chat",
+        message
+      });
+    }
 
     return res.status(201).json({
       messages: getChatMessages(),

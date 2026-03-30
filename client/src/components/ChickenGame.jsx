@@ -5,6 +5,11 @@ import { formatBetInput, parseBetInput } from "../lib/betting.js";
 
 const totalSteps = 10;
 
+function previewChickenMultiplier(step, surviveChance) {
+  const fairMultiplier = Math.pow(1 / surviveChance, step);
+  return Math.min(Number((fairMultiplier * 0.96).toFixed(2)), 100);
+}
+
 export function ChickenGame({ token, onBalanceChange, onBack }) {
   const [betAmount, setBetAmount] = useState(10);
   const [betInput, setBetInput] = useState("10");
@@ -14,7 +19,9 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
   const [loading, setLoading] = useState(false);
   const [showDeathOverlay, setShowDeathOverlay] = useState(false);
 
-  const survivalChanceLabel = `${Math.round((game?.surviveChance || (risk === "low" ? 0.8 : risk === "high" ? 0.7 : 0.75)) * 100)}% per step`;
+  const survivalChance = game?.surviveChance || (risk === "low" ? 0.8 : risk === "high" ? 0.7 : 0.75);
+  const survivalChanceLabel = `${Math.round(survivalChance * 100)}% per step`;
+  const nextMultiplier = previewChickenMultiplier((game?.step || 0) + 1, survivalChance);
 
   function handleBetInputChange(value) {
     setBetInput(value);
@@ -57,8 +64,10 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
     }
 
     setLoading(true);
+    setFeedback("Crossing...");
 
     try {
+      await new Promise((resolve) => window.setTimeout(resolve, 450));
       const data = await api.stepChicken(token, { gameId: game.gameId });
       setGame(data.game);
       onBalanceChange(data.balance);
@@ -155,6 +164,10 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
               <span className="text-white/65">Survival Chance</span>
               <span className="font-bold text-emerald-300">{survivalChanceLabel}</span>
             </div>
+            <div className="mt-2 flex items-center justify-between">
+              <span className="text-white/65">Next Multiplier</span>
+              <span className="font-bold text-amber-300">{nextMultiplier.toFixed(2)}x</span>
+            </div>
           </div>
 
           <button
@@ -224,11 +237,14 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
             })}
 
             <motion.div
-              animate={{ y: -((game?.step || 0) * 36) }}
+              animate={{
+                y: -((game?.step || 0) * 36),
+                x: showDeathOverlay ? [0, -6, 6, -5, 5, 0] : 0
+              }}
               transition={{ duration: 0.35 }}
               className="absolute left-1/2 bottom-6 -translate-x-1/2 text-lg font-black text-amber-200 drop-shadow-[0_0_20px_rgba(250,204,21,0.45)]"
             >
-              C
+              🐔
             </motion.div>
 
             {showDeathOverlay && (
