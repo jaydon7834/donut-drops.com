@@ -12,7 +12,7 @@ import limboRoutes from "./routes/limbo.js";
 import plinkoRoutes from "./routes/plinko.js";
 import instantRoutes from "./routes/instant.js";
 import chatRoutes from "./routes/chat.js";
-import { initializeStore } from "./state/store.js";
+import { initializeStore, USERS_FILE } from "./state/store.js";
 import { createRateLimiter } from "./middleware/rateLimit.js";
 
 const app = express();
@@ -63,6 +63,7 @@ app.use((error, req, res, next) => {
 
 initializeStore()
   .then(() => {
+    console.log(`DonutDrop users file: ${USERS_FILE}`);
     app.listen(PORT, () => {
       console.log(`DonutDrop API running on http://localhost:${PORT}`);
     });

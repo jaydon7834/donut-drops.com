@@ -24,12 +24,17 @@ let userSequence = 1;
 let gameSequence = 1;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const USERS_FILE = process.env.USERS_FILE
+export const USERS_FILE = process.env.USERS_FILE
   ? path.resolve(process.env.USERS_FILE)
   : path.join(__dirname, "..", "users.json");
 
+async function ensureUsersDirectory() {
+  await fs.mkdir(path.dirname(USERS_FILE), { recursive: true });
+}
+
 export async function initializeStore() {
   try {
+    await ensureUsersDirectory();
     const raw = await fs.readFile(USERS_FILE, "utf8");
     const parsed = JSON.parse(raw);
 
@@ -58,6 +63,7 @@ export async function initializeStore() {
 }
 
 export async function persistUsers() {
+  await ensureUsersDirectory();
   await fs.writeFile(
     USERS_FILE,
     JSON.stringify(Array.from(store.users.values()), null, 2),
