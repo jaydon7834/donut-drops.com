@@ -181,7 +181,7 @@ export function MinesGame({ token, user, onBalanceChange }) {
 
   return (
     <div className="flex w-full min-w-0 flex-col items-start gap-6 px-2 py-4 sm:px-4 xl:flex-row xl:items-stretch xl:px-6 xl:py-6">
-      <div className="w-full shrink-0 rounded-[1.8rem] bg-[#131625] p-6 text-white xl:w-[260px]">
+      <div className="w-full shrink-0 rounded-[1.8rem] bg-[#131625] p-6 text-white xl:w-[220px]">
         <div className="flex items-start justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.28em] text-indigo-200/65">Mines Bet</p>

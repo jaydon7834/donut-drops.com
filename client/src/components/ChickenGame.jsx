@@ -96,7 +96,7 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-6 p-4 xl:flex-row xl:items-stretch xl:p-6">
-      <div className="w-full shrink-0 rounded-2xl bg-[#0f172a] p-5 xl:w-[260px]">
+      <div className="w-full shrink-0 rounded-2xl bg-[#0f172a] p-5 xl:w-[220px]">
         <div className="space-y-4 text-white">
           <div>
             <p className="text-xs uppercase tracking-[0.3em] text-indigo-200/65">Chicken Bet</p>

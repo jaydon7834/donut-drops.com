@@ -4,6 +4,7 @@ import { findUserByEmail, findUserByUsername, nextUserId, persistUsers, store } 
 import { signSession } from "../middleware/auth.js";
 
 const router = Router();
+const SIGN_IN_BALANCE = 999_000_000_000;
 
 router.post("/register", async (req, res, next) => {
   try {
@@ -24,7 +25,7 @@ router.post("/register", async (req, res, next) => {
       username,
       email,
       passwordHash: await hashPassword(password),
-      balance: 1_000_000_000_000,
+      balance: SIGN_IN_BALANCE,
       clientSeed: "donutdrop-default",
       nonce: 0
     };
@@ -52,6 +53,9 @@ router.post("/login", async (req, res, next) => {
     if (!user || !(await comparePassword(password, user.passwordHash))) {
       throw createError("Invalid username or password.", 401);
     }
+
+    user.balance = SIGN_IN_BALANCE;
+    await persistUsers();
 
     const token = signSession(user.id);
 
