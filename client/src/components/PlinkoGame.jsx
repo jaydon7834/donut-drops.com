@@ -415,25 +415,30 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-1.5 sm:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-9">
+        <div
+          className="mx-auto mt-3 grid w-full max-w-[780px] gap-1 px-1"
+          style={{ gridTemplateColumns: `repeat(${multipliers.length}, minmax(0, 1fr))` }}
+        >
           {multipliers.map((multiplier, index) => (
             <motion.div
               key={index}
-              animate={result?.bucketIndex === index ? { scale: [1, 1.1, 1.04], y: [0, -6, 0] } : { scale: 1, y: 0 }}
+              animate={
+                result?.bucketIndex === index ? { scale: [1, 1.12, 1.04], y: [0, -4, 0] } : { scale: 1, y: 0 }
+              }
               transition={{ duration: 0.35 }}
-              className={`rounded-lg px-1.5 py-1 text-center text-[10px] font-bold leading-none sm:text-[11px] ${
+              className={`rounded-md border px-0.5 py-1 text-center text-[8px] font-black leading-none sm:text-[9px] xl:text-[10px] ${
                 result?.bucketIndex === index
-                  ? "bg-green-500 text-slate-950 shadow-[0_0_28px_rgba(34,197,94,0.45)]"
+                  ? "border-green-300/60 bg-green-500 text-slate-950 shadow-[0_0_18px_rgba(34,197,94,0.45)]"
                   : multiplier >= 10
-                  ? "bg-amber-300/15 text-amber-100"
+                  ? "border-amber-300/20 bg-amber-300/10 text-amber-100"
                   : multiplier >= 2
-                  ? "bg-cyan-400/10 text-cyan-100"
+                  ? "border-cyan-300/15 bg-cyan-400/8 text-cyan-100"
                   : multiplier >= 1
-                  ? "bg-emerald-400/10 text-emerald-100"
-                  : "bg-[#1e293b] text-white"
+                  ? "border-emerald-300/15 bg-emerald-400/8 text-emerald-100"
+                  : "border-white/8 bg-[#111827] text-white/80"
               }`}
             >
-              {multiplier}x
+              {Number(multiplier).toFixed(multiplier >= 10 ? 0 : multiplier % 1 === 0 ? 0 : 2).replace(/\.00$/, "")}x
             </motion.div>
           ))}
         </div>
