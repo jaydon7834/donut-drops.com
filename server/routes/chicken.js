@@ -4,13 +4,29 @@ import { nextGameId, persistUsers, pushRecentGame, store } from "../state/store.
 import { createError, ensurePositiveBet } from "../utils/helpers.js";
 
 const router = Router();
-const SURVIVE_CHANCE = 0.75;
+const HOUSE_EDGE = 0.97;
+const RISK_MODES = {
+  low: 0.8,
+  medium: 0.75,
+  high: 0.7
+};
+
+function chickenMultiplier(step, surviveChance) {
+  const multiplier = Math.pow(1 / surviveChance, step) * HOUSE_EDGE;
+  return Number(Math.min(multiplier, 100).toFixed(2));
+}
 
 router.use(authMiddleware);
 
 router.post("/start", async (req, res, next) => {
   try {
     const bet = ensurePositiveBet(req.body.bet, req.user.balance);
+    const risk = String(req.body.risk || "medium").toLowerCase();
+    const surviveChance = RISK_MODES[risk];
+
+    if (!surviveChance) {
+      throw createError("Risk must be low, medium, or high.");
+    }
 
     const existingActiveGame = Array.from(store.games.values()).find(
       (game) => game.userId === req.user.id && game.gameType === "chicken" && game.active
@@ -29,7 +45,8 @@ router.post("/start", async (req, res, next) => {
       bet,
       step: 0,
       multiplier: 1,
-      surviveChance: SURVIVE_CHANCE,
+      surviveChance,
+      risk,
       active: true,
       createdAt: new Date().toISOString()
     };
@@ -59,7 +76,7 @@ router.post("/step", (req, res, next) => {
       throw createError("This chicken game is no longer active.");
     }
 
-    if (Math.random() > SURVIVE_CHANCE) {
+    if (Math.random() > game.surviveChance) {
       game.active = false;
 
       pushRecentGame({
@@ -82,7 +99,7 @@ router.post("/step", (req, res, next) => {
     }
 
     game.step += 1;
-    game.multiplier = Number((game.multiplier * 1.25).toFixed(2));
+    game.multiplier = chickenMultiplier(game.step, game.surviveChance);
 
     return res.json({
       balance: req.user.balance,

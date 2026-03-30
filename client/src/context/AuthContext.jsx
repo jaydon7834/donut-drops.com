@@ -35,7 +35,9 @@ export function AuthProvider({ children }) {
       setError("");
       return data;
     } catch (requestError) {
-      setError(requestError.message);
+      // Clear stale/expired sessions quietly so the login form only shows
+      // real login errors rather than background token refresh failures.
+      setError("");
       setToken("");
       throw requestError;
     }

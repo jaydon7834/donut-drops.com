@@ -6,8 +6,32 @@ import { createError, ensureIntegerInRange, ensurePositiveBet } from "../utils/h
 
 const router = Router();
 
-function multiplierForReveals(revealedTiles) {
-  return Number((1 + revealedTiles * 0.25).toFixed(2));
+function combination(n, k) {
+  if (k > n) {
+    return 0;
+  }
+
+  if (k === 0 || k === n) {
+    return 1;
+  }
+
+  let result = 1;
+
+  for (let i = 1; i <= k; i += 1) {
+    result = (result * (n - (k - i))) / i;
+  }
+
+  return result;
+}
+
+function calculateMultiplier(mines, picks) {
+  const totalTiles = 25;
+  const houseEdge = 0.99;
+  const numerator = combination(totalTiles, picks);
+  const denominator = combination(totalTiles - mines, picks);
+  const multiplier = (numerator / denominator) * houseEdge;
+
+  return Number(multiplier.toFixed(4));
 }
 
 function sanitizeGame(game) {
@@ -33,9 +57,9 @@ router.post("/start", async (req, res, next) => {
   try {
     const mines = ensureIntegerInRange(
       req.body.mines,
-      3,
-      10,
-      "Mines count must be between 3 and 10."
+      1,
+      24,
+      "Mines count must be between 1 and 24."
     );
     const bet = ensurePositiveBet(req.body.bet, req.user.balance);
     const clientSeed = req.body.clientSeed;
@@ -139,7 +163,7 @@ router.post("/click", (req, res, next) => {
       });
     }
 
-    game.multiplier = multiplierForReveals(game.revealedTiles.length);
+    game.multiplier = calculateMultiplier(game.minePositions.length, game.revealedTiles.length);
     const payoutPreview = Number((game.bet * game.multiplier).toFixed(2));
 
     return res.json({

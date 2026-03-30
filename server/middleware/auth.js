@@ -4,9 +4,7 @@ import { store } from "../state/store.js";
 const JWT_SECRET = process.env.JWT_SECRET || "donutdrop-dev-secret";
 
 export function signSession(userId) {
-  const token = jwt.sign({ userId }, JWT_SECRET, { expiresIn: "7d" });
-  store.sessions.set(token, userId);
-  return token;
+  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: "7d" });
 }
 
 export async function authMiddleware(req, res, next) {
@@ -19,10 +17,9 @@ export async function authMiddleware(req, res, next) {
   try {
     const token = authHeader.split(" ")[1];
     const payload = jwt.verify(token, JWT_SECRET);
-    const sessionUserId = store.sessions.get(token);
     const user = store.users.get(payload.userId);
 
-    if (!sessionUserId || !user || sessionUserId !== user.id) {
+    if (!user) {
       return res.status(401).json({ message: "Invalid session." });
     }
 

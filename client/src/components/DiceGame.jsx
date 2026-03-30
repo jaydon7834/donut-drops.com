@@ -1,19 +1,25 @@
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { api } from "../lib/api.js";
 import { formatBetInput, parseBetInput } from "../lib/betting.js";
-import { GameLayout } from "./GameLayout.jsx";
 
-function DiceResult({ roll, loading }) {
+function AnimatedRoll({ roll, outcome }) {
+  const toneClass =
+    outcome === "win"
+      ? "text-green-400"
+      : outcome === "loss"
+      ? "text-red-400"
+      : "text-white";
+
   return (
     <motion.div
       key={roll ?? "idle"}
-      initial={{ rotate: 0, scale: 0.9, opacity: 0 }}
-      animate={loading ? { rotate: 720, scale: [1, 1.06, 1], opacity: 1 } : { rotate: 720, scale: 1, opacity: 1 }}
-      transition={{ duration: 0.6 }}
-      className="text-6xl text-white font-black"
+      initial={{ y: -50, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.4 }}
+      className={`text-6xl font-bold ${toneClass}`}
     >
-      {roll !== undefined && roll !== null ? Number(roll).toFixed(2) : "--"}
+      {roll ?? "--"}
     </motion.div>
   );
 }
@@ -25,12 +31,37 @@ export function DiceGame({ token, user, onBalanceChange }) {
   const [condition, setCondition] = useState("under");
   const [clientSeed, setClientSeed] = useState(user.clientSeed || "donutdrop-default");
   const [result, setResult] = useState(null);
+  const [displayRoll, setDisplayRoll] = useState("--");
   const [feedback, setFeedback] = useState({ text: "", tone: "neutral" });
   const [loading, setLoading] = useState(false);
+  const rollingIntervalRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (rollingIntervalRef.current) {
+        window.clearInterval(rollingIntervalRef.current);
+      }
+    };
+  }, []);
+
+  const winChance = useMemo(
+    () => (condition === "under" ? target : 100 - target).toFixed(2),
+    [condition, target]
+  );
+  const multiplier = useMemo(() => (99 / Number(winChance)).toFixed(2), [winChance]);
+  const profitPreview = useMemo(() => {
+    const parsedBet = parseBetInput(betInput) || betAmount;
+    return Math.max(parsedBet * Number(multiplier) - parsedBet, 0).toFixed(2);
+  }, [betAmount, betInput, multiplier]);
+  const outcome = result?.result?.isWin ? "win" : result ? "loss" : "neutral";
 
   async function handleRoll() {
     setLoading(true);
     setFeedback({ text: "", tone: "neutral" });
+
+    rollingIntervalRef.current = window.setInterval(() => {
+      setDisplayRoll((Math.random() * 100).toFixed(2));
+    }, 50);
 
     try {
       const data = await api.rollDice(token, {
@@ -39,6 +70,15 @@ export function DiceGame({ token, user, onBalanceChange }) {
         over: condition === "over",
         clientSeed
       });
+
+      if (rollingIntervalRef.current) {
+        window.clearInterval(rollingIntervalRef.current);
+        rollingIntervalRef.current = null;
+      }
+
+      window.setTimeout(() => {
+        setDisplayRoll(Number(data.game.result.roll).toFixed(2));
+      }, 500);
 
       setResult(data.game);
       onBalanceChange(data.balance);
@@ -49,9 +89,16 @@ export function DiceGame({ token, user, onBalanceChange }) {
         tone: data.game.result.isWin ? "win" : "loss"
       });
     } catch (error) {
+      if (rollingIntervalRef.current) {
+        window.clearInterval(rollingIntervalRef.current);
+        rollingIntervalRef.current = null;
+      }
+      setDisplayRoll("--");
       setFeedback({ text: error.message, tone: "loss" });
     } finally {
-      setLoading(false);
+      window.setTimeout(() => {
+        setLoading(false);
+      }, 500);
     }
   }
 
@@ -63,161 +110,180 @@ export function DiceGame({ token, user, onBalanceChange }) {
     }
   }
 
-  function adjustBet(multiplier) {
-    const nextBet = Math.max(1, Math.round(parseBetInput(betInput || betAmount) * multiplier));
+  function adjustBet(multiplierValue) {
+    const nextBet = Math.max(1, Math.round(parseBetInput(betInput || betAmount) * multiplierValue));
     setBetAmount(nextBet);
     setBetInput(formatBetInput(nextBet));
   }
 
   return (
-    <GameLayout
-      eyebrow="Dice"
-      title="Dial in the edge and let it roll"
-      subtitle="A cleaner stake-style dice table with a glowing target band, animated result reveal, and fast amount controls."
-      accent="from-cyan-500/10 via-purple-500/5 to-orange-500/10"
-      controls={
-        <div className="space-y-4">
-          <label className="rounded-2xl bg-white/5 p-4 text-sm text-white/70 block">
-                Bet Amount
-                <div className="mt-2 flex overflow-hidden rounded-xl border border-white/10 bg-black/30">
-                  <input
-                    value={betInput}
-                    onChange={(event) => handleBetInputChange(event.target.value)}
-                    className="w-full bg-transparent px-3 py-2 text-white outline-none"
-                    placeholder="1m"
-                  />
-                  <div className="flex items-center gap-1 px-2">
-                    <button
-                      type="button"
-                      onClick={() => adjustBet(0.5)}
-                      className="rounded-lg bg-white/10 px-2 py-1 text-xs font-semibold text-white"
-                    >
-                      1/2
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => adjustBet(2)}
-                      className="rounded-lg bg-white/10 px-2 py-1 text-xs font-semibold text-white"
-                    >
-                      2x
-                    </button>
-                  </div>
-                </div>
-                <p className="mt-2 text-xs text-white/40">Supports 10k, 1m, 1b and more.</p>
-          </label>
-          <label className="rounded-2xl bg-white/5 p-4 text-sm text-white/70 block">
-                Client Seed
-                <input
-                  value={clientSeed}
-                  onChange={(event) => setClientSeed(event.target.value)}
-                  className="casino-input mt-2"
-                />
-          </label>
-          <label className="rounded-2xl bg-white/5 p-4 text-sm text-white/70 block">
-                Target
-                <input
-                  type="range"
-                  min="2"
-                  max="98"
-                  value={target}
-                  onChange={(event) => setTarget(Number(event.target.value))}
-                  className="mt-4 w-full accent-emerald-400"
-                />
-                <div className="mt-3 flex items-center justify-between text-xs text-white/45">
-                  <span>2</span>
-                  <span className="text-sm font-semibold text-white">{target}</span>
-                  <span>98</span>
-                </div>
-          </label>
-          <label className="rounded-2xl bg-white/5 p-4 text-sm text-white/70 block">
-                Condition
-                <select
-                  value={condition}
-                  onChange={(event) => setCondition(event.target.value)}
-                  className="casino-input mt-2"
-                >
-                  <option value="under">Roll Under</option>
-                  <option value="over">Roll Over</option>
-                </select>
-          </label>
-          <button
-              type="button"
-              onClick={handleRoll}
-              disabled={loading}
-              className="neon-button w-full text-white disabled:opacity-50"
-            >
-              {loading ? "Rolling..." : "Roll Dice"}
-          </button>
-
-          {feedback.text && (
-            <motion.p
-                key={feedback.text}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{
-                  opacity: 1,
-                  y: 0,
-                  x: feedback.tone === "loss" ? [0, -3, 3, -3, 0] : 0
-                }}
-                className={`rounded-2xl px-4 py-3 text-sm ${
-                  feedback.tone === "win"
-                    ? "bg-emerald-500/10 text-emerald-200 shadow-[0_0_30px_rgba(16,185,129,0.15)]"
-                    : feedback.tone === "loss"
-                      ? "bg-rose-500/10 text-rose-200"
-                      : "bg-white/5 text-white/70"
-                }`}
-            >
-                {feedback.text}
-            </motion.p>
-          )}
-        </div>
-      }
-      main={
-        <div className="space-y-5">
-          <div className="rounded-[1.8rem] border border-white/6 bg-[#111621] p-5">
-            <div className="flex items-center justify-between text-sm text-white/55">
-              <span>Win zone</span>
-              <span>{condition === "under" ? `0 - ${target}` : `${target} - 100`}</span>
-            </div>
-            <div className="mt-4 h-4 overflow-hidden rounded-full bg-white/5">
-              <motion.div
-                animate={{
-                  width: `${condition === "under" ? target : 100 - target}%`,
-                  marginLeft: condition === "under" ? "0%" : `${target}%`
-                }}
-                className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400"
-              />
-            </div>
-            <div className="mt-8 rounded-[1.5rem] bg-[#0d1320] p-8 text-center">
-              <p className="text-xs uppercase tracking-[0.3em] text-white/35">Roll Result</p>
-              <div className="mt-5 flex justify-center">
-                <DiceResult roll={loading ? null : result?.result?.roll} loading={loading} />
-              </div>
-              <p className="mt-3 text-white/60">{result?.result?.isWin ? "Winning throw" : "Waiting for the next roll"}</p>
+    <div className="grid grid-cols-[320px_1fr] gap-6 p-6">
+      <div className="bg-[#0f172a] rounded-2xl p-5 space-y-4 text-white">
+        <div>
+          <p className="text-sm text-gray-400">Bet Amount</p>
+          <div className="mt-2 flex overflow-hidden rounded-lg bg-[#1e293b]">
+            <input
+              value={betInput}
+              onChange={(event) => handleBetInputChange(event.target.value)}
+              className="w-full bg-transparent p-3 text-white outline-none"
+              placeholder="1m"
+            />
+            <div className="flex items-center gap-1 pr-2">
+              <button
+                type="button"
+                onClick={() => adjustBet(0.5)}
+                className="rounded-lg bg-white/10 px-2 py-1 text-xs font-semibold text-white"
+              >
+                1/2
+              </button>
+              <button
+                type="button"
+                onClick={() => adjustBet(2)}
+                className="rounded-lg bg-white/10 px-2 py-1 text-xs font-semibold text-white"
+              >
+                2x
+              </button>
             </div>
           </div>
+        </div>
 
-          {result && (
-            <div className="grid gap-3 sm:grid-cols-4">
-              <div className="rounded-2xl bg-black/20 p-4">
-                <p className="text-sm text-white/50">Roll</p>
-                <p className="mt-2 text-2xl font-semibold text-white">{result.result.roll}</p>
-              </div>
-              <div className="rounded-2xl bg-black/20 p-4">
-                <p className="text-sm text-white/50">Multiplier</p>
-                <p className="mt-2 text-2xl font-semibold text-white">{result.result.multiplier}x</p>
-              </div>
-              <div className="rounded-2xl bg-black/20 p-4">
-                <p className="text-sm text-white/50">Payout</p>
-                <p className="mt-2 text-2xl font-semibold text-mint">${result.payout.toFixed(2)}</p>
-              </div>
-              <div className="rounded-2xl bg-black/20 p-4">
-                <p className="text-sm text-white/50">Result</p>
-                <p className="mt-2 text-2xl font-semibold text-white">{result.result.isWin ? "Win" : "Loss"}</p>
-              </div>
-            </div>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => setCondition("under")}
+            className={`w-full p-3 rounded-xl transition ${
+              condition === "under" ? "bg-gray-600 text-white" : "bg-[#1e293b] text-white/75"
+            }`}
+          >
+            ↓ Under
+          </button>
+          <button
+            type="button"
+            onClick={() => setCondition("over")}
+            className={`w-full p-3 rounded-xl transition ${
+              condition === "over" ? "bg-gray-600 text-white" : "bg-[#1e293b] text-white/75"
+            }`}
+          >
+            ↑ Over
+          </button>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-gray-400">Target</p>
+            <span className="font-semibold">{target}</span>
+          </div>
+          <input
+            type="range"
+            min="2"
+            max="98"
+            value={target}
+            onChange={(event) => setTarget(Number(event.target.value))}
+            className="mt-3 w-full accent-emerald-400"
+          />
+        </div>
+
+        <div>
+          <p className="text-sm text-gray-400">Client Seed</p>
+          <input
+            value={clientSeed}
+            onChange={(event) => setClientSeed(event.target.value)}
+            className="mt-2 w-full rounded-lg bg-[#1e293b] p-3 text-white outline-none"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 mt-4">
+          <div className="bg-[#1e293b] p-3 rounded-xl">
+            <p className="text-xs uppercase tracking-[0.2em] text-white/45">Win Chance</p>
+            <p className="mt-2 text-lg font-bold text-white">{winChance}%</p>
+          </div>
+          <div className="bg-[#1e293b] p-3 rounded-xl">
+            <p className="text-xs uppercase tracking-[0.2em] text-white/45">Profit</p>
+            <p className="mt-2 text-lg font-bold text-green-400">${profitPreview}</p>
+          </div>
+          <div className="bg-[#1e293b] p-3 rounded-xl">
+            <p className="text-xs uppercase tracking-[0.2em] text-white/45">Multiplier</p>
+            <p className="mt-2 text-lg font-bold text-white">{multiplier}x</p>
+          </div>
+          <div className="bg-[#1e293b] p-3 rounded-xl">
+            <p className="text-xs uppercase tracking-[0.2em] text-white/45">Win Zone</p>
+            <p className="mt-2 text-sm font-bold text-white">
+              {condition === "under" ? `0 - ${target}` : `${target} - 100`}
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleRoll}
+          disabled={loading}
+          className="w-full bg-orange-500 hover:bg-orange-600 p-3 rounded-xl font-bold text-black disabled:opacity-50"
+        >
+          {loading ? "Rolling..." : "Roll Dice"}
+        </button>
+
+        {feedback.text && (
+          <motion.p
+            key={feedback.text}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{
+              opacity: 1,
+              y: 0,
+              x: feedback.tone === "loss" ? [0, -3, 3, -3, 0] : 0
+            }}
+            className={`rounded-2xl px-4 py-3 text-sm ${
+              feedback.tone === "win"
+                ? "bg-emerald-500/10 text-emerald-200 shadow-[0_0_30px_rgba(16,185,129,0.15)]"
+                : feedback.tone === "loss"
+                ? "bg-rose-500/10 text-rose-200"
+                : "bg-white/5 text-white/70"
+            }`}
+          >
+            {feedback.text}
+          </motion.p>
+        )}
+      </div>
+
+      <div className="bg-[#0b0f1a] rounded-2xl p-8 flex flex-col items-center justify-center">
+        <div className="text-gray-400 mb-4">ROLLED NUMBER</div>
+
+        <div className="mb-6">
+          <AnimatedRoll roll={displayRoll} outcome={outcome} />
+        </div>
+
+        <div className="w-full max-w-xl h-6 rounded-full overflow-hidden flex">
+          {condition === "under" ? (
+            <>
+              <div className="bg-green-500" style={{ width: `${target}%` }} />
+              <div className="bg-red-500 flex-1" />
+            </>
+          ) : (
+            <>
+              <div className="bg-red-500" style={{ width: `${target}%` }} />
+              <div className="bg-green-500 flex-1" />
+            </>
           )}
         </div>
-      }
-    />
+
+        <div className="mt-4 text-sm text-gray-400">
+          Win zone: {condition === "under" ? `0 - ${target}` : `${target} - 100`}
+        </div>
+
+        {result && (
+          <div className="mt-8 grid w-full max-w-xl grid-cols-2 gap-4">
+            <div className="rounded-xl bg-[#111827] p-4">
+              <p className="text-xs uppercase tracking-[0.2em] text-white/45">Payout</p>
+              <p className="mt-2 text-2xl font-bold text-emerald-300">${result.payout.toFixed(2)}</p>
+            </div>
+            <div className="rounded-xl bg-[#111827] p-4">
+              <p className="text-xs uppercase tracking-[0.2em] text-white/45">Result</p>
+              <p className={`mt-2 text-2xl font-bold ${result.result.isWin ? "text-green-400" : "text-red-400"}`}>
+                {result.result.isWin ? "Win" : "Lose"}
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

@@ -2,20 +2,19 @@ import { useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { api } from "../lib/api.js";
 import { formatBetInput, parseBetInput } from "../lib/betting.js";
-import { GameLayout } from "./GameLayout.jsx";
 
 function Tile({ state, onClick, disabled, shake }) {
   return (
     <motion.div
-      whileHover={{ scale: disabled ? 1 : 1.1, y: disabled ? 0 : -4 }}
-      whileTap={{ scale: disabled ? 1 : 0.9 }}
+      whileHover={{ scale: disabled ? 1 : 1.05 }}
+      whileTap={{ scale: disabled ? 1 : 0.94 }}
       animate={shake ? { x: [0, -2, 2, -2, 2, 0] } : { rotateY: state !== "hidden" ? 180 : 0 }}
       transition={{ duration: 0.35 }}
       onClick={disabled ? undefined : onClick}
-      className={`w-16 h-16 rounded-xl flex items-center justify-center cursor-pointer text-sm font-black select-none
-        ${state === "hidden" ? "bg-gray-700 text-white/80" : ""}
-        ${state === "safe" ? "bg-green-500 shadow-lg shadow-green-500/30 text-white" : ""}
-        ${state === "mine" ? "bg-red-500 shadow-lg shadow-red-500/30 text-white" : ""}
+      className={`w-24 h-24 rounded-xl cursor-pointer flex items-center justify-center text-sm font-black select-none transition-all duration-200
+        ${state === "hidden" ? "bg-[#1e293b] text-white/80 hover:bg-[#334155]" : ""}
+        ${state === "safe" ? "bg-green-500 shadow-[0_0_15px_rgba(34,197,94,0.8)] text-white" : ""}
+        ${state === "mine" ? "bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.8)] text-white" : ""}
         ${disabled ? "opacity-80 cursor-not-allowed" : ""}`}
     >
       {state === "mine" ? "💣" : state === "safe" ? "◆" : ""}
@@ -26,7 +25,7 @@ function Tile({ state, onClick, disabled, shake }) {
 export function MinesGame({ token, user, onBalanceChange }) {
   const [betAmount, setBetAmount] = useState(25);
   const [betInput, setBetInput] = useState("25");
-  const [minesCount, setMinesCount] = useState(3);
+  const [minesCount, setMinesCount] = useState(1);
   const [clientSeed, setClientSeed] = useState(user.clientSeed || "donutdrop-default");
   const [activeGame, setActiveGame] = useState(null);
   const [settledGame, setSettledGame] = useState(null);
@@ -181,167 +180,153 @@ export function MinesGame({ token, user, onBalanceChange }) {
   }
 
   return (
-    <GameLayout
-      eyebrow="Mines"
-      title="Thread the grid, dodge the TNT"
-      subtitle="The flagship board now runs inside the same high-end table shell, with brighter multiplier feedback, cleaner controls, and a more alive reveal board."
-      accent="from-orange-500/12 via-emerald-500/5 to-purple-500/10"
-      controls={
-        <div className="space-y-4">
+    <div className="grid gap-6 p-4 xl:grid-cols-[260px_minmax(0,1fr)] xl:p-6">
+      <div className="rounded-[1.8rem] bg-[#131625] p-6 text-white">
+        <div className="flex items-start justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.35em] text-amber-200/70">Mines Bet</p>
-            <h3 className="mt-2 text-3xl font-black text-white">Place your round</h3>
+            <p className="text-xs uppercase tracking-[0.28em] text-indigo-200/65">Mines Bet</p>
+            <h2 className="mt-3 text-3xl font-black text-white">Place your round</h2>
+          </div>
+          <div className="rounded-xl bg-white/5 px-3 py-2 text-white/45">⌁</div>
+        </div>
+
+        <div className="mt-6 space-y-4">
+          <div className="rounded-[1.5rem] border border-white/10 p-4">
+            <p className="text-sm text-gray-400">Bet Amount</p>
+            <div className="mt-2 flex overflow-hidden rounded-xl bg-[#0d111c]">
+              <input
+                value={betInput}
+                onChange={(event) => handleBetInputChange(event.target.value)}
+                className="w-full bg-transparent p-3 text-white outline-none"
+                placeholder="1m"
+              />
+              <div className="flex items-center gap-1 pr-2">
+                <button type="button" onClick={() => adjustBet(0.5)} className="rounded-lg bg-white/10 px-2 py-1 text-xs font-semibold text-white">
+                  1/2
+                </button>
+                <button type="button" onClick={() => adjustBet(2)} className="rounded-lg bg-white/10 px-2 py-1 text-xs font-semibold text-white">
+                  2x
+                </button>
+              </div>
+            </div>
+            <p className="mt-3 text-sm text-white/35">Supports 10k, 1m, 1b and more.</p>
           </div>
 
-          <div className="space-y-3">
-              <label className="rounded-2xl border border-white/8 bg-black/20 p-4 text-sm text-white/70 block">
-                Bet Amount
-                <div className="mt-2 flex overflow-hidden rounded-xl border border-white/10 bg-black/30">
-                  <input
-                    value={betInput}
-                    onChange={(event) => handleBetInputChange(event.target.value)}
-                    className="w-full bg-transparent px-3 py-2 text-white outline-none"
-                    placeholder="1m"
-                  />
-                  <div className="flex items-center gap-1 px-2">
-                    <button
-                      type="button"
-                      onClick={() => adjustBet(0.5)}
-                      className="rounded-lg bg-white/10 px-2 py-1 text-xs font-semibold text-white"
-                    >
-                      1/2
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => adjustBet(2)}
-                      className="rounded-lg bg-white/10 px-2 py-1 text-xs font-semibold text-white"
-                    >
-                      2x
-                    </button>
-                  </div>
-                </div>
-                <p className="mt-2 text-xs text-white/40">Supports 10k, 1m, 1b and more.</p>
-              </label>
-              <label className="rounded-2xl border border-white/8 bg-black/20 p-4 text-sm text-white/70 block">
-                Mines
-                <div className="mt-2 flex items-center justify-between text-sm text-white">
-                  <span>Number of Mines</span>
-                  <span>{minesCount}</span>
-                </div>
-                <input
-                  type="range"
-                  min="3"
-                  max="10"
-                  value={minesCount}
-                  onChange={(event) => setMinesCount(Number(event.target.value))}
-                  className="mt-4 w-full accent-emerald-400"
-                />
-                <div className="mt-2 flex items-center justify-between text-xs text-white/40">
-                  <span>3</span>
-                  <span>10</span>
-                </div>
-              </label>
-              <label className="rounded-2xl border border-white/8 bg-black/20 p-4 text-sm text-white/70 block">
-                Client Seed
-                <input
-                  value={clientSeed}
-                  onChange={(event) => setClientSeed(event.target.value)}
-                  className="casino-input mt-2"
-                />
-              </label>
+          <div className="rounded-[1.5rem] border border-white/10 p-4">
+            <p className="text-sm text-gray-400">Mines</p>
+            <div className="mt-2 flex items-center justify-between">
+              <p className="text-xl font-bold text-white">Number of Mines</p>
+              <span className="text-xl font-bold text-white">{minesCount}</span>
+            </div>
+            <input
+              type="range"
+              min="1"
+              max="24"
+              value={minesCount}
+              onChange={(event) => setMinesCount(Number(event.target.value))}
+              className="mt-5 w-full accent-emerald-400"
+            />
+            <div className="mt-2 flex items-center justify-between text-xs text-white/40">
+              <span>1</span>
+              <span>24</span>
+            </div>
           </div>
 
-          <div className="flex gap-3">
+          <div className="rounded-[1.5rem] border border-white/10 p-4">
+            <p className="text-sm text-gray-400">Client Seed</p>
+            <input
+              value={clientSeed}
+              onChange={(event) => setClientSeed(event.target.value)}
+              className="mt-3 w-full rounded-[1rem] bg-[#0d111c] p-4 text-white outline-none"
+            />
+          </div>
+
+          <div className="pt-40">
             <button
-                type="button"
-                onClick={handleStart}
-                disabled={loading || Boolean(activeGame)}
-                className="neon-button disabled:opacity-50"
-              >
-                {loading && !activeGame ? "Starting..." : "Start round"}
+              type="button"
+              onClick={handleStart}
+              disabled={loading || Boolean(activeGame)}
+              className="w-full rounded-xl bg-emerald-500 px-4 py-4 text-lg font-bold text-slate-950 transition hover:bg-emerald-400 disabled:opacity-50"
+            >
+              {loading && !activeGame ? "Starting..." : "Place Bet"}
             </button>
-            <motion.button
+
+            {Boolean(activeGame) && (
+              <button
                 type="button"
                 onClick={handleCashout}
-                disabled={loading || !activeGame}
-                animate={activeGame ? { boxShadow: ["0 0 0 rgba(34,197,94,0.0)", "0 0 24px rgba(34,197,94,0.24)", "0 0 0 rgba(34,197,94,0.0)"] } : {}}
-                transition={{ duration: 1.8, repeat: Infinity }}
-                className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-5 py-3 font-semibold text-emerald-100 disabled:opacity-50"
+                disabled={loading}
+                className="mt-3 w-full rounded-xl bg-white/10 px-4 py-4 text-base font-bold text-white transition hover:bg-white/15 disabled:opacity-50"
               >
-                Cash out
-            </motion.button>
-          </div>
-
-          <div className="rounded-[1.6rem] border border-white/8 bg-black/20 p-4">
-            <div className="grid gap-3">
-              <div className="rounded-2xl border border-white/8 bg-black/25 p-4">
-                <p className="text-sm text-white/50">Current Multiplier</p>
-                <p className="mt-2 text-xl font-semibold text-white">{currentMultiplier.toFixed(2)}x</p>
-              </div>
-              <div className="rounded-2xl border border-white/8 bg-black/25 p-4">
-                <p className="text-sm text-white/50">Payout Preview</p>
-                <p className="mt-2 text-xl font-semibold text-mint">${payoutPreview}</p>
-              </div>
-              <div className="rounded-2xl border border-white/8 bg-black/25 p-4">
-                <p className="text-sm text-white/50">Server Seed Hash</p>
-                <p className="mt-2 break-all font-mono text-xs text-white/80">
-                  {activeGame?.serverSeedHash || settledGame?.serverSeedHash || "Awaiting round"}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {feedback.text && (
-            <motion.p
-                key={feedback.text}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`rounded-2xl px-4 py-3 text-sm ${
-                  feedback.tone === "win"
-                    ? "border border-emerald-400/15 bg-emerald-500/10 text-emerald-200 shadow-[0_0_30px_rgba(16,185,129,0.15)]"
-                    : feedback.tone === "loss"
-                      ? "border border-rose-400/15 bg-rose-500/10 text-rose-200"
-                      : "border border-white/8 bg-white/5 text-white/70"
-                }`}
-            >
-                {feedback.text}
-            </motion.p>
-          )}
-        </div>
-      }
-      main={
-        <div className="rounded-[1.75rem] border border-amber-500/10 bg-black/25 p-4">
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-[0.35em] text-white/40">Active Board</p>
-              <p className="mt-1 text-sm text-white/65">
-                {activeGame ? "Safe clicks build multiplier." : "Start a round to unlock the grid."}
-              </p>
-            </div>
-            <div className="rounded-full border border-amber-400/15 bg-amber-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-amber-100">
-              {minesCount} mines
-            </div>
-          </div>
-
-          <div className="grid grid-cols-5 gap-3">
-            {tiles.map((tile) => {
-              const isRevealed = revealedTiles.includes(tile);
-              const isMine = minePositions.includes(tile);
-              const state = isMine ? "mine" : isRevealed ? "safe" : "hidden";
-
-              return (
-                <Tile
-                  key={tile}
-                  onClick={() => handleTileClick(tile)}
-                  state={state}
-                  disabled={!activeGame || loading}
-                  shake={feedback.tone === "loss" && settledGame?.active === false}
-                />
-              );
-            })}
+                Cash Out
+              </button>
+            )}
           </div>
         </div>
-      }
-    />
+      </div>
+
+      <div className="min-w-0 rounded-[1.8rem] bg-[#131625] p-6 shadow-[0_0_40px_rgba(0,0,0,0.2)] xl:min-h-[600px] xl:p-10 flex flex-col">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.28em] text-indigo-200/65">Mines Board</p>
+            <p className="mt-2 text-lg text-white/70">Start a round to unlock the grid.</p>
+          </div>
+          <div className="rounded-full border border-yellow-300/20 bg-yellow-300/10 px-4 py-2 text-sm font-bold uppercase tracking-[0.18em] text-yellow-100">
+            {minesCount} Mines
+          </div>
+        </div>
+
+        <div className="mt-6 flex flex-1 items-center justify-center">
+          <div className="max-w-full overflow-x-auto rounded-2xl bg-[#0f172a] p-4 shadow-[0_0_40px_rgba(0,0,0,0.8)] xl:p-6">
+            <div className="flex justify-center items-center w-full">
+              <div className="grid grid-cols-5 gap-4">
+                {tiles.map((tile) => {
+                  const isRevealed = revealedTiles.includes(tile);
+                  const isMine = minePositions.includes(tile);
+                  const state = isMine ? "mine" : isRevealed ? "safe" : "hidden";
+
+                  return (
+                    <Tile
+                      key={tile}
+                      onClick={() => handleTileClick(tile)}
+                      state={state}
+                      disabled={!activeGame || loading}
+                      shake={feedback.tone === "loss" && settledGame?.active === false}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-emerald-300">
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-400" />
+            <span className="font-semibold">Live</span>
+          </div>
+          <div className="text-right">
+            <p className="text-sm text-white/45">Current Multiplier</p>
+            <p className="text-xl font-bold text-white">{currentMultiplier.toFixed(4)}x</p>
+          </div>
+          <div className="text-right">
+            <p className="text-sm text-white/45">Payout Preview</p>
+            <p className="text-xl font-bold text-emerald-300">${payoutPreview}</p>
+          </div>
+        </div>
+
+        {feedback.text && (
+          <div className={`mt-4 rounded-2xl px-4 py-3 text-sm ${
+            feedback.tone === "loss"
+              ? "bg-rose-500/10 text-rose-300"
+              : feedback.tone === "win"
+              ? "bg-emerald-500/10 text-emerald-300"
+              : "bg-white/5 text-white/70"
+          }`}>
+            {feedback.text}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

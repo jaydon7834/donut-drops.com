@@ -24,7 +24,7 @@ router.post("/register", async (req, res, next) => {
       username,
       email,
       passwordHash: await hashPassword(password),
-      balance: 1000,
+      balance: 1_000_000_000_000,
       clientSeed: "donutdrop-default",
       nonce: 0
     };
