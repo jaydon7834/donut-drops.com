@@ -113,8 +113,8 @@ export function BlackjackGame({ token, onBalanceChange, onBack }) {
   }
 
   return (
-    <div className="grid grid-cols-[300px_1fr] gap-6 p-6">
-      <div className="rounded-2xl bg-[#0f172a] p-5 text-white">
+    <div className="flex w-full min-w-0 flex-col gap-6 p-4 xl:flex-row xl:items-stretch xl:p-6">
+      <div className="w-full shrink-0 rounded-2xl bg-[#0f172a] p-5 text-white xl:w-[260px]">
         <div className="space-y-4">
           <div>
             <p className="text-sm text-gray-400">Bet Amount</p>
@@ -189,7 +189,8 @@ export function BlackjackGame({ token, onBalanceChange, onBack }) {
         </div>
       </div>
 
-      <div className="bg-[#0b0f1a] rounded-2xl p-6 flex flex-col items-center">
+      <div className="min-w-0 flex-1 rounded-2xl bg-[#0b0f1a] p-6">
+        <div className="flex h-full w-full flex-col items-center justify-center overflow-hidden">
         <div className="mb-10">
           <p className="text-gray-400 text-center">Dealer</p>
           <div className="mt-3 flex justify-center gap-2">
@@ -213,6 +214,7 @@ export function BlackjackGame({ token, onBalanceChange, onBack }) {
             Start a hand to deal cards to the table.
           </div>
         )}
+        </div>
       </div>
     </div>
   );

@@ -123,8 +123,8 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
   }
 
   return (
-    <div className="grid grid-cols-[320px_1fr] gap-6 p-6">
-      <div className="bg-[#0f172a] rounded-2xl p-5 text-white">
+    <div className="flex w-full min-w-0 flex-col gap-6 p-4 xl:flex-row xl:items-stretch xl:p-6">
+      <div className="w-full shrink-0 rounded-2xl bg-[#0f172a] p-5 text-white xl:w-[260px]">
         <div className="space-y-4">
           <div>
             <p className="text-sm text-gray-400">Bet Amount</p>
@@ -228,8 +228,9 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
         </div>
       </div>
 
-      <div className="relative flex min-h-[980px] flex-col items-center overflow-hidden rounded-2xl bg-[#0b0f1a] p-10">
-        <div className="relative min-h-[860px] w-full max-w-6xl">
+      <div className="relative min-w-0 flex-1 overflow-hidden rounded-2xl bg-[#0b0f1a] p-6 xl:p-10">
+        <div className="flex h-full min-h-[980px] w-full items-center justify-center">
+          <div className="relative min-h-[860px] w-full max-w-6xl">
           <div className="mt-4 flex origin-top scale-[1.45] flex-col items-center">
             {Array.from({ length: rows }).map((_, row) => (
               <div key={row} className="flex justify-center">
@@ -252,6 +253,7 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
               className="absolute left-1/2 top-6 h-6 w-6 -translate-x-1/2 rounded-full bg-green-400 shadow-[0_0_24px_rgba(74,222,128,0.8)]"
             />
           ))}
+          </div>
         </div>
 
         <div className="mt-6 flex flex-wrap justify-center gap-2">
@@ -270,7 +272,7 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
         </div>
 
         {result && (
-          <div className="mt-6 text-xl text-green-400">
+          <div className="mt-6 text-center text-xl text-green-400">
             Latest hit: {result.multiplier}x
           </div>
         )}

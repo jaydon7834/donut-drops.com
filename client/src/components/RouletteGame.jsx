@@ -127,8 +127,8 @@ export function RouletteGame({ token, user, onBalanceChange, onBack }) {
   }
 
   return (
-    <div className="grid grid-cols-[300px_1fr] gap-6 p-6">
-      <div className="rounded-2xl bg-[#0f172a] p-5 text-white">
+    <div className="flex w-full min-w-0 flex-col gap-6 p-4 xl:flex-row xl:items-stretch xl:p-6">
+      <div className="w-full shrink-0 rounded-2xl bg-[#0f172a] p-5 text-white xl:w-[260px]">
         <div className="space-y-4">
           <div>
             <p className="text-sm text-gray-400">Bet Amount</p>
@@ -260,8 +260,8 @@ export function RouletteGame({ token, user, onBalanceChange, onBack }) {
         </div>
       </div>
 
-      <div className="rounded-2xl bg-[#0b0f1a] p-6">
-        <div className="flex flex-col items-center">
+      <div className="min-w-0 flex-1 rounded-2xl bg-[#0b0f1a] p-6">
+        <div className="flex h-full w-full flex-col items-center justify-center overflow-hidden">
           <RouletteWheel spin={spin} />
 
           <div className="mt-8 w-full max-w-4xl rounded-2xl bg-[#0f172a] p-5 shadow-[0_0_40px_rgba(34,197,94,0.08)]">

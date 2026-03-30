@@ -95,8 +95,8 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
   }
 
   return (
-    <div className="grid grid-cols-[300px_1fr] gap-6 p-6">
-      <div className="rounded-2xl bg-[#0f172a] p-5">
+    <div className="flex w-full min-w-0 flex-col gap-6 p-4 xl:flex-row xl:items-stretch xl:p-6">
+      <div className="w-full shrink-0 rounded-2xl bg-[#0f172a] p-5 xl:w-[260px]">
         <div className="space-y-4 text-white">
           <div>
             <p className="text-xs uppercase tracking-[0.3em] text-indigo-200/65">Chicken Bet</p>
@@ -197,7 +197,7 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
         </div>
       </div>
 
-      <div className="flex flex-col items-center rounded-2xl bg-[#0b0f1a] p-6">
+      <div className="min-w-0 flex-1 rounded-2xl bg-[#0b0f1a] p-6">
         <div className="w-full rounded-2xl bg-[#0d0f18] p-6">
           <p className="text-xs uppercase tracking-[0.28em] text-indigo-200/65">Chicken Road</p>
 

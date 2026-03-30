@@ -117,8 +117,8 @@ export function DiceGame({ token, user, onBalanceChange }) {
   }
 
   return (
-    <div className="grid grid-cols-[320px_1fr] gap-6 p-6">
-      <div className="bg-[#0f172a] rounded-2xl p-5 space-y-4 text-white">
+    <div className="flex w-full min-w-0 flex-col gap-6 p-4 xl:flex-row xl:items-stretch xl:p-6">
+      <div className="w-full shrink-0 rounded-2xl bg-[#0f172a] p-5 text-white xl:w-[260px]">
         <div>
           <p className="text-sm text-gray-400">Bet Amount</p>
           <div className="mt-2 flex overflow-hidden rounded-lg bg-[#1e293b]">
@@ -244,7 +244,8 @@ export function DiceGame({ token, user, onBalanceChange }) {
         )}
       </div>
 
-      <div className="bg-[#0b0f1a] rounded-2xl p-8 flex flex-col items-center justify-center">
+      <div className="min-w-0 flex-1 rounded-2xl bg-[#0b0f1a] p-8">
+        <div className="flex h-full w-full flex-col items-center justify-center overflow-hidden">
         <div className="text-gray-400 mb-4">ROLLED NUMBER</div>
 
         <div className="mb-6">
@@ -283,6 +284,7 @@ export function DiceGame({ token, user, onBalanceChange }) {
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

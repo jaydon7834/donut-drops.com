@@ -1366,7 +1366,7 @@ export function Dashboard() {
   }
 
   return (
-    <div className="relative grid min-h-[88vh] gap-5 xl:grid-cols-[220px,1fr,300px]">
+    <div className="relative flex min-h-[88vh] w-full gap-5">
       {renderWalletModal()}
 
       {trackerOpen && (
@@ -1426,7 +1426,7 @@ export function Dashboard() {
         </motion.div>
       )}
 
-      <aside className="glass-panel hidden rounded-[2rem] py-6 xl:block">
+      <aside className="glass-panel hidden w-[240px] shrink-0 rounded-[2rem] py-6 xl:block">
         <div className="px-6">
           <p className="text-3xl font-black text-white">
             Donut<span className="text-accent">Drop</span>
@@ -1488,7 +1488,7 @@ export function Dashboard() {
         </div>
       </aside>
 
-      <main className="space-y-5">
+      <main className="min-w-0 flex-1 space-y-5">
         <motion.header
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1601,7 +1601,7 @@ export function Dashboard() {
         )}
       </main>
 
-      <aside className="glass-panel hidden rounded-[2rem] p-4 xl:block">
+      <aside className="glass-panel hidden w-[300px] shrink-0 rounded-[2rem] p-4 xl:block">
         <div className="flex items-center justify-between rounded-2xl bg-white/5 px-4 py-3">
           <p className="font-semibold text-white">Chat</p>
           <p className="text-sm text-white/55">

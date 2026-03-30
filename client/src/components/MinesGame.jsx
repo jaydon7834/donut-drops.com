@@ -180,8 +180,8 @@ export function MinesGame({ token, user, onBalanceChange }) {
   }
 
   return (
-    <div className="grid gap-6 p-4 xl:grid-cols-[260px_minmax(0,1fr)] xl:p-6">
-      <div className="rounded-[1.8rem] bg-[#131625] p-6 text-white">
+    <div className="flex w-full min-w-0 flex-col gap-6 p-4 xl:flex-row xl:items-stretch xl:p-6">
+      <div className="w-full shrink-0 rounded-[1.8rem] bg-[#131625] p-6 text-white xl:w-[260px]">
         <div className="flex items-start justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.28em] text-indigo-200/65">Mines Bet</p>
@@ -265,7 +265,7 @@ export function MinesGame({ token, user, onBalanceChange }) {
         </div>
       </div>
 
-      <div className="min-w-0 rounded-[1.8rem] bg-[#131625] p-6 shadow-[0_0_40px_rgba(0,0,0,0.2)] xl:min-h-[600px] xl:p-10 flex flex-col">
+      <div className="min-w-0 flex-1 rounded-[1.8rem] bg-[#131625] p-6 shadow-[0_0_40px_rgba(0,0,0,0.2)] xl:min-h-[600px] xl:p-10">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.28em] text-indigo-200/65">Mines Board</p>
@@ -276,26 +276,24 @@ export function MinesGame({ token, user, onBalanceChange }) {
           </div>
         </div>
 
-        <div className="mt-6 flex flex-1 items-center justify-center">
-          <div className="max-w-full overflow-x-auto rounded-2xl bg-[#0f172a] p-4 shadow-[0_0_40px_rgba(0,0,0,0.8)] xl:p-6">
-            <div className="flex justify-center items-center w-full">
-              <div className="grid grid-cols-5 gap-4">
-                {tiles.map((tile) => {
-                  const isRevealed = revealedTiles.includes(tile);
-                  const isMine = minePositions.includes(tile);
-                  const state = isMine ? "mine" : isRevealed ? "safe" : "hidden";
+        <div className="mt-6 flex min-h-[600px] w-full items-center justify-center overflow-hidden rounded-2xl bg-[#0f172a] p-4 shadow-[0_0_40px_rgba(0,0,0,0.8)] xl:p-8">
+          <div className="flex w-full justify-center">
+            <div className="grid shrink-0 grid-cols-5 gap-4">
+              {tiles.map((tile) => {
+                const isRevealed = revealedTiles.includes(tile);
+                const isMine = minePositions.includes(tile);
+                const state = isMine ? "mine" : isRevealed ? "safe" : "hidden";
 
-                  return (
-                    <Tile
-                      key={tile}
-                      onClick={() => handleTileClick(tile)}
-                      state={state}
-                      disabled={!activeGame || loading}
-                      shake={feedback.tone === "loss" && settledGame?.active === false}
-                    />
-                  );
-                })}
-              </div>
+                return (
+                  <Tile
+                    key={tile}
+                    onClick={() => handleTileClick(tile)}
+                    state={state}
+                    disabled={!activeGame || loading}
+                    shake={feedback.tone === "loss" && settledGame?.active === false}
+                  />
+                );
+              })}
             </div>
           </div>
         </div>

@@ -93,8 +93,8 @@ export function LimboGame({ token, user, onBalanceChange, onBack }) {
   }
 
   return (
-    <div className="grid grid-cols-[300px_1fr] gap-6 p-6">
-      <div className="bg-[#0f172a] rounded-2xl p-5">
+    <div className="flex w-full min-w-0 flex-col gap-6 p-4 xl:flex-row xl:items-stretch xl:p-6">
+      <div className="w-full shrink-0 rounded-2xl bg-[#0f172a] p-5 xl:w-[260px]">
         <div className="space-y-4 text-white">
           <div>
             <p className="text-gray-400 text-sm">Bet Amount</p>
@@ -167,8 +167,8 @@ export function LimboGame({ token, user, onBalanceChange, onBack }) {
         </div>
       </div>
 
-      <div className="bg-[#0b0f1a] rounded-2xl p-6 flex flex-col items-center justify-center shadow-[0_0_40px_rgba(34,197,94,0.12)]">
-        <div className="flex flex-col items-center justify-center h-full">
+      <div className="min-w-0 flex-1 rounded-2xl bg-[#0b0f1a] p-6 shadow-[0_0_40px_rgba(34,197,94,0.12)]">
+        <div className="flex h-full w-full flex-col items-center justify-center overflow-hidden">
           <div className="text-gray-400 mb-4">ROLLED MULTIPLIER</div>
 
           <motion.div
