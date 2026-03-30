@@ -23,7 +23,18 @@ const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 4000;
 const authLimiter = createRateLimiter({ windowMs: 60 * 1000, maxHits: 30, keyPrefix: "auth" });
-const gameLimiter = createRateLimiter({ windowMs: 1000, maxHits: 5, keyPrefix: "game" });
+const gameLimiter = createRateLimiter({
+  windowMs: 1000,
+  maxHits: 5,
+  keyPrefix: "game",
+  skip: (req) => req.baseUrl === "/game/instant" && req.path.startsWith("/case-battles")
+});
+const caseBattleLimiter = createRateLimiter({
+  windowMs: 1000,
+  maxHits: 12,
+  keyPrefix: "case-battles",
+  skip: (req) => !(req.baseUrl === "/game/instant" && req.path.startsWith("/case-battles"))
+});
 
 app.use(
   cors({
@@ -51,7 +62,7 @@ app.use("/game/chicken", gameLimiter, processingLock, chickenRoutes);
 app.use("/game/roulette", gameLimiter, processingLock, rouletteRoutes);
 app.use("/game/limbo", gameLimiter, processingLock, limboRoutes);
 app.use("/game/plinko", gameLimiter, processingLock, plinkoRoutes);
-app.use("/game/instant", gameLimiter, processingLock, instantRoutes);
+app.use("/game/instant", caseBattleLimiter, gameLimiter, processingLock, instantRoutes);
 app.use("/chat", chatRoutes);
 app.use("/rain", rainRoutes);
 

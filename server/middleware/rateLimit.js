@@ -4,8 +4,12 @@ function pruneBucket(bucket, windowMs, now) {
   bucket.hits = bucket.hits.filter((timestamp) => now - timestamp < windowMs);
 }
 
-export function createRateLimiter({ windowMs, maxHits, keyPrefix = "global" }) {
+export function createRateLimiter({ windowMs, maxHits, keyPrefix = "global", skip }) {
   return function rateLimitMiddleware(req, res, next) {
+    if (typeof skip === "function" && skip(req)) {
+      return next();
+    }
+
     const now = Date.now();
     const requestKey = req.user?.id || req.ip || req.connection?.remoteAddress || "unknown";
     const key = `${keyPrefix}:${requestKey}`;
