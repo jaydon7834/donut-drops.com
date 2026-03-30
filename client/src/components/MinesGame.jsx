@@ -291,12 +291,8 @@ export function MinesGame({ token, user, onBalanceChange }) {
             <input
               value={clientSeed}
               onChange={(event) => setClientSeed(event.target.value)}
-<<<<<<< HEAD
               className="mt-3 w-full rounded-[1rem] bg-[#0d111c] p-4 text-white outline-none"
               disabled={Boolean(activeGame)}
-=======
-              className="mt-3 w-full rounded-[1rem] bg-[#0d111c] p-3 text-white outline-none"
->>>>>>> 9c4e097 (Make mines and plinko significantly smaller)
             />
           </div>
 
