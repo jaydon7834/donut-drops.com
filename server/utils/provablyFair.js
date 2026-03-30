@@ -30,7 +30,9 @@ export function hashToFloat(serverSeed, clientSeed, nonce) {
 
   const segment = hash.slice(0, 13);
   const integer = parseInt(segment, 16);
-  const max = 0x1fffffffffffff;
+  // 13 hex chars = 52 bits. Divide by 2^52 so the value spans [0, 1)
+  // instead of being artificially compressed toward 0.
+  const max = 0x10000000000000;
 
   return {
     hash,
@@ -62,10 +64,13 @@ export function generateMinesPositions({ serverSeed, clientSeed, nonce, mines })
 }
 
 export function generateDiceResult({ serverSeed, clientSeed, nonce }) {
-  const { hash, value } = hashToFloat(serverSeed, clientSeed, nonce);
+  const { hash } = hashToFloat(serverSeed, clientSeed, nonce);
+  const integer = parseInt(hash.slice(0, 8), 16);
+  const max = 0xffffffff;
+
   return {
     hash,
-    roll: Number((value * 100).toFixed(2)),
-    value
+    roll: Number((((integer / max) * 100)).toFixed(2)),
+    value: integer / max
   };
 }

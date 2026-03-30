@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { api } from "../lib/api.js";
 import { formatBetInput, parseBetInput } from "../lib/betting.js";
 
-const rows = 12;
 const multipliers = [33, 11, 4, 2, 1.1, 0.6, 0.3, 0.6, 1.1, 2, 4, 11, 33];
 
 function buildKeyframes(path) {
@@ -20,27 +19,84 @@ function buildKeyframes(path) {
 export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
   const [betAmount, setBetAmount] = useState(20);
   const [betInput, setBetInput] = useState("20");
+  const [rows, setRows] = useState(12);
+  const [ballCount, setBallCount] = useState(1);
+  const [autoDrop, setAutoDrop] = useState(false);
   const [clientSeed, setClientSeed] = useState(user.clientSeed || "donutdrop-default");
-  const [dropping, setDropping] = useState(false);
+  const [activeBalls, setActiveBalls] = useState([]);
   const [result, setResult] = useState(null);
-  const [ballFrames, setBallFrames] = useState([]);
   const [feedback, setFeedback] = useState("");
+  const [queueRemaining, setQueueRemaining] = useState(0);
 
-  const pathKeyframes = useMemo(() => buildKeyframes(ballFrames), [ballFrames]);
+  const dropping = queueRemaining > 0 || activeBalls.length > 0;
 
   useEffect(() => {
-    if (!dropping) {
+    if (queueRemaining <= 0) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    async function releaseBall() {
+      try {
+        const data = await api.dropPlinko(token, {
+          bet: parseBetInput(betInput),
+          rows,
+          clientSeed
+        });
+
+        if (cancelled) {
+          return;
+        }
+
+        const ballId = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+        const nextBall = {
+          id: ballId,
+          frames: buildKeyframes(data.game.path || []),
+          bucketIndex: data.game.bucketIndex
+        };
+
+        setActiveBalls((current) => [...current, nextBall]);
+        setResult(data.game);
+        setFeedback(`Latest hit: ${data.game.multiplier}x`);
+        onBalanceChange(data.balance);
+
+        window.setTimeout(() => {
+          setActiveBalls((current) => current.filter((entry) => entry.id !== ballId));
+        }, 1600);
+      } catch (error) {
+        if (!cancelled) {
+          setFeedback(error.message);
+          setQueueRemaining(0);
+        }
+      }
+    }
+
+    releaseBall();
+
+    const timeoutId = window.setTimeout(() => {
+      setQueueRemaining((current) => Math.max(current - 1, 0));
+    }, 1000);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [betInput, clientSeed, onBalanceChange, queueRemaining, rows, token]);
+
+  useEffect(() => {
+    if (!autoDrop || dropping) {
       return undefined;
     }
 
     const timeoutId = window.setTimeout(() => {
-      setDropping(false);
-    }, 1600);
+      setFeedback("");
+      setResult(null);
+      setQueueRemaining(Math.max(1, Math.min(25, Number(ballCount) || 1)));
+    }, 250);
 
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [dropping]);
+    return () => window.clearTimeout(timeoutId);
+  }, [autoDrop, ballCount, dropping]);
 
   function handleBetInputChange(value) {
     setBetInput(value);
@@ -56,29 +112,14 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
     setBetInput(formatBetInput(nextBet));
   }
 
-  async function handleDrop() {
-    setDropping(true);
+  function handleDrop() {
+    if (dropping) {
+      return;
+    }
+
     setFeedback("");
     setResult(null);
-
-    try {
-      const data = await api.dropPlinko(token, {
-        bet: parseBetInput(betInput),
-        rows,
-        clientSeed
-      });
-
-      setBallFrames(data.game.path || []);
-      onBalanceChange(data.balance);
-
-      window.setTimeout(() => {
-        setResult(data.game);
-        setFeedback(`Won ${data.game.multiplier}x 💰`);
-      }, 1500);
-    } catch (error) {
-      setDropping(false);
-      setFeedback(error.message);
-    }
+    setQueueRemaining(Math.max(1, Math.min(25, Number(ballCount) || 1)));
   }
 
   return (
@@ -107,7 +148,42 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
 
           <div>
             <p className="text-sm text-gray-400">Rows</p>
-            <div className="mt-2 rounded-xl bg-[#1e293b] px-4 py-3 text-white">{rows}</div>
+            <div className="mt-2 rounded-xl bg-[#1e293b] px-4 py-3 text-white">
+              <div className="flex items-center justify-between">
+                <span>{rows}</span>
+                <span className="text-xs text-white/45">8 - 16</span>
+              </div>
+              <input
+                type="range"
+                min="8"
+                max="16"
+                step="1"
+                value={rows}
+                onChange={(event) => setRows(Number(event.target.value))}
+                className="mt-3 w-full accent-emerald-400"
+                disabled={dropping}
+              />
+            </div>
+          </div>
+
+          <div>
+            <p className="text-sm text-gray-400">Balls</p>
+            <div className="mt-2 rounded-xl bg-[#1e293b] px-4 py-3 text-white">
+              <div className="flex items-center justify-between">
+                <span>{ballCount}</span>
+                <span className="text-xs text-white/45">1 per sec</span>
+              </div>
+              <input
+                type="range"
+                min="1"
+                max="25"
+                step="1"
+                value={ballCount}
+                onChange={(event) => setBallCount(Number(event.target.value))}
+                className="mt-3 w-full accent-emerald-400"
+                disabled={dropping}
+              />
+            </div>
           </div>
 
           <div>
@@ -115,17 +191,29 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
             <input
               value={clientSeed}
               onChange={(event) => setClientSeed(event.target.value)}
-              className="mt-2 w-full p-3 bg-[#1e293b] rounded-xl text-white outline-none"
+              className="mt-2 w-full rounded-xl bg-[#1e293b] p-3 text-white outline-none"
             />
           </div>
 
           <button
             type="button"
+            onClick={() => setAutoDrop((current) => !current)}
+            className={`w-full rounded-xl p-3 font-bold transition ${
+              autoDrop
+                ? "bg-orange-500 text-slate-950 hover:bg-orange-400"
+                : "bg-white/10 text-white hover:bg-white/15"
+            }`}
+          >
+            {autoDrop ? "Auto Drop On" : "Auto Drop Off"}
+          </button>
+
+          <button
+            type="button"
             onClick={handleDrop}
             disabled={dropping}
-            className="w-full bg-green-500 hover:bg-green-600 p-3 rounded-xl font-bold text-slate-950 disabled:opacity-50"
+            className="w-full rounded-xl bg-green-500 p-3 font-bold text-slate-950 transition hover:bg-green-600 disabled:opacity-50"
           >
-            {dropping ? "Dropping..." : "Drop Ball"}
+            {dropping ? `Dropping... ${queueRemaining || activeBalls.length} left` : `Drop ${ballCount} Ball${ballCount === 1 ? "" : "s"}`}
           </button>
 
           <button
@@ -140,36 +228,37 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
         </div>
       </div>
 
-      <div className="bg-[#0b0f1a] rounded-2xl p-6 flex flex-col items-center relative overflow-hidden">
-        <div className="relative w-full max-w-3xl min-h-[560px]">
-          <div className="flex flex-col items-center mt-10">
+      <div className="relative flex min-h-[980px] flex-col items-center overflow-hidden rounded-2xl bg-[#0b0f1a] p-10">
+        <div className="relative min-h-[860px] w-full max-w-6xl">
+          <div className="mt-4 flex origin-top scale-[1.45] flex-col items-center">
             {Array.from({ length: rows }).map((_, row) => (
               <div key={row} className="flex justify-center">
                 {Array.from({ length: row + 1 }).map((__, index) => (
                   <div
                     key={`${row}-${index}`}
-                    className="w-2 h-2 bg-gray-500 rounded-full m-2 shadow-[0_0_12px_rgba(148,163,184,0.35)]"
+                    className="m-3 h-3.5 w-3.5 rounded-full bg-gray-400 shadow-[0_0_16px_rgba(148,163,184,0.35)]"
                   />
                 ))}
               </div>
             ))}
           </div>
 
-          {dropping && pathKeyframes.length > 0 && (
+          {activeBalls.map((ball) => (
             <motion.div
+              key={ball.id}
               initial={{ x: 0, y: 0 }}
-              animate={pathKeyframes}
+              animate={ball.frames}
               transition={{ duration: 1.5, ease: "easeInOut" }}
-              className="w-4 h-4 bg-green-400 rounded-full absolute left-1/2 top-6 -translate-x-1/2 shadow-[0_0_20px_rgba(74,222,128,0.8)]"
+              className="absolute left-1/2 top-6 h-6 w-6 -translate-x-1/2 rounded-full bg-green-400 shadow-[0_0_24px_rgba(74,222,128,0.8)]"
             />
-          )}
+          ))}
         </div>
 
-        <div className="flex justify-center gap-2 mt-6 flex-wrap">
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
           {multipliers.map((multiplier, index) => (
             <div
               key={index}
-              className={`px-2 py-1 rounded text-sm ${
+              className={`rounded px-2 py-1 text-sm ${
                 result?.bucketIndex === index
                   ? "bg-green-500 text-slate-950 shadow-[0_0_24px_rgba(34,197,94,0.4)]"
                   : "bg-[#1e293b] text-white"
@@ -182,7 +271,7 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
 
         {result && (
           <div className="mt-6 text-xl text-green-400">
-            Won {result.multiplier}x 💰
+            Latest hit: {result.multiplier}x
           </div>
         )}
       </div>

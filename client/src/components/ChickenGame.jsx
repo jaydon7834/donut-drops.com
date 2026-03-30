@@ -8,9 +8,13 @@ const totalSteps = 10;
 export function ChickenGame({ token, onBalanceChange, onBack }) {
   const [betAmount, setBetAmount] = useState(10);
   const [betInput, setBetInput] = useState("10");
+  const [risk, setRisk] = useState("medium");
   const [game, setGame] = useState(null);
   const [feedback, setFeedback] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showDeathOverlay, setShowDeathOverlay] = useState(false);
+
+  const survivalChanceLabel = `${Math.round((game?.surviveChance || (risk === "low" ? 0.8 : risk === "high" ? 0.7 : 0.75)) * 100)}% per step`;
 
   function handleBetInputChange(value) {
     setBetInput(value);
@@ -29,10 +33,12 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
   async function handleStart() {
     setLoading(true);
     setFeedback("");
+    setShowDeathOverlay(false);
 
     try {
       const data = await api.startChicken(token, {
-        bet: parseBetInput(betInput)
+        bet: parseBetInput(betInput),
+        risk
       });
 
       setGame(data.game);
@@ -56,9 +62,10 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
       const data = await api.stepChicken(token, { gameId: game.gameId });
       setGame(data.game);
       onBalanceChange(data.balance);
+      setShowDeathOverlay(data.game.result === "lose");
       setFeedback(
         data.game.result === "lose"
-          ? "💀 You died"
+          ? "YOU DIED"
           : `Safe step. Multiplier is now ${data.game.multiplier.toFixed(2)}x.`
       );
     } catch (error) {
@@ -89,7 +96,7 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
 
   return (
     <div className="grid grid-cols-[300px_1fr] gap-6 p-6">
-      <div className="bg-[#0f172a] rounded-2xl p-5">
+      <div className="rounded-2xl bg-[#0f172a] p-5">
         <div className="space-y-4 text-white">
           <div>
             <p className="text-xs uppercase tracking-[0.3em] text-indigo-200/65">Chicken Bet</p>
@@ -116,6 +123,26 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
           </div>
 
           <div className="rounded-2xl bg-[#171b2a] p-4">
+            <div className="mb-3">
+              <p className="text-white/65">Risk</p>
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                {["low", "medium", "high"].map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setRisk(mode)}
+                    disabled={Boolean(game?.active)}
+                    className={`rounded-xl px-3 py-2 text-sm font-bold capitalize transition ${
+                      (game?.risk || risk) === mode
+                        ? "bg-emerald-500 text-slate-950"
+                        : "bg-white/10 text-white/75"
+                    } disabled:opacity-60`}
+                  >
+                    {mode}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="flex items-center justify-between">
               <span className="text-white/65">Step</span>
               <span className="font-bold text-white">{game?.step || 0}/{totalSteps}</span>
@@ -126,7 +153,7 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
             </div>
             <div className="mt-2 flex items-center justify-between">
               <span className="text-white/65">Survival Chance</span>
-              <span className="font-bold text-emerald-300">75% per step</span>
+              <span className="font-bold text-emerald-300">{survivalChanceLabel}</span>
             </div>
           </div>
 
@@ -170,7 +197,7 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
         </div>
       </div>
 
-      <div className="bg-[#0b0f1a] rounded-2xl p-6 flex flex-col items-center">
+      <div className="flex flex-col items-center rounded-2xl bg-[#0b0f1a] p-6">
         <div className="w-full rounded-2xl bg-[#0d0f18] p-6">
           <p className="text-xs uppercase tracking-[0.28em] text-indigo-200/65">Chicken Road</p>
 
@@ -199,10 +226,19 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
             <motion.div
               animate={{ y: -((game?.step || 0) * 36) }}
               transition={{ duration: 0.35 }}
-              className="absolute left-1/2 bottom-6 -translate-x-1/2 text-4xl drop-shadow-[0_0_20px_rgba(250,204,21,0.45)]"
+              className="absolute left-1/2 bottom-6 -translate-x-1/2 text-lg font-black text-amber-200 drop-shadow-[0_0_20px_rgba(250,204,21,0.45)]"
             >
-              🐔
+              C
             </motion.div>
+
+            {showDeathOverlay && (
+              <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/82 backdrop-blur-sm">
+                <div className="rounded-[1.8rem] border border-rose-500/20 bg-rose-500/10 px-10 py-8 text-center shadow-[0_0_60px_rgba(244,63,94,0.2)]">
+                  <p className="text-5xl font-black tracking-[0.18em] text-rose-300">YOU DIED</p>
+                  <p className="mt-3 text-sm text-white/65">Press Start Round to reset the road.</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

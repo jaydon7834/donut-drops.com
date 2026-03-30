@@ -42,7 +42,7 @@ export function LimboGame({ token, user, onBalanceChange, onBack }) {
     setTargetInput(value);
 
     if (Number.isFinite(parsed)) {
-      const clamped = Math.min(10, Math.max(1.01, parsed));
+      const clamped = Math.min(100, Math.max(1.01, parsed));
       setTarget(Number(clamped.toFixed(2)));
     }
   }
@@ -128,7 +128,7 @@ export function LimboGame({ token, user, onBalanceChange, onBack }) {
           <input
             type="range"
             min="1.01"
-            max="10"
+            max="100"
             step="0.01"
             value={target}
             onChange={(event) => {
