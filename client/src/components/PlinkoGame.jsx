@@ -88,10 +88,8 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
           setActiveBalls((current) => current.filter((entry) => entry.id !== ballId));
         }, 1600);
       } catch (error) {
-        if (!cancelled) {
-          setFeedback(error.message);
-          setQueueRemaining(0);
-        }
+        setFeedback(error.message);
+        setQueueRemaining(0);
       }
     }
 
@@ -293,16 +291,16 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
         </div>
       </div>
 
-      <div className="relative min-w-0 flex-1 overflow-hidden rounded-2xl bg-[#0b0f1a] p-4 xl:p-8">
-        <div className="flex h-full min-h-[760px] w-full items-center justify-center xl:min-h-[820px]">
-          <div className="relative w-full max-w-6xl">
-          <div className="mt-2 flex origin-top scale-[1.08] flex-col items-center sm:scale-[1.14] xl:scale-[1.24] 2xl:scale-[1.35]">
+      <div className="relative min-w-0 flex-1 overflow-hidden rounded-2xl bg-[#0b0f1a] p-4 xl:p-5">
+        <div className="flex h-full min-h-[520px] w-full items-center justify-center xl:min-h-[600px]">
+          <div className="relative flex w-full justify-center">
+          <div className="mt-2 flex origin-top scale-[0.7] flex-col items-center sm:scale-[0.78] xl:scale-[0.88] 2xl:scale-[0.96]">
             {Array.from({ length: rows }).map((_, row) => (
               <div key={row} className="flex justify-center">
                 {Array.from({ length: row + 1 }).map((__, index) => (
                   <div
                     key={`${row}-${index}`}
-                    className="m-2.5 h-3.5 w-3.5 rounded-full bg-gray-400 shadow-[0_0_16px_rgba(148,163,184,0.35)] xl:m-3"
+                    className="m-1.5 h-3 w-3 rounded-full bg-gray-400 shadow-[0_0_16px_rgba(148,163,184,0.35)] xl:m-2 xl:h-3 xl:w-3"
                   />
                 ))}
               </div>
@@ -315,13 +313,13 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
               initial={{ x: 0, y: 0 }}
               animate={ball.frames}
               transition={{ duration: 1.5, ease: "easeInOut" }}
-              className="absolute left-1/2 top-4 h-5 w-5 -translate-x-1/2 rounded-full bg-green-400 shadow-[0_0_24px_rgba(74,222,128,0.8)] xl:top-6 xl:h-6 xl:w-6"
+              className="absolute left-1/2 top-4 h-4 w-4 -translate-x-1/2 rounded-full bg-green-400 shadow-[0_0_24px_rgba(74,222,128,0.8)] xl:top-5 xl:h-4 xl:w-4"
             />
           ))}
           </div>
         </div>
 
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
+        <div className="mt-4 flex flex-wrap justify-center gap-2">
           {multipliers.map((multiplier, index) => (
             <div
               key={index}
@@ -337,7 +335,7 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
         </div>
 
         {result && (
-          <div className="mt-6 text-center text-xl text-green-400">
+          <div className="mt-4 text-center text-lg text-green-400">
             Latest hit: {result.multiplier}x
           </div>
         )}
