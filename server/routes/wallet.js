@@ -10,7 +10,6 @@ const CRYPTO_CONFIRM_SECRET = process.env.CRYPTO_CONFIRM_SECRET || BOT_SECRET;
 const FIXED_MINECRAFT_DEPOSIT_AMOUNT = 950;
 const USD_PER_MILLION = 0.07;
 const MIN_CRYPTO_ORDER_USD = 5;
-const DONUTS_PER_ORDER = Math.round((MIN_CRYPTO_ORDER_USD / USD_PER_MILLION) * 1_000_000);
 const supportedAssets = {
   BTC: {
     label: "Bitcoin",
@@ -45,6 +44,10 @@ function nextCryptoOrderId() {
 
 function roundToDecimals(value, decimals) {
   return Number(value.toFixed(decimals));
+}
+
+function calculateDonutCredit(usdAmount) {
+  return Math.round((usdAmount / USD_PER_MILLION) * 1_000_000);
 }
 
 function createCryptoOrderView(order) {
@@ -122,7 +125,7 @@ router.get("/crypto/assets", (req, res) => {
     label: config.label,
     address: config.address,
     minUsdAmount: MIN_CRYPTO_ORDER_USD,
-    donutsPerOrder: DONUTS_PER_ORDER,
+    donutsPerOrder: calculateDonutCredit(MIN_CRYPTO_ORDER_USD),
     usdRate: config.usdRate
   }));
 
@@ -198,9 +201,14 @@ router.post("/crypto/order", (req, res, next) => {
   try {
     const asset = String(req.body.asset || "").trim().toUpperCase();
     const assetConfig = supportedAssets[asset];
+    const usdAmount = Number(req.body.usdAmount || MIN_CRYPTO_ORDER_USD);
 
     if (!assetConfig) {
       throw createError("Unsupported crypto asset.");
+    }
+
+    if (!Number.isFinite(usdAmount) || usdAmount < MIN_CRYPTO_ORDER_USD) {
+      throw createError(`Crypto order must be at least $${MIN_CRYPTO_ORDER_USD}.`);
     }
 
     const existingOrder = Array.from(store.cryptoOrders.values()).find(
@@ -211,11 +219,15 @@ router.post("/crypto/order", (req, res, next) => {
     );
 
     if (existingOrder) {
-      return res.json({ order: createCryptoOrderView(existingOrder) });
+      if (existingOrder.status === "submitted") {
+        return res.json({ order: createCryptoOrderView(existingOrder) });
+      }
+
+      existingOrder.status = "cancelled";
     }
 
     const expectedAmount = roundToDecimals(
-      MIN_CRYPTO_ORDER_USD / assetConfig.usdRate,
+      usdAmount / assetConfig.usdRate,
       assetConfig.decimals
     );
 
@@ -224,8 +236,8 @@ router.post("/crypto/order", (req, res, next) => {
       userId: req.user.id,
       asset,
       status: "pending",
-      usdAmount: MIN_CRYPTO_ORDER_USD,
-      donutCredit: DONUTS_PER_ORDER,
+      usdAmount: Number(usdAmount.toFixed(2)),
+      donutCredit: calculateDonutCredit(usdAmount),
       expectedAmount,
       txHash: "",
       confirmations: 0,

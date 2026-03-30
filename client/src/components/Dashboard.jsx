@@ -93,6 +93,7 @@ export function Dashboard() {
   const [selectedCrypto, setSelectedCrypto] = useState("BTC");
   const [cryptoOrder, setCryptoOrder] = useState(null);
   const [cryptoTxHash, setCryptoTxHash] = useState("");
+  const [cryptoUsdInput, setCryptoUsdInput] = useState("5.00");
   const availableCryptoAssets = cryptoAssets.length ? cryptoAssets : FALLBACK_CRYPTO_ASSETS;
   const selectedCryptoAsset =
     availableCryptoAssets.find((asset) => asset.symbol === selectedCrypto) || availableCryptoAssets[0];
@@ -336,6 +337,7 @@ export function Dashboard() {
     setWalletTab("deposit");
     setWalletMessage("");
     setCryptoTxHash("");
+    setCryptoUsdInput("5.00");
   }
 
   function closeWallet() {
@@ -380,12 +382,13 @@ export function Dashboard() {
     }
   }
 
-  async function ensureCryptoOrder(symbol = selectedCrypto) {
+  async function ensureCryptoOrder(symbol = selectedCrypto, usdAmountInput = cryptoUsdInput) {
     setWalletLoading(true);
     setWalletMessage("");
 
     try {
-      const data = await api.createCryptoOrder(token, { asset: symbol });
+      const usdAmount = Math.max(5, Number(usdAmountInput) || 5);
+      const data = await api.createCryptoOrder(token, { asset: symbol, usdAmount });
       setCryptoOrder(data.order);
       setCryptoTxHash(data.order.txHash || "");
     } catch (error) {
@@ -399,7 +402,7 @@ export function Dashboard() {
     setSelectedCrypto(symbol);
     setCryptoOrder(null);
     setCryptoTxHash("");
-    await ensureCryptoOrder(symbol);
+    await ensureCryptoOrder(symbol, cryptoUsdInput);
   }
 
   async function handleSubmitCryptoHash() {
@@ -428,6 +431,14 @@ export function Dashboard() {
     } catch {
       setWalletMessage("Copy failed. Copy the value manually.");
     }
+  }
+
+  function openCryptoWallet() {
+    setWalletStep("crypto");
+    setWalletMessage("");
+    setCryptoTxHash("");
+    setCryptoOrder(null);
+    ensureCryptoOrder(selectedCrypto, cryptoUsdInput);
   }
 
   function renderWalletModal() {
