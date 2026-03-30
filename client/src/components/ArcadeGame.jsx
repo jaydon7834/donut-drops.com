@@ -477,29 +477,7 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
               </label>
             )}
 
-            {(gameType === "cases" || gameType === "case-battles") && (
-              <div className="mt-4 rounded-[1.5rem] border border-white/10 bg-black/20 p-4">
-                <p className="text-sm text-white/70">Drops</p>
-                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  {caseRewards.map((reward) => (
-                    <div
-                      key={reward.label}
-                      className={`rounded-2xl border border-white/10 bg-gradient-to-br ${reward.accent} p-3 text-center`}
-                    >
-                      <img
-                        src={reward.image}
-                        alt={reward.label}
-                        className="mx-auto h-14 w-14 object-contain"
-                      />
-                      <p className="mt-2 text-xs font-black uppercase tracking-[0.2em] text-white">
-                        {reward.rarity}
-                      </p>
-                      <p className="mt-1 text-sm font-semibold text-white">{reward.label}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            {(gameType === "cases" || gameType === "case-battles") && null}
 
             {gameType !== "case-battles" ? (
               <div className="mt-5 flex gap-3">

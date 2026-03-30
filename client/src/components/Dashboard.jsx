@@ -32,6 +32,34 @@ const FALLBACK_CRYPTO_ASSETS = [
   { symbol: "ETH", label: "Ethereum", address: "0xF8914Bb5a5fe8e3df8256877c4ed1E7F6d0BE190", minUsdAmount: 5, donutsPerOrder: 71_428_571 },
   { symbol: "SOL", label: "Solana", address: "ExWCCU5SJbYePDX59itfm69hDAiFg9EgLUCG34Z187cg", minUsdAmount: 5, donutsPerOrder: 71_428_571 }
 ];
+const BONUS_CONFIG = {
+  thirtyMinute: { label: "30 Minute Bonus", amount: 1_000_000, cooldownMs: 30 * 60 * 1000, meta: "Claim your faucet reward every 30 minutes." },
+  daily: { label: "Daily Bonus", amount: 5_000_000, cooldownMs: 24 * 60 * 60 * 1000, meta: "Daily reward that refreshes every 24 hours." },
+  weekly: { label: "Weekly Bonus", amount: 30_000_000, cooldownMs: 7 * 24 * 60 * 60 * 1000, meta: "Weekly reward for coming back consistently." },
+  monthly: { label: "Monthly Bonus", amount: 100_000_000, cooldownMs: 30 * 24 * 60 * 60 * 1000, meta: "Big monthly reward for long-term players." }
+};
+
+function formatCompactMoney(value) {
+  return `${formatCompactNumber(value)}`;
+}
+
+function formatRemainingTime(milliseconds) {
+  const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (days > 0) {
+    return `${days}d ${hours}h`;
+  }
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  }
+
+  return `${minutes}m ${seconds}s`;
+}
 
 function formatMoney(value) {
   return `$${Number(value || 0).toFixed(2)}`;
@@ -138,6 +166,9 @@ export function Dashboard() {
   const [rainMessage, setRainMessage] = useState("");
   const [joiningRain, setJoiningRain] = useState(false);
   const [startingRain, setStartingRain] = useState(false);
+  const [bonusClaims, setBonusClaims] = useState({});
+  const [rakebackClaims, setRakebackClaims] = useState([]);
+  const [bonusNow, setBonusNow] = useState(Date.now());
   const availableCryptoAssets = cryptoAssets.length ? cryptoAssets : FALLBACK_CRYPTO_ASSETS;
   const selectedCryptoAsset =
     availableCryptoAssets.find((asset) => asset.symbol === selectedCrypto) || availableCryptoAssets[0];
@@ -216,6 +247,38 @@ export function Dashboard() {
     setMinecraftUsername(user?.minecraftUsername || user?.username || "");
     setMinecraftLinked(Boolean(user?.minecraftUsername));
   }, [user?.minecraftUsername, user?.username]);
+
+  useEffect(() => {
+    const claimKey = `donutdrop_bonus_claims_${user?.id || "guest"}`;
+    const rakebackKey = `donutdrop_rakeback_claims_${user?.id || "guest"}`;
+
+    try {
+      setBonusClaims(JSON.parse(window.localStorage.getItem(claimKey) || "{}"));
+      setRakebackClaims(JSON.parse(window.localStorage.getItem(rakebackKey) || "[]"));
+    } catch {
+      setBonusClaims({});
+      setRakebackClaims([]);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setBonusNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!user?.id) {
+      return;
+    }
+    window.localStorage.setItem(`donutdrop_bonus_claims_${user.id}`, JSON.stringify(bonusClaims));
+  }, [bonusClaims, user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      return;
+    }
+    window.localStorage.setItem(`donutdrop_rakeback_claims_${user.id}`, JSON.stringify(rakebackClaims));
+  }, [rakebackClaims, user?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -479,6 +542,50 @@ export function Dashboard() {
     { label: "🎯 Biggest Win", value: formatMoney(biggestWin), tone: "text-sky-300" }
   ];
   const trackerPath = buildProfitPath(recentGames, user.balance || 1000);
+  const totalBonusClaimed = Object.values(bonusClaims).reduce((sum, entry) => sum + Number(entry?.claimed || 0), 0);
+  const totalRakebackClaimed = rakebackClaims.reduce((sum, entry) => sum + Number(entry?.amount || 0), 0);
+  const availableRakeback = Math.max(Math.floor(totalWagered * 0.02) - totalRakebackClaimed, 0);
+  const lastRakebackClaimAt = rakebackClaims.length ? Number(rakebackClaims[rakebackClaims.length - 1]?.claimedAt || 0) : 0;
+  const rakebackCooldownRemaining = Math.max(0, 60 * 60 * 1000 - (bonusNow - lastRakebackClaimAt));
+
+  function creditBalance(amount) {
+    setUser((current) => ({
+      ...current,
+      balance: Number(current.balance || 0) + Number(amount || 0)
+    }));
+  }
+
+  function handleClaimBonus(key) {
+    const bonus = BONUS_CONFIG[key];
+    if (!bonus) {
+      return;
+    }
+
+    const existing = bonusClaims[key];
+    const lastClaimedAt = Number(existing?.lastClaimedAt || 0);
+    if (bonusNow - lastClaimedAt < bonus.cooldownMs) {
+      return;
+    }
+
+    setBonusClaims((current) => ({
+      ...current,
+      [key]: {
+        lastClaimedAt: Date.now(),
+        claimed: Number(current[key]?.claimed || 0) + bonus.amount
+      }
+    }));
+    creditBalance(bonus.amount);
+  }
+
+  function handleClaimRakeback() {
+    if (availableRakeback <= 0 || rakebackCooldownRemaining > 0) {
+      return;
+    }
+
+    const amount = availableRakeback;
+    setRakebackClaims((current) => [...current, { amount, claimedAt: Date.now() }]);
+    creditBalance(amount);
+  }
   const activeTimeoutSeconds = Math.max(0, Math.ceil((chatTimeoutUntil - Date.now()) / 1000));
   const timeoutLabel = useMemo(() => {
     const minutes = Math.floor(activeTimeoutSeconds / 60);
@@ -991,46 +1098,47 @@ export function Dashboard() {
                 </p>
               </div>
               <div className="rounded-2xl bg-white/5 px-4 py-3 text-sm text-white/75">
-                Total Claimed: {formatMoney(Math.max(totalProfit, 0))}
+                Total Claimed: {formatCompactMoney(totalBonusClaimed + totalRakebackClaimed)}
               </div>
             </div>
           </div>
 
           <div className="grid gap-4 xl:grid-cols-4">
-            {[
-              { label: "30 Minute Bonus", amount: totalWagered >= 100 ? 5 : 0, meta: "Faucet reward after meeting the wager requirement." },
-              { label: "Daily Bonus", amount: totalWagered * 0.03, meta: "Based on your past 24h wagering." },
-              { label: "Weekly Bonus", amount: totalWagered * 0.08, meta: "Based on your past 7d wagering." },
-              { label: "Monthly Bonus", amount: totalWagered * 0.15, meta: "Based on your past 30d wagering." }
-            ].map((bonus) => (
-              <div key={bonus.label} className="rounded-[1.8rem] border border-white/6 bg-[#171824] p-6">
-                <p className="text-sm uppercase tracking-[0.04em] text-indigo-200/70">{bonus.label}</p>
-                <p className="mt-4 text-4xl font-black text-white">{formatMoney(bonus.amount)}</p>
-                <p className="mt-4 min-h-[52px] text-sm leading-6 text-white/60">{bonus.meta}</p>
-                <div className="mt-4 rounded-xl bg-black/20 px-4 py-3 text-sm text-white/55">
-                  Available in 0m 0s
+            {Object.entries(BONUS_CONFIG).map(([key, bonus]) => {
+              const lastClaimedAt = Number(bonusClaims[key]?.lastClaimedAt || 0);
+              const remaining = Math.max(0, bonus.cooldownMs - (bonusNow - lastClaimedAt));
+              const available = remaining === 0;
+
+              return (
+                <div key={bonus.label} className="rounded-[1.8rem] border border-white/6 bg-[#171824] p-6">
+                  <p className="text-sm uppercase tracking-[0.04em] text-indigo-200/70">{bonus.label}</p>
+                  <p className="mt-4 text-4xl font-black text-white">{formatCompactMoney(bonus.amount)}</p>
+                  <p className="mt-4 min-h-[52px] text-sm leading-6 text-white/60">{bonus.meta}</p>
+                  <div className="mt-4 rounded-xl bg-black/20 px-4 py-3 text-sm text-white/55">
+                    {available ? "Available now" : `Available in ${formatRemainingTime(remaining)}`}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleClaimBonus(key)}
+                    disabled={!available}
+                    className="mt-4 w-full rounded-xl bg-emerald-500 px-4 py-3 font-semibold text-slate-950 disabled:opacity-55"
+                  >
+                    {available ? `Claim ${formatCompactMoney(bonus.amount)}` : "On Cooldown"}
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  className="mt-4 w-full rounded-xl bg-emerald-500 px-4 py-3 font-semibold text-slate-950"
-                >
-                  On Cooldown
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="grid gap-4 lg:grid-cols-[1.6fr,1fr]">
             <div className="rounded-[1.8rem] border border-white/6 bg-[#171824] p-6">
               <p className="text-sm uppercase tracking-[0.2em] text-indigo-200/70">Rakeback</p>
               <div className="mt-4 rounded-xl bg-black/20 px-4 py-3 text-sm text-white/65">
-                Rakeback rate: claimable right now from calculated losses
+                Rakeback rate: 2% of total wagered, claimable once per hour.
               </div>
               <div className="mt-5 rounded-[1.4rem] border border-white/6 bg-[#11121a] p-6">
                 <p className="text-sm uppercase tracking-[0.25em] text-white/45">Available Rakeback</p>
-                <p className="mt-3 text-4xl font-black text-white">
-                  {formatMoney(Math.max(totalWagered * 0.02 - Math.max(totalProfit, 0), 0))}
-                </p>
+                <p className="mt-3 text-4xl font-black text-white">{formatCompactMoney(availableRakeback)}</p>
                 <p className="mt-3 text-sm text-white/55">
                   Claimable once per hour based on your wagered volume.
                 </p>
@@ -1039,9 +1147,15 @@ export function Dashboard() {
 
             <div className="rounded-[1.8rem] border border-white/6 bg-[#171824] p-6">
               <p className="text-sm uppercase tracking-[0.25em] text-white/45">Status</p>
-              <p className="mt-4 text-white/80">Available in 0m 0s</p>
+              <p className="mt-4 text-white/80">
+                {rakebackCooldownRemaining > 0
+                  ? `Available in ${formatRemainingTime(rakebackCooldownRemaining)}`
+                  : "Available now"}
+              </p>
               <button
                 type="button"
+                onClick={handleClaimRakeback}
+                disabled={availableRakeback <= 0 || rakebackCooldownRemaining > 0}
                 className="mt-5 w-full rounded-xl bg-emerald-500 px-4 py-3 font-semibold text-slate-950"
               >
                 Claim Rakeback
