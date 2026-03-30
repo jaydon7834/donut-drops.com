@@ -1031,15 +1031,28 @@ export function Dashboard() {
                     <p className="text-2xl font-bold text-emerald-300">Deposit Bot Online</p>
                   </div>
                   <p className="mt-3 text-white/70">
-                    DonutSMP in-game deposits are available right now. Pay the bot <span className="font-semibold text-white">{depositSession?.botName || "a5ew"}</span>, then wait for payment verification before your balance updates.
+                    DonutSMP in-game deposits are available right now.
                   </p>
-                  <div className="mt-4 rounded-2xl bg-black/20 px-4 py-4">
-                    <p className="text-xs uppercase tracking-[0.25em] text-white/45">Minecraft Deposit Amount</p>
-                    <p className="mt-2 text-4xl font-black tracking-[0.12em] text-white">
-                      {depositSession?.requiredAmount || "---"}
-                    </p>
-                    <p className="mt-2 text-sm text-white/55">
-                      Pay exactly {depositSession?.requiredAmount || "---"} in Minecraft money to <span className="font-semibold text-white">{depositSession?.botName || "a5ew"}</span>. Once payment is verified for your linked username, your DonutDrop balance will update automatically.
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-2xl bg-black/20 px-4 py-4">
+                      <p className="text-xs uppercase tracking-[0.25em] text-white/45">Pay This Bot</p>
+                      <p className="mt-2 text-3xl font-black text-white">
+                        {depositSession?.botName || "a5ew"}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl bg-black/20 px-4 py-4">
+                      <p className="text-xs uppercase tracking-[0.25em] text-white/45">Exact Amount</p>
+                      <p className="mt-2 text-4xl font-black tracking-[0.12em] text-white">
+                        {depositSession?.requiredAmount || "---"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 rounded-2xl bg-black/20 px-4 py-4">
+                    <p className="text-xs uppercase tracking-[0.25em] text-white/45">Verification</p>
+                    <p className="mt-2 text-sm text-white/75">
+                      Pay exactly <span className="font-semibold text-white">{depositSession?.requiredAmount || "---"}</span> to{" "}
+                      <span className="font-semibold text-white">{depositSession?.botName || "a5ew"}</span>. Once that payment is verified,
+                      your DonutDrop balance is credited automatically.
                     </p>
                     <a
                       href="https://discord.gg/nr3edCRG"
