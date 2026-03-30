@@ -523,155 +523,27 @@ export function Dashboard() {
                           <button
                             key={asset.symbol}
                             type="button"
-                            onClick={() => handleSelectCrypto(asset.symbol)}
-                            className={`rounded-2xl px-4 py-4 text-left transition ${
-                              selectedCrypto === asset.symbol
-                                ? "border border-emerald-400/30 bg-emerald-500/10 text-white shadow-[0_0_24px_rgba(16,185,129,0.12)]"
-                                : "bg-white/5 text-white/75 hover:bg-white/10"
-                            }`}
+                            onClick={async () => {
+                              setSelectedCrypto(asset.symbol);
+                              setWalletStep("crypto");
+                              setCryptoOrder(null);
+                              setCryptoTxHash("");
+                              await ensureCryptoOrder(asset.symbol, cryptoUsdInput);
+                            }}
+                            className="overflow-hidden rounded-[1.4rem] border border-emerald-400/10 bg-[linear-gradient(135deg,rgba(8,20,36,0.98),rgba(21,24,37,0.98))] p-5 text-left transition hover:border-emerald-300/25 hover:bg-white/10"
                           >
-                            <p className="font-semibold">{asset.label}</p>
-                            <p className="mt-1 text-xs uppercase tracking-[0.22em] text-white/45">{asset.symbol}</p>
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-2xl font-black text-white">{asset.label}</p>
+                                <p className="mt-1 text-xs uppercase tracking-[0.22em] text-white/45">{asset.symbol}</p>
+                              </div>
+                              <div className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-300">
+                                Enabled
+                              </div>
+                            </div>
+                            <p className="mt-4 text-sm text-white/60">Open a tracked {asset.label} deposit order.</p>
                           </button>
                         ))}
-                      </div>
-
-                      <div className="mt-5 rounded-[1.6rem] border border-emerald-400/15 bg-emerald-500/5 px-5 py-5">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm uppercase tracking-[0.2em] text-white/45">Selected Asset</p>
-                            <p className="mt-2 text-2xl font-bold text-white">
-                              {selectedCryptoAsset?.label || selectedCrypto}
-                            </p>
-                          </div>
-                          <div className="rounded-full bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-300">
-                            Deposits Enabled
-                          </div>
-                        </div>
-
-                        <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                          <div className="rounded-2xl bg-black/20 px-4 py-4">
-                            <p className="text-xs uppercase tracking-[0.2em] text-white/45">Minimum Spend</p>
-                            <p className="mt-2 text-xl font-bold text-white">
-                              ${selectedCryptoAsset?.minUsdAmount?.toFixed?.(2) || "5.00"}
-                            </p>
-                          </div>
-                          <div className="rounded-2xl bg-black/20 px-4 py-4">
-                            <p className="text-xs uppercase tracking-[0.2em] text-white/45">Donut Credit</p>
-                            <p className="mt-2 text-xl font-bold text-white">
-                              {Number(cryptoOrder?.donutCredit || selectedCryptoAsset?.donutsPerOrder || 0).toLocaleString()}
-                            </p>
-                          </div>
-                          <div className="rounded-2xl bg-black/20 px-4 py-4">
-                            <p className="text-xs uppercase tracking-[0.2em] text-white/45">Order Status</p>
-                            <p className="mt-2 text-xl font-bold text-white capitalize">
-                              {cryptoOrder?.status || "Not created"}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="mt-4 rounded-2xl bg-black/20 px-4 py-4">
-                          <div className="flex items-center justify-between gap-3">
-                            <div>
-                              <p className="text-xs uppercase tracking-[0.2em] text-white/45">Deposit Address</p>
-                              <p className="mt-2 break-all text-sm text-white/80">{selectedCryptoAsset?.address}</p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => copyText(selectedCryptoAsset?.address || "", "Deposit address copied.")}
-                              className="rounded-xl bg-white/10 px-4 py-3 text-sm font-semibold text-white"
-                            >
-                              Copy
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="mt-4 rounded-2xl bg-black/20 px-4 py-4">
-                          <div className="flex items-center justify-between gap-3">
-                            <div>
-                              <p className="text-xs uppercase tracking-[0.2em] text-white/45">Exact Amount Due</p>
-                              <p className="mt-2 text-2xl font-bold text-white">
-                                {cryptoOrder?.expectedAmount || "--"} {selectedCrypto}
-                              </p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                copyText(
-                                  String(cryptoOrder?.expectedAmount || ""),
-                                  "Exact crypto amount copied."
-                                )
-                              }
-                              disabled={!cryptoOrder?.expectedAmount}
-                              className="rounded-xl bg-white/10 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
-                            >
-                              Copy Amount
-                            </button>
-                          </div>
-                          <p className="mt-3 text-sm text-white/55">
-                            A backend deposit order locks the exact ${selectedCryptoAsset?.minUsdAmount || 5} checkout size.
-                            The site will only credit after the transaction is confirmed for this order.
-                          </p>
-                        </div>
-
-                        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                          <button
-                            type="button"
-                            onClick={() => ensureCryptoOrder(selectedCrypto)}
-                            className="rounded-xl bg-emerald-500 px-4 py-3 font-semibold text-slate-950"
-                          >
-                            {cryptoOrder ? "Refresh Order" : "Create Order"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => copyText(cryptoOrder?.id || "", "Order id copied.")}
-                            disabled={!cryptoOrder?.id}
-                            className="rounded-xl bg-white/10 px-4 py-3 font-semibold text-white disabled:opacity-50"
-                          >
-                            Copy Order Id
-                          </button>
-                        </div>
-
-                        <div className="mt-4 rounded-2xl bg-black/20 px-4 py-4">
-                          <p className="text-xs uppercase tracking-[0.2em] text-white/45">Submit Transaction Hash</p>
-                          <input
-                            value={cryptoTxHash}
-                            onChange={(event) => setCryptoTxHash(event.target.value)}
-                            className="mt-3 w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-4 text-sm text-white outline-none"
-                            placeholder={`Paste your ${selectedCrypto} transaction hash`}
-                          />
-                          <div className="mt-4 flex flex-wrap gap-3">
-                            <button
-                              type="button"
-                              onClick={handleSubmitCryptoHash}
-                              disabled={!cryptoOrder?.id || walletLoading}
-                              className="rounded-xl bg-emerald-500 px-4 py-3 font-semibold text-slate-950 disabled:opacity-50"
-                            >
-                              {walletLoading ? "Submitting..." : "Submit Tx Hash"}
-                            </button>
-                            {cryptoOrder?.status === "submitted" && (
-                              <div className="rounded-xl bg-amber-500/15 px-4 py-3 text-sm font-semibold text-amber-200">
-                                Waiting for blockchain confirmation
-                              </div>
-                            )}
-                            {cryptoOrder?.status === "confirmed" && (
-                              <div className="rounded-xl bg-emerald-500/15 px-4 py-3 text-sm font-semibold text-emerald-200">
-                                Deposit confirmed
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <p className="mt-4 text-sm text-white/55">
-                          Fake browser claims do not credit balance. The server only releases funds after a wallet verifier
-                          confirms the matching on-chain transaction for this order.
-                        </p>
-
-                        {walletMessage && (
-                          <div className="mt-4 rounded-2xl bg-white/5 px-4 py-4 text-sm text-white/70">
-                            {walletMessage}
-                          </div>
-                        )}
                       </div>
                     </div>
                   </>
@@ -686,6 +558,166 @@ export function Dashboard() {
               </div>
 
               <div className="border-t border-white/6 px-6 py-5">
+                <button
+                  type="button"
+                  onClick={closeWallet}
+                  className="rounded-xl bg-white/5 px-5 py-3 font-semibold text-white/75 transition hover:bg-white/10 hover:text-white"
+                >
+                  Close
+                </button>
+              </div>
+            </>
+          ) : walletStep === "crypto" ? (
+            <>
+              <div className="border-b border-white/6 px-6 py-5">
+                <h3 className="text-3xl font-black text-white">{selectedCryptoAsset?.label} Deposit</h3>
+                <p className="mt-2 text-white/60">Create a tracked crypto order and submit the transaction hash after payment.</p>
+              </div>
+
+              <div className="space-y-6 px-6 py-6">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {availableCryptoAssets.map((asset) => (
+                    <button
+                      key={asset.symbol}
+                      type="button"
+                      onClick={() => handleSelectCrypto(asset.symbol)}
+                      className={`rounded-2xl px-4 py-4 text-left transition ${
+                        selectedCrypto === asset.symbol
+                          ? "border border-emerald-400/30 bg-emerald-500/10 text-white shadow-[0_0_24px_rgba(16,185,129,0.12)]"
+                          : "bg-white/5 text-white/75 hover:bg-white/10"
+                      }`}
+                    >
+                      <p className="font-semibold">{asset.label}</p>
+                      <p className="mt-1 text-xs uppercase tracking-[0.22em] text-white/45">{asset.symbol}</p>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="rounded-[1.6rem] border border-emerald-400/15 bg-emerald-500/5 px-5 py-5">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.2em] text-white/45">How Much To Spend (USD)</p>
+                      <input
+                        value={cryptoUsdInput}
+                        onChange={(event) => setCryptoUsdInput(event.target.value)}
+                        className="mt-3 w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-4 text-white outline-none"
+                        placeholder="5.00"
+                      />
+                      <p className="mt-2 text-sm text-white/55">Minimum $5.00. Spend more if you want more Donut Money.</p>
+                    </div>
+
+                    <div className="rounded-2xl bg-black/20 px-4 py-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-white/45">Locked Order</p>
+                      <p className="mt-2 text-xl font-bold text-white">${Number(cryptoOrder?.usdAmount || 0).toFixed(2)}</p>
+                      <p className="mt-2 text-sm text-white/55">
+                        Credit: {Number(cryptoOrder?.donutCredit || 0).toLocaleString()} Donut Money
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => ensureCryptoOrder(selectedCrypto, cryptoUsdInput)}
+                      className="rounded-xl bg-emerald-500 px-4 py-3 font-semibold text-slate-950"
+                    >
+                      Create / Refresh Order
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => copyText(cryptoOrder?.id || "", "Order id copied.")}
+                      disabled={!cryptoOrder?.id}
+                      className="rounded-xl bg-white/10 px-4 py-3 font-semibold text-white disabled:opacity-50"
+                    >
+                      Copy Order Id
+                    </button>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl bg-black/20 px-4 py-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.2em] text-white/45">Deposit Address</p>
+                      <p className="mt-2 break-all text-sm text-white/80">{selectedCryptoAsset?.address}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => copyText(selectedCryptoAsset?.address || "", "Deposit address copied.")}
+                      className="rounded-xl bg-white/10 px-4 py-3 text-sm font-semibold text-white"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl bg-black/20 px-4 py-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.2em] text-white/45">Exact Amount Due</p>
+                      <p className="mt-2 text-3xl font-bold text-white">
+                        {cryptoOrder?.expectedAmount || "--"} {selectedCrypto}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => copyText(String(cryptoOrder?.expectedAmount || ""), "Exact crypto amount copied.")}
+                      disabled={!cryptoOrder?.expectedAmount}
+                      className="rounded-xl bg-white/10 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
+                    >
+                      Copy Amount
+                    </button>
+                  </div>
+                  <p className="mt-3 text-sm text-white/55">
+                    The backend locks this amount to the current order so a fake browser claim cannot credit your balance.
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-black/20 px-4 py-4">
+                  <p className="text-xs uppercase tracking-[0.2em] text-white/45">Submit Transaction Hash</p>
+                  <textarea
+                    value={cryptoTxHash}
+                    onChange={(event) => setCryptoTxHash(event.target.value)}
+                    rows={4}
+                    className="mt-3 w-full resize-none rounded-2xl border border-white/10 bg-black/20 px-4 py-4 text-sm text-white outline-none"
+                    placeholder={`Paste your ${selectedCrypto} transaction hash`}
+                  />
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={handleSubmitCryptoHash}
+                      disabled={!cryptoOrder?.id || walletLoading}
+                      className="rounded-xl bg-emerald-500 px-4 py-3 font-semibold text-slate-950 disabled:opacity-50"
+                    >
+                      {walletLoading ? "Submitting..." : "Submit Tx Hash"}
+                    </button>
+                    {cryptoOrder?.status === "submitted" && (
+                      <div className="rounded-xl bg-amber-500/15 px-4 py-3 text-sm font-semibold text-amber-200">
+                        Waiting for blockchain confirmation
+                      </div>
+                    )}
+                    {cryptoOrder?.status === "confirmed" && (
+                      <div className="rounded-xl bg-emerald-500/15 px-4 py-3 text-sm font-semibold text-emerald-200">
+                        Deposit confirmed
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {walletMessage && (
+                  <div className="rounded-2xl bg-white/5 px-4 py-4 text-sm text-white/70">
+                    {walletMessage}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between border-t border-white/6 px-6 py-5">
+                <button
+                  type="button"
+                  onClick={() => setWalletStep("wallet")}
+                  className="rounded-xl bg-white/5 px-5 py-3 font-semibold text-white/75 transition hover:bg-white/10 hover:text-white"
+                >
+                  Back
+                </button>
                 <button
                   type="button"
                   onClick={closeWallet}
