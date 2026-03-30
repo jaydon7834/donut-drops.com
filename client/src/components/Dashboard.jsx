@@ -1988,52 +1988,52 @@ export function Dashboard() {
           </p>
         </div>
 
-        <div className="mt-4 rounded-2xl border border-sky-400/15 bg-sky-500/10 p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs uppercase tracking-[0.26em] text-sky-100/65">Rain Controls</p>
-              <p className="mt-2 text-sm text-white/72">
-                {rain.active
-                  ? `Live pool ${formatCompactNumber(rain.amount || 0)} with ${rain.participants} joined`
-                  : "Kick off a live rain event for everyone online."}
-              </p>
+        {(rain.canStart || rain.active) && (
+          <div className="mt-4 rounded-2xl border border-sky-400/15 bg-sky-500/10 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.26em] text-sky-100/65">
+                  {rain.canStart ? "Rain Controls" : "Rain Live"}
+                </p>
+                <p className="mt-2 text-sm text-white/72">
+                  {rain.active
+                    ? `Live pool ${formatCompactNumber(rain.amount || 0)} with ${rain.participants} joined`
+                    : "Kick off a live rain event for everyone online."}
+                </p>
+              </div>
+              {rain.canStart && (
+                <button
+                  type="button"
+                  onClick={handleStartRain}
+                  disabled={startingRain || rain.active}
+                  className="rounded-2xl bg-sky-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-300 disabled:opacity-50"
+                >
+                  {startingRain ? "Starting..." : "Start Rain"}
+                </button>
+              )}
             </div>
-            {rain.canStart ? (
-              <button
-                type="button"
-                onClick={handleStartRain}
-                disabled={startingRain || rain.active}
-                className="rounded-2xl bg-sky-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-300 disabled:opacity-50"
-              >
-                {startingRain ? "Starting..." : "Start Rain"}
-              </button>
-            ) : (
-              <div className="rounded-2xl bg-white/5 px-3 py-2 text-[11px] uppercase tracking-[0.24em] text-white/45">
-                Player View
+            {rainMessage && <p className="mt-3 text-xs text-sky-100/75">{rainMessage}</p>}
+            {rain.active && (
+              <div className="mt-3 rounded-2xl border border-white/10 bg-white/10 px-4 py-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.26em] text-sky-100/70">
+                  Rain Live
+                </p>
+                <p className="mt-1 text-sm font-semibold text-white">
+                  Live pool {formatCompactNumber(rain.amount || 0)}
+                </p>
+                <p className="mt-1 text-xs text-white/70">{rain.participants} joined</p>
+                <button
+                  type="button"
+                  onClick={handleJoinRain}
+                  disabled={joiningRain}
+                  className="mt-3 w-full rounded-2xl bg-white px-4 py-3 text-sm font-bold text-slate-950 transition hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60"
+                >
+                  {joiningRain ? "Joining..." : "Join Rain"}
+                </button>
               </div>
             )}
           </div>
-          {rainMessage && <p className="mt-3 text-xs text-sky-100/75">{rainMessage}</p>}
-          {rain.active && (
-            <div className="mt-3 rounded-2xl border border-white/10 bg-white/10 px-4 py-3">
-              <p className="text-[11px] font-bold uppercase tracking-[0.26em] text-sky-100/70">
-                Rain Live
-              </p>
-              <p className="mt-1 text-sm font-semibold text-white">
-                Live pool {formatCompactNumber(rain.amount || 0)}
-              </p>
-              <p className="mt-1 text-xs text-white/70">{rain.participants} joined</p>
-              <button
-                type="button"
-                onClick={handleJoinRain}
-                disabled={joiningRain}
-                className="mt-3 w-full rounded-2xl bg-white px-4 py-3 text-sm font-bold text-slate-950 transition hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60"
-              >
-                {joiningRain ? "Joining..." : "Join Rain"}
-              </button>
-            </div>
-          )}
-        </div>
+        )}
 
         <div className="mt-4 rounded-2xl bg-white/5 p-4">
           <p className="text-sm font-semibold text-white">Tip a player</p>
