@@ -337,8 +337,17 @@ export function Dashboard() {
     };
   }, [token]);
 
-  async function updateBalance(balance) {
+  async function updateBalance(nextValue) {
+    const balance =
+      typeof nextValue === "object" && nextValue !== null ? nextValue.balance : nextValue;
+    const shouldRefresh =
+      typeof nextValue === "object" && nextValue !== null ? nextValue.refresh !== false : true;
+
     setUser((currentUser) => ({ ...currentUser, balance }));
+
+    if (!shouldRefresh) {
+      return;
+    }
 
     try {
       const data = await refreshBalance();

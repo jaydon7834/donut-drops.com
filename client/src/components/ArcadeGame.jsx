@@ -310,7 +310,7 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
         pot: Number(data.battle.bet || 0) * 2,
         players: [{ id: user.id, username: user.username }]
       });
-      onBalanceChange(data.balance);
+      onBalanceChange({ balance: data.balance, refresh: false });
       setBattleMessage("Battle created. Waiting for another player to join.");
       setOpenBattles((current) => {
         const next = [...current.filter((battle) => battle.id !== data.battle.id), data.battle];
@@ -339,7 +339,7 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
         pot: data.battle.pot,
         players: [data.battle.host, data.battle.opponent]
       });
-      onBalanceChange(data.balance);
+      onBalanceChange({ balance: data.balance, refresh: false });
       setBattleMessage("You joined the battle. Opening cases...");
     } catch (error) {
       setBattleMessage(error.message);
@@ -360,7 +360,7 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
       const data = await api.cancelCaseBattle(token, waitingBattleId);
       setWaitingBattleId("");
       setActiveBattle(null);
-      onBalanceChange(data.balance);
+      onBalanceChange({ balance: data.balance, refresh: false });
       setOpenBattles((current) => current.filter((battle) => battle.id !== waitingBattleId));
       setBattleMessage("Battle canceled.");
     } catch (error) {
