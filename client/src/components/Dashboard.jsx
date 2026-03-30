@@ -569,12 +569,32 @@ export function Dashboard() {
             </>
           ) : walletStep === "crypto" ? (
             <>
-              <div className="border-b border-white/6 px-6 py-5">
-                <h3 className="text-3xl font-black text-white">{selectedCryptoAsset?.label} Deposit</h3>
-                <p className="mt-2 text-white/60">Create a tracked crypto order and submit the transaction hash after payment.</p>
+              <div className="sticky top-0 z-10 border-b border-white/6 bg-[#141521] px-6 py-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-3xl font-black text-white">{selectedCryptoAsset?.label} Deposit</h3>
+                    <p className="mt-2 text-white/60">Create a tracked crypto order and submit the transaction hash after payment.</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setWalletStep("wallet")}
+                      className="rounded-xl bg-white/5 px-4 py-3 font-semibold text-white/75 transition hover:bg-white/10 hover:text-white"
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="button"
+                      onClick={closeWallet}
+                      className="rounded-xl bg-white/5 px-4 py-3 font-semibold text-white/75 transition hover:bg-white/10 hover:text-white"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              <div className="space-y-6 px-6 py-6">
+              <div className="max-h-[75vh] space-y-6 overflow-y-auto px-6 py-6">
                 <div className="grid gap-3 sm:grid-cols-2">
                   {availableCryptoAssets.map((asset) => (
                     <button
@@ -710,22 +730,6 @@ export function Dashboard() {
                 )}
               </div>
 
-              <div className="flex items-center justify-between border-t border-white/6 px-6 py-5">
-                <button
-                  type="button"
-                  onClick={() => setWalletStep("wallet")}
-                  className="rounded-xl bg-white/5 px-5 py-3 font-semibold text-white/75 transition hover:bg-white/10 hover:text-white"
-                >
-                  Back
-                </button>
-                <button
-                  type="button"
-                  onClick={closeWallet}
-                  className="rounded-xl bg-white/5 px-5 py-3 font-semibold text-white/75 transition hover:bg-white/10 hover:text-white"
-                >
-                  Close
-                </button>
-              </div>
             </>
           ) : (
             <>
@@ -1190,6 +1194,7 @@ export function Dashboard() {
 
               <button
                 type="button"
+                onClick={openWallet}
                 className="mt-5 w-full rounded-xl bg-gradient-to-r from-yellow-300 to-amber-400 px-4 py-4 text-lg font-bold text-slate-950"
               >
                 Purchase
