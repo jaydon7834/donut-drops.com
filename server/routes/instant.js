@@ -62,17 +62,21 @@ function resolveInstantResult(gameType, rawValue, payload) {
 
   if (gameType === "cases") {
     const rewards = [
-      { label: "Common Drop", multiplier: 0.6 },
-      { label: "Rare Drop", multiplier: 1.2 },
-      { label: "Epic Drop", multiplier: 2.4 },
-      { label: "Legendary Drop", multiplier: 5 }
+      { label: "Dirt", rarity: "common", multiplier: 0.6, image: "/images/case-dirt.png" },
+      { label: "Gilded", rarity: "rare", multiplier: 1.8, image: "/images/case-gilded.png" },
+      { label: "Netherite", rarity: "red", multiplier: 3.2, image: "/images/case-netherite.png" },
+      { label: "Elytra", rarity: "legendary", multiplier: 5, image: "/images/case-elytra.png" }
     ];
     const reward = rewards[Math.floor(rawValue * rewards.length)];
 
     return {
-      title: reward.label,
+      title: `${reward.rarity.toUpperCase()} DROP`,
       multiplier: reward.multiplier,
-      details: { reward: reward.label }
+      details: {
+        reward: reward.label,
+        rarity: reward.rarity,
+        image: reward.image
+      }
     };
   }
 

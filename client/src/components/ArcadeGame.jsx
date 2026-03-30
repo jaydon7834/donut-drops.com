@@ -4,6 +4,13 @@ import { api } from "../lib/api.js";
 import { formatBetInput, parseBetInput } from "../lib/betting.js";
 import { GameLayout } from "./GameLayout.jsx";
 
+const caseRewards = [
+  { label: "Dirt", rarity: "common", image: "/images/case-dirt.png", accent: "from-amber-700/60 to-stone-300/40" },
+  { label: "Gilded", rarity: "rare", image: "/images/case-gilded.png", accent: "from-yellow-500/60 to-neutral-700/60" },
+  { label: "Netherite", rarity: "red", image: "/images/case-netherite.png", accent: "from-rose-500/65 to-red-950/70" },
+  { label: "Elytra", rarity: "legendary", image: "/images/case-elytra.png", accent: "from-violet-400/60 to-sky-200/40" }
+];
+
 const gameCopy = {
   blackjack: {
     title: "Blackjack",
@@ -70,6 +77,7 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
   const [result, setResult] = useState(null);
   const [feedback, setFeedback] = useState("");
   const [loading, setLoading] = useState(false);
+  const [caseSpinOffset, setCaseSpinOffset] = useState(0);
 
   async function handlePlay() {
     setLoading(true);
@@ -81,6 +89,14 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
         bet: parseBetInput(betInput),
         ...getPayload(gameType, optionValue, clientSeed)
       });
+
+      if (gameType === "cases") {
+        const rewardIndex = Math.max(
+          0,
+          caseRewards.findIndex((reward) => reward.label === data.game.details?.reward)
+        );
+        setCaseSpinOffset(1000 + rewardIndex * 220);
+      }
 
       setResult(data.game);
       onBalanceChange(data.balance);
@@ -190,6 +206,30 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
               </label>
             )}
 
+            {gameType === "cases" && (
+              <div className="mt-4 rounded-[1.5rem] border border-white/10 bg-black/20 p-4">
+                <p className="text-sm text-white/70">Drops</p>
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {caseRewards.map((reward) => (
+                    <div
+                      key={reward.label}
+                      className={`rounded-2xl border border-white/10 bg-gradient-to-br ${reward.accent} p-3 text-center`}
+                    >
+                      <img
+                        src={reward.image}
+                        alt={reward.label}
+                        className="mx-auto h-14 w-14 object-contain"
+                      />
+                      <p className="mt-2 text-xs font-black uppercase tracking-[0.2em] text-white">
+                        {reward.rarity}
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-white">{reward.label}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="mt-5 flex gap-3">
               <button
                   type="button"
@@ -214,6 +254,39 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
       }
       main={
         <div className="space-y-5">
+            {gameType === "cases" && (
+              <div className="overflow-hidden rounded-[1.8rem] border border-white/10 bg-[#0f1119] p-5">
+                <p className="text-xs uppercase tracking-[0.35em] text-white/45">Case Spinner</p>
+                <div className="relative mt-4 overflow-hidden rounded-2xl border border-white/6 bg-black/20 py-6">
+                  <div className="pointer-events-none absolute inset-y-0 left-1/2 z-10 w-[3px] -translate-x-1/2 bg-emerald-300 shadow-[0_0_18px_rgba(110,231,183,0.8)]" />
+                  <motion.div
+                    animate={{ x: -caseSpinOffset }}
+                    transition={{ duration: 2.8, ease: [0.16, 1, 0.3, 1] }}
+                    className="flex gap-4 px-[40%]"
+                  >
+                    {Array.from({ length: 7 }).flatMap((_, row) =>
+                      caseRewards.map((reward, index) => (
+                        <div
+                          key={`${reward.label}-${row}-${index}`}
+                          className={`flex w-[180px] shrink-0 flex-col items-center rounded-[1.6rem] border border-white/10 bg-gradient-to-br ${reward.accent} px-4 py-5`}
+                        >
+                          <img
+                            src={reward.image}
+                            alt={reward.label}
+                            className="h-20 w-20 object-contain drop-shadow-[0_10px_18px_rgba(0,0,0,0.35)]"
+                          />
+                          <p className="mt-3 text-[11px] font-black uppercase tracking-[0.28em] text-white/70">
+                            {reward.rarity}
+                          </p>
+                          <p className="mt-1 text-lg font-black text-white">{reward.label}</p>
+                        </div>
+                      ))
+                    )}
+                  </motion.div>
+                </div>
+              </div>
+            )}
+
             <motion.div
               key={result?.title || "idle"}
               initial={{ opacity: 0, y: 10 }}
@@ -248,7 +321,11 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
                   {Object.entries(result.details).map(([key, value]) => (
                     <div key={key} className="rounded-2xl bg-black/20 p-4 text-sm text-white/75">
                       <p className="text-white/45">{key}</p>
-                      <p className="mt-2 text-lg font-semibold text-white">{String(value)}</p>
+                      {key === "image" ? (
+                        <img src={String(value)} alt={result.details?.reward || "Case reward"} className="mt-3 h-16 w-16 object-contain" />
+                      ) : (
+                        <p className="mt-2 text-lg font-semibold text-white">{String(value)}</p>
+                      )}
                     </div>
                   ))}
                 </div>
