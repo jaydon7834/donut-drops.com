@@ -14,6 +14,7 @@ import plinkoRoutes from "./routes/plinko.js";
 import instantRoutes from "./routes/instant.js";
 import chatRoutes from "./routes/chat.js";
 import rainRoutes from "./routes/rain.js";
+import { initializeRainScheduler } from "./routes/rain.js";
 import { initializeStore, USERS_FILE } from "./state/store.js";
 import { createRateLimiter } from "./middleware/rateLimit.js";
 import { processingLock } from "./middleware/processingLock.js";
@@ -81,6 +82,7 @@ app.use((error, req, res, next) => {
 initializeStore()
   .then(() => {
     initializeSocket(server);
+    initializeRainScheduler();
     console.log(`DonutDrop users file: ${USERS_FILE}`);
     server.listen(PORT, () => {
       console.log(`DonutDrop API running on http://localhost:${PORT}`);

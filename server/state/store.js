@@ -29,7 +29,9 @@ export const store = {
     amount: 0,
     participants: [],
     endTime: 0,
-    timer: null
+    timer: null,
+    nextTimer: null,
+    nextStartAt: 0
   },
   caseBattles: new Map()
 };

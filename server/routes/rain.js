@@ -6,6 +6,8 @@ import { getIo } from "../socket.js";
 
 const router = Router();
 const RAIN_DURATION_MS = 10 * 60 * 1000;
+const MIN_RAIN_INTERVAL_MS = 30 * 60 * 1000;
+const MAX_RAIN_INTERVAL_MS = 60 * 60 * 1000;
 
 function canManageRain(user) {
   const envList = String(process.env.RAIN_ADMIN_IDS || "")
@@ -38,8 +40,31 @@ function serializeRain(user) {
     amount: store.rain.amount,
     participants: store.rain.participants.length,
     endTime: store.rain.endTime,
+    nextStartAt: store.rain.nextStartAt,
     canStart: user ? canManageRain(user) : false
   };
+}
+
+function getNextRainDelay() {
+  return MIN_RAIN_INTERVAL_MS + Math.floor(Math.random() * (MAX_RAIN_INTERVAL_MS - MIN_RAIN_INTERVAL_MS + 1));
+}
+
+function scheduleNextRain() {
+  if (store.rain.timer || store.rain.active) {
+    return;
+  }
+
+  if (store.rain.nextTimer) {
+    clearTimeout(store.rain.nextTimer);
+  }
+
+  const delay = getNextRainDelay();
+  store.rain.nextStartAt = Date.now() + delay;
+  store.rain.nextTimer = setTimeout(() => {
+    store.rain.nextTimer = null;
+    store.rain.nextStartAt = 0;
+    startRain();
+  }, delay);
 }
 
 function broadcastChatRainMessage(message) {
@@ -69,11 +94,15 @@ function endRain() {
     store.rain.timer = null;
   }
 
+  store.rain.nextStartAt = 0;
+
   if (io) {
     io.emit("rain:end", {
       participants: participantCount
     });
   }
+
+  scheduleNextRain();
 }
 
 function startRain() {
@@ -83,6 +112,12 @@ function startRain() {
   store.rain.amount = getRainAmount();
   store.rain.participants = [];
   store.rain.endTime = Date.now() + RAIN_DURATION_MS;
+  store.rain.nextStartAt = 0;
+
+  if (store.rain.nextTimer) {
+    clearTimeout(store.rain.nextTimer);
+    store.rain.nextTimer = null;
+  }
 
   if (store.rain.timer) {
     clearTimeout(store.rain.timer);
@@ -98,6 +133,12 @@ function startRain() {
   }
 
   broadcastChatRainMessage("RAIN STARTED - JOIN NOW!");
+}
+
+export function initializeRainScheduler() {
+  if (!store.rain.active && !store.rain.nextTimer) {
+    scheduleNextRain();
+  }
 }
 
 router.use(authMiddleware);
