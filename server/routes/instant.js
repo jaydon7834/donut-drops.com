@@ -12,6 +12,7 @@ import { createFairContext, generateDiceResult } from "../utils/provablyFair.js"
 import { createError, ensurePositiveBet } from "../utils/helpers.js";
 
 const router = Router();
+const CASE_BATTLE_MIN_BET = 5_000_000;
 
 const CASE_REWARDS = [
   {
@@ -207,6 +208,10 @@ router.get("/case-battles", (req, res) => {
 router.post("/case-battles", async (req, res, next) => {
   try {
     const bet = ensurePositiveBet(req.body.bet, req.user.balance);
+
+    if (bet < CASE_BATTLE_MIN_BET) {
+      throw createError("Case battles require at least 5m per player.");
+    }
     const existingBattle = Array.from(store.caseBattles.values()).find(
       (battle) => battle.status === "waiting" && battle.host.id === req.user.id
     );

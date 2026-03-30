@@ -101,8 +101,8 @@ function getRewardIndex(label) {
 
 export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
   const meta = gameCopy[gameType];
-  const [bet, setBet] = useState(20);
-  const [betInput, setBetInput] = useState("20");
+  const [bet, setBet] = useState(gameType === "case-battles" ? 5_000_000 : 20);
+  const [betInput, setBetInput] = useState(gameType === "case-battles" ? "5m" : "20");
   const [optionValue, setOptionValue] = useState(gameType === "roulette" ? "red" : 2);
   const [clientSeed, setClientSeed] = useState(user.clientSeed || "donutdrop-default");
   const [result, setResult] = useState(null);
@@ -118,6 +118,13 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
   useEffect(() => {
     setClientSeed(user.clientSeed || "donutdrop-default");
   }, [user.clientSeed]);
+
+  useEffect(() => {
+    if (gameType === "case-battles") {
+      setBet(5_000_000);
+      setBetInput("5m");
+    }
+  }, [gameType]);
 
   useEffect(() => {
     if (gameType !== "case-battles") {
@@ -387,7 +394,11 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
                   </button>
                 </div>
               </div>
-              <p className="mt-2 text-xs text-white/40">Supports 10k, 1m, 1b and more.</p>
+              <p className="mt-2 text-xs text-white/40">
+                {gameType === "case-battles"
+                  ? "Case battles require at least 5m per player."
+                  : "Supports 10k, 1m, 1b and more."}
+              </p>
             </label>
 
             <label className="mt-4 block text-sm text-white/70">
