@@ -11,7 +11,7 @@ function Tile({ state, onClick, disabled, shake }) {
       animate={shake ? { x: [0, -2, 2, -2, 2, 0] } : { rotateY: state !== "hidden" ? 180 : 0 }}
       transition={{ duration: 0.35 }}
       onClick={disabled ? undefined : onClick}
-      className={`w-24 h-24 rounded-xl cursor-pointer flex items-center justify-center text-sm font-black select-none transition-all duration-200
+      className={`h-16 w-16 rounded-xl cursor-pointer flex items-center justify-center text-sm font-black select-none transition-all duration-200 sm:h-20 sm:w-20 2xl:h-24 2xl:w-24
         ${state === "hidden" ? "bg-[#1e293b] text-white/80 hover:bg-[#334155]" : ""}
         ${state === "safe" ? "bg-green-500 shadow-[0_0_15px_rgba(34,197,94,0.8)] text-white" : ""}
         ${state === "mine" ? "bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.8)] text-white" : ""}
@@ -265,7 +265,7 @@ export function MinesGame({ token, user, onBalanceChange }) {
         </div>
       </div>
 
-      <div className="min-w-0 flex-1 rounded-[1.8rem] bg-[#131625] p-6 shadow-[0_0_40px_rgba(0,0,0,0.2)] xl:min-h-[600px] xl:p-10">
+      <div className="min-w-0 flex-1 rounded-[1.8rem] bg-[#131625] p-4 shadow-[0_0_40px_rgba(0,0,0,0.2)] xl:min-h-[600px] xl:p-8">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.28em] text-indigo-200/65">Mines Board</p>
@@ -276,9 +276,9 @@ export function MinesGame({ token, user, onBalanceChange }) {
           </div>
         </div>
 
-        <div className="mt-6 flex min-h-[600px] w-full items-center justify-center overflow-hidden rounded-2xl bg-[#0f172a] p-4 shadow-[0_0_40px_rgba(0,0,0,0.8)] xl:p-8">
+        <div className="mt-6 flex min-h-[520px] w-full items-center justify-center overflow-hidden rounded-2xl bg-[#0f172a] p-3 shadow-[0_0_40px_rgba(0,0,0,0.8)] xl:min-h-[600px] xl:p-6">
           <div className="flex w-full justify-center">
-            <div className="grid shrink-0 grid-cols-5 gap-4">
+            <div className="grid shrink-0 grid-cols-5 gap-3 sm:gap-4">
               {tiles.map((tile) => {
                 const isRevealed = revealedTiles.includes(tile);
                 const isMine = minePositions.includes(tile);

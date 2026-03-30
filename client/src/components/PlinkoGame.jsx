@@ -300,16 +300,16 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
         </div>
       </div>
 
-      <div className="relative min-w-0 flex-1 overflow-hidden rounded-2xl bg-[#0b0f1a] p-6 xl:p-10">
-        <div className="flex h-full min-h-[980px] w-full items-center justify-center">
-          <div className="relative min-h-[860px] w-full max-w-6xl">
-          <div className="mt-4 flex origin-top scale-[1.45] flex-col items-center">
+      <div className="relative min-w-0 flex-1 overflow-hidden rounded-2xl bg-[#0b0f1a] p-4 xl:p-6">
+        <div className="flex h-full min-h-[720px] w-full items-center justify-center xl:min-h-[780px]">
+          <div className="relative w-full max-w-5xl">
+          <div className="mt-2 flex origin-top scale-[1.05] flex-col items-center sm:scale-[1.1] xl:scale-[1.15] 2xl:scale-[1.25]">
             {Array.from({ length: rows }).map((_, row) => (
               <div key={row} className="flex justify-center">
                 {Array.from({ length: row + 1 }).map((__, index) => (
                   <div
                     key={`${row}-${index}`}
-                    className="m-3 h-3.5 w-3.5 rounded-full bg-gray-400 shadow-[0_0_16px_rgba(148,163,184,0.35)]"
+                    className="m-2.5 h-3.5 w-3.5 rounded-full bg-gray-400 shadow-[0_0_16px_rgba(148,163,184,0.35)] xl:m-3"
                   />
                 ))}
               </div>
@@ -322,7 +322,7 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
               initial={{ x: 0, y: 0 }}
               animate={ball.frames}
               transition={{ duration: 1.5, ease: "easeInOut" }}
-              className="absolute left-1/2 top-6 h-6 w-6 -translate-x-1/2 rounded-full bg-green-400 shadow-[0_0_24px_rgba(74,222,128,0.8)]"
+              className="absolute left-1/2 top-4 h-5 w-5 -translate-x-1/2 rounded-full bg-green-400 shadow-[0_0_24px_rgba(74,222,128,0.8)] xl:top-6 xl:h-6 xl:w-6"
             />
           ))}
           </div>
