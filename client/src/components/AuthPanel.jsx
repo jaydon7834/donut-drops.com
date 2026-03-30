@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext.jsx";
 
+const SAVED_LOGIN_KEY = "donutdrop-saved-login";
 const initialForms = {
   login: { username: "", password: "" },
   register: { username: "", email: "", password: "" }
@@ -13,9 +14,55 @@ export function AuthPanel() {
   const [form, setForm] = useState(initialForms.login);
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    try {
+      const savedLogin = window.localStorage.getItem(SAVED_LOGIN_KEY);
+
+      if (!savedLogin) {
+        return;
+      }
+
+      const parsedLogin = JSON.parse(savedLogin);
+
+      if (parsedLogin?.username || parsedLogin?.password) {
+        setForm((current) =>
+          mode === "login"
+            ? {
+                ...current,
+                username: parsedLogin.username || "",
+                password: parsedLogin.password || ""
+              }
+            : current
+        );
+      }
+    } catch {
+      // Ignore malformed saved login state and keep the form usable.
+    }
+  }, [mode]);
+
   function switchMode(nextMode) {
     setMode(nextMode);
-    setForm(initialForms[nextMode]);
+    if (nextMode === "login") {
+      try {
+        const savedLogin =
+          typeof window !== "undefined" ? window.localStorage.getItem(SAVED_LOGIN_KEY) : null;
+        const parsedLogin = savedLogin ? JSON.parse(savedLogin) : null;
+
+        setForm({
+          ...initialForms.login,
+          username: parsedLogin?.username || "",
+          password: parsedLogin?.password || ""
+        });
+      } catch {
+        setForm(initialForms.login);
+      }
+    } else {
+      setForm(initialForms[nextMode]);
+    }
     setError("");
   }
 
@@ -26,6 +73,15 @@ export function AuthPanel() {
     try {
       if (mode === "login") {
         await login(form);
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(
+            SAVED_LOGIN_KEY,
+            JSON.stringify({
+              username: form.username,
+              password: form.password
+            })
+          );
+        }
       } else {
         await register(form);
       }

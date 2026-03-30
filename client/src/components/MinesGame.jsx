@@ -3,6 +3,32 @@ import { motion } from "framer-motion";
 import { api } from "../lib/api.js";
 import { formatBetInput, parseBetInput } from "../lib/betting.js";
 
+function combination(n, k) {
+  if (k > n) {
+    return 0;
+  }
+
+  if (k === 0 || k === n) {
+    return 1;
+  }
+
+  let result = 1;
+
+  for (let i = 1; i <= k; i += 1) {
+    result = (result * (n - (k - i))) / i;
+  }
+
+  return result;
+}
+
+function calculateMultiplier(mines, picks) {
+  const totalTiles = 25;
+  const houseEdge = 0.99;
+  const numerator = combination(totalTiles, picks);
+  const denominator = combination(totalTiles - mines, picks);
+  return Number(((numerator / denominator) * houseEdge).toFixed(4));
+}
+
 function Tile({ state, onClick, disabled, shake }) {
   return (
     <motion.div
@@ -37,6 +63,16 @@ export function MinesGame({ token, user, onBalanceChange }) {
   const revealedTiles = activeGame?.revealedTiles || settledGame?.revealedTiles || [];
   const minePositions = settledGame?.minePositions || [];
   const currentMultiplier = activeGame?.multiplier || settledGame?.multiplier || 1;
+  const safePicks = revealedTiles.length - minePositions.length;
+  const tilesRemaining = 25 - revealedTiles.length;
+  const nextMultiplier = activeGame
+    ? calculateMultiplier(activeGame.mines, activeGame.revealedTiles.length + 1)
+    : null;
+  const estimatedProfit = activeGame
+    ? Math.max(activeGame.bet * activeGame.multiplier - activeGame.bet, 0).toFixed(2)
+    : settledGame?.payout
+    ? Math.max(settledGame.payout - settledGame.bet, 0).toFixed(2)
+    : "0.00";
   const payoutPreview = activeGame
     ? (activeGame.bet * activeGame.multiplier).toFixed(2)
     : settledGame?.payout?.toFixed?.(2) || "0.00";
@@ -225,10 +261,28 @@ export function MinesGame({ token, user, onBalanceChange }) {
               value={minesCount}
               onChange={(event) => setMinesCount(Number(event.target.value))}
               className="mt-5 w-full accent-emerald-400"
+              disabled={Boolean(activeGame)}
             />
             <div className="mt-2 flex items-center justify-between text-xs text-white/40">
               <span>1</span>
               <span>24</span>
+            </div>
+            <div className="mt-4 grid grid-cols-4 gap-2">
+              {[3, 5, 10, 15].map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => setMinesCount(preset)}
+                  disabled={Boolean(activeGame)}
+                  className={`rounded-lg px-2 py-2 text-xs font-bold transition ${
+                    minesCount === preset
+                      ? "bg-emerald-400 text-slate-950"
+                      : "bg-white/8 text-white/80 hover:bg-white/12"
+                  } disabled:opacity-50`}
+                >
+                  {preset}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -238,6 +292,7 @@ export function MinesGame({ token, user, onBalanceChange }) {
               value={clientSeed}
               onChange={(event) => setClientSeed(event.target.value)}
               className="mt-3 w-full rounded-[1rem] bg-[#0d111c] p-4 text-white outline-none"
+              disabled={Boolean(activeGame)}
             />
           </div>
 
@@ -298,19 +353,50 @@ export function MinesGame({ token, user, onBalanceChange }) {
           </div>
         </div>
 
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-2xl border border-emerald-400/10 bg-emerald-400/5 p-4">
+            <div className="flex items-center gap-2 text-emerald-300">
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-400" />
+              <span className="font-semibold">Live</span>
+            </div>
+            <p className="mt-2 text-sm text-white/45">Safe Picks</p>
+            <p className="text-2xl font-black text-white">{safePicks}</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-sm text-white/45">Current Multiplier</p>
+            <p className="mt-2 text-2xl font-black text-white">{currentMultiplier.toFixed(4)}x</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-sm text-white/45">Payout Preview</p>
+            <p className="mt-2 text-2xl font-black text-emerald-300">${payoutPreview}</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-sm text-white/45">Tiles Left</p>
+            <p className="mt-2 text-2xl font-black text-white">{tilesRemaining}</p>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="rounded-2xl border border-white/10 bg-[#0f172a] px-4 py-3">
+            <p className="text-xs uppercase tracking-[0.2em] text-white/40">Bet</p>
+            <p className="mt-2 text-lg font-bold text-white">${activeGame?.bet ?? settledGame?.bet ?? parseBetInput(betInput)}</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-[#0f172a] px-4 py-3">
+            <p className="text-xs uppercase tracking-[0.2em] text-white/40">Next Safe Tile</p>
+            <p className="mt-2 text-lg font-bold text-cyan-200">{nextMultiplier ? `${nextMultiplier.toFixed(4)}x` : "--"}</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-[#0f172a] px-4 py-3">
+            <p className="text-xs uppercase tracking-[0.2em] text-white/40">Profit If Cashed</p>
+            <p className="mt-2 text-lg font-bold text-emerald-300">${estimatedProfit}</p>
+          </div>
+        </div>
+
         <div className="mt-5 flex items-center justify-between">
           <div className="flex items-center gap-2 text-emerald-300">
             <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-400" />
             <span className="font-semibold">Live</span>
           </div>
-          <div className="text-right">
-            <p className="text-sm text-white/45">Current Multiplier</p>
-            <p className="text-xl font-bold text-white">{currentMultiplier.toFixed(4)}x</p>
-          </div>
-          <div className="text-right">
-            <p className="text-sm text-white/45">Payout Preview</p>
-            <p className="text-xl font-bold text-emerald-300">${payoutPreview}</p>
-          </div>
+          <p className="text-sm text-white/45">{activeGame ? "Round active" : settledGame ? "Round settled" : "Waiting for bet"}</p>
         </div>
 
         {feedback.text && (
