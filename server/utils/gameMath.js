@@ -1,9 +1,27 @@
 export const HOUSE_EDGE = 0.96;
-
-export const PLINKO_RISK_TABLES = {
-  low: [2, 1.5, 1.2, 1.1, 1.05, 1.02, 1, 1.02, 1.05, 1.1, 1.2, 1.5, 2],
-  medium: [5, 3, 2, 1.5, 1.2, 0.8, 0.5, 0.8, 1.2, 1.5, 2, 3, 5],
-  high: [33, 11, 4, 2, 1.2, 0.5, 0.2, 0.5, 1.2, 2, 4, 11, 33]
+const PLINKO_TARGET_RTP = 0.9;
+const PLINKO_RISK_CONFIG = {
+  low: {
+    centerBase: 0.42,
+    centerRowPenalty: 0.01,
+    edgeBase: 4.6,
+    edgeGrowth: 1.16,
+    spreadPower: 1.7
+  },
+  medium: {
+    centerBase: 0.14,
+    centerRowPenalty: 0.008,
+    edgeBase: 16,
+    edgeGrowth: 1.34,
+    spreadPower: 2.15
+  },
+  high: {
+    centerBase: 0.02,
+    centerRowPenalty: 0.0015,
+    edgeBase: 80,
+    edgeGrowth: 1.55,
+    spreadPower: 3.1
+  }
 };
 
 export function roundTo(value, digits = 2) {
@@ -61,33 +79,24 @@ export function calculateChickenMultiplier(step, surviveChance) {
 
 export function resolveRisk(risk) {
   const normalizedRisk = String(risk || "medium").trim().toLowerCase();
-  return PLINKO_RISK_TABLES[normalizedRisk] ? normalizedRisk : "medium";
-}
-
-function interpolateValue(source, position) {
-  const lowerIndex = Math.floor(position);
-  const upperIndex = Math.ceil(position);
-
-  if (lowerIndex === upperIndex) {
-    return source[lowerIndex];
-  }
-
-  const weight = position - lowerIndex;
-  return source[lowerIndex] * (1 - weight) + source[upperIndex] * weight;
+  return PLINKO_RISK_CONFIG[normalizedRisk] ? normalizedRisk : "medium";
 }
 
 export function getPlinkoMultipliers(rows, risk = "medium") {
-  const source = PLINKO_RISK_TABLES[resolveRisk(risk)].map((value) =>
-    applyHouseEdge(value, 2)
-  );
-  const bucketCount = rows + 1;
-
-  if (bucketCount === source.length) {
-    return source;
-  }
-
-  return Array.from({ length: bucketCount }, (_, index) => {
-    const position = (index / (bucketCount - 1)) * (source.length - 1);
-    return roundTo(interpolateValue(source, position), 2);
+  const normalizedRisk = resolveRisk(risk);
+  const config = PLINKO_RISK_CONFIG[normalizedRisk];
+  const centerIndex = rows / 2;
+  const centerValue = Math.max(0.03, config.centerBase - (rows - 8) * config.centerRowPenalty);
+  const edgeTarget = config.edgeBase * Math.pow(config.edgeGrowth, rows - 8);
+  const raw = Array.from({ length: rows + 1 }, (_, index) => {
+    const distance = Math.abs(index - centerIndex);
+    const normalizedDistance = centerIndex === 0 ? 0 : distance / centerIndex;
+    const curvedDistance = Math.pow(normalizedDistance, config.spreadPower);
+    return centerValue + (edgeTarget - centerValue) * curvedDistance;
   });
+  const probabilities = Array.from({ length: rows + 1 }, (_, index) => combination(rows, index) / 2 ** rows);
+  const rawRtp = raw.reduce((sum, multiplier, index) => sum + multiplier * probabilities[index], 0);
+  const scale = PLINKO_TARGET_RTP / rawRtp;
+
+  return raw.map((value) => roundTo(value * scale, 2));
 }
