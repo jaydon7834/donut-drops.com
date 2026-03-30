@@ -1371,7 +1371,7 @@ export function Dashboard() {
   }
 
   return (
-    <div className="relative flex min-h-[88vh] w-full gap-5">
+    <div className="relative flex min-h-[88vh] w-full gap-5 xl:gap-6">
       {renderWalletModal()}
 
       {trackerOpen && (
@@ -1606,7 +1606,7 @@ export function Dashboard() {
         )}
       </main>
 
-      <aside className="glass-panel hidden w-[300px] shrink-0 rounded-[2rem] p-4 xl:block">
+      <aside className="glass-panel hidden w-[300px] shrink-0 rounded-[2rem] p-4 xl:block xl:translate-x-3">
         <div className="flex items-center justify-between rounded-2xl bg-white/5 px-4 py-3">
           <p className="font-semibold text-white">Chat</p>
           <p className="text-sm text-white/55">
