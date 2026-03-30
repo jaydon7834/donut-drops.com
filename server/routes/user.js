@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
-import { findUserByUsername, getRecentGamesForUser, persistUsers } from "../state/store.js";
+import { findUserByUsername, getRecentGamesForUser, persistUsers, store } from "../state/store.js";
 import { createError, sanitizeUser } from "../utils/helpers.js";
 
 const router = Router();
@@ -12,6 +12,18 @@ router.get("/balance", (req, res) => {
     user: sanitizeUser(req.user),
     recentGames: getRecentGamesForUser(req.user.id)
   });
+});
+
+router.get("/players", (req, res) => {
+  const players = Array.from(store.users.values())
+    .filter((user) => user.id !== req.user.id)
+    .map((user) => ({
+      id: user.id,
+      username: user.username
+    }))
+    .sort((a, b) => a.username.localeCompare(b.username));
+
+  res.json({ players });
 });
 
 router.post("/update-balance", async (req, res) => {

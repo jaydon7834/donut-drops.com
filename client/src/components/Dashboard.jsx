@@ -66,9 +66,11 @@ export function Dashboard() {
   const [chatInput, setChatInput] = useState("");
   const [chatError, setChatError] = useState("");
   const [chatTimeoutUntil, setChatTimeoutUntil] = useState(0);
+  const [players, setPlayers] = useState([]);
   const [tipForm, setTipForm] = useState({ username: "", amount: "100" });
   const [tipMessage, setTipMessage] = useState("");
   const [tipping, setTipping] = useState(false);
+  const [trackerOpen, setTrackerOpen] = useState(false);
 
   useEffect(() => {
     setClientSeed(user?.clientSeed || "");
@@ -102,6 +104,36 @@ export function Dashboard() {
     return () => {
       cancelled = true;
       window.clearInterval(intervalId);
+    };
+  }, [token]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadPlayers() {
+      if (!token) {
+        return;
+      }
+
+      try {
+        const data = await api.getPlayers(token);
+        if (!cancelled) {
+          setPlayers(data.players || []);
+          setTipForm((current) => ({
+            ...current,
+            username: current.username || data.players?.[0]?.username || ""
+          }));
+        }
+      } catch {
+        if (!cancelled) {
+          setPlayers([]);
+        }
+      }
+    }
+
+    loadPlayers();
+    return () => {
+      cancelled = true;
     };
   }, [token]);
 
@@ -186,74 +218,6 @@ export function Dashboard() {
     const seconds = activeTimeoutSeconds % 60;
     return `${minutes}:${String(seconds).padStart(2, "0")}`;
   }, [activeTimeoutSeconds]);
-
-  function renderTrackerPanel() {
-    return (
-      <section className="space-y-5">
-        <div className="rounded-[2rem] border border-cyan-400/10 bg-[linear-gradient(180deg,rgba(13,34,43,0.96),rgba(19,20,29,0.96))] p-6">
-          <p className="text-xs uppercase tracking-[0.35em] text-cyan-200/70">Stake Loss Calculator</p>
-          <h2 className="mt-3 text-4xl font-black text-white">Live bankroll tracker</h2>
-          <p className="mt-3 max-w-3xl text-white/65">
-            Every loss drags the line down and every win snaps it back up, so you can feel the session
-            swing without digging through raw game history.
-          </p>
-        </div>
-
-        <div className="grid gap-5 lg:grid-cols-[360px,1fr]">
-          <div className="rounded-[1.8rem] border border-white/6 bg-[#171824] p-6">
-            <p className="text-sm uppercase tracking-[0.2em] text-white/45">Session Totals</p>
-            <div className="mt-5 grid gap-4">
-              {[
-                { label: "Current Balance", value: formatMoney(user.balance) },
-                { label: "Net Profit / Loss", value: `${totalProfit >= 0 ? "+" : "-"}${formatMoney(Math.abs(totalProfit))}` },
-                { label: "Total Wagered", value: formatMoney(totalWagered) },
-                { label: "Games Played", value: String(gamesPlayed) }
-              ].map((item) => (
-                <div key={item.label} className="rounded-[1.3rem] border border-white/6 bg-[#11121a] p-5">
-                  <p className="text-sm text-white/45">{item.label}</p>
-                  <p className={`mt-3 text-3xl font-black ${item.label === "Net Profit / Loss" ? (totalProfit >= 0 ? "text-emerald-300" : "text-rose-300") : "text-white"}`}>
-                    {item.value}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-[1.8rem] border border-white/6 bg-[#171824] p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm uppercase tracking-[0.2em] text-white/45">Profit Curve</p>
-                <p className="mt-2 text-white/65">Losses dip red, wins push the line back toward green.</p>
-              </div>
-              <div className={`rounded-full px-4 py-2 text-sm font-semibold ${totalProfit >= 0 ? "bg-emerald-500/10 text-emerald-200" : "bg-rose-500/10 text-rose-200"}`}>
-                {totalProfit >= 0 ? "Up session" : "Down session"}
-              </div>
-            </div>
-
-            <div className="mt-6 rounded-[1.5rem] bg-[#102536] p-5">
-              <svg viewBox="0 0 100 100" className="h-72 w-full" preserveAspectRatio="none">
-                <defs>
-                  <linearGradient id="trackerFill" x1="0%" x2="0%" y1="0%" y2="100%">
-                    <stop offset="0%" stopColor="rgba(34,197,94,0.25)" />
-                    <stop offset="100%" stopColor="rgba(239,68,68,0.08)" />
-                  </linearGradient>
-                </defs>
-                <path d={`${trackerPath} L 100 100 L 0 100 Z`} fill="url(#trackerFill)" opacity="0.65" />
-                <path
-                  d={trackerPath}
-                  fill="none"
-                  stroke={totalProfit >= 0 ? "#4ade80" : "#fb7185"}
-                  strokeWidth="2.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
-          </div>
-        </div>
-      </section>
-    );
-  }
 
   function renderTopPanel() {
     if (activeTopTab === "bonus") {
@@ -666,10 +630,6 @@ export function Dashboard() {
       return renderTopPanel();
     }
 
-    if (activeView === "tracker") {
-      return renderTrackerPanel();
-    }
-
     if (activeView === "mines") {
       return (
         <MinesGame
@@ -754,7 +714,64 @@ export function Dashboard() {
   }
 
   return (
-    <div className="grid min-h-[88vh] gap-5 xl:grid-cols-[220px,1fr,300px]">
+    <div className="relative grid min-h-[88vh] gap-5 xl:grid-cols-[220px,1fr,300px]">
+      {trackerOpen && (
+        <motion.div
+          drag
+          dragMomentum={false}
+          initial={{ opacity: 0, scale: 0.92 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="absolute bottom-6 left-[260px] z-30 w-[290px] cursor-grab rounded-[1.6rem] border border-cyan-400/15 bg-[#102536]/95 p-4 shadow-[0_24px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl active:cursor-grabbing"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.28em] text-cyan-200/70">Stake Loss Calculator</p>
+              <p className="mt-1 text-sm text-white/65">Drag me anywhere.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setTrackerOpen(false)}
+              className="rounded-full bg-white/10 px-3 py-1 text-xs text-white/75"
+            >
+              Close
+            </button>
+          </div>
+
+          <div className="mt-4 rounded-[1.3rem] bg-[#0c1c2a] p-3">
+            <svg viewBox="0 0 100 100" className="h-28 w-full" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="trackerFillMini" x1="0%" x2="0%" y1="0%" y2="100%">
+                  <stop offset="0%" stopColor="rgba(34,197,94,0.25)" />
+                  <stop offset="100%" stopColor="rgba(239,68,68,0.08)" />
+                </linearGradient>
+              </defs>
+              <path d={`${trackerPath} L 100 100 L 0 100 Z`} fill="url(#trackerFillMini)" opacity="0.65" />
+              <path
+                d={trackerPath}
+                fill="none"
+                stroke={totalProfit >= 0 ? "#4ade80" : "#fb7185"}
+                strokeWidth="2.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+            <div className="rounded-xl bg-black/20 p-3">
+              <p className="text-white/45">Balance</p>
+              <p className="mt-1 font-bold text-white">{formatMoney(user.balance)}</p>
+            </div>
+            <div className="rounded-xl bg-black/20 p-3">
+              <p className="text-white/45">Net</p>
+              <p className={`mt-1 font-bold ${totalProfit >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
+                {totalProfit >= 0 ? "+" : "-"}{formatMoney(Math.abs(totalProfit))}
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       <aside className="glass-panel hidden rounded-[2rem] py-6 xl:block">
         <div className="px-6">
           <p className="text-3xl font-black text-white">
@@ -778,12 +795,9 @@ export function Dashboard() {
           </button>
           <button
             type="button"
-            onClick={() => {
-              setActiveTopTab("");
-              setActiveView("tracker");
-            }}
+            onClick={() => setTrackerOpen((current) => !current)}
             className={`mb-4 w-full rounded-2xl px-4 py-3 text-left text-sm transition ${
-              activeView === "tracker"
+              trackerOpen
                 ? "bg-cyan-500/15 text-cyan-100"
                 : "bg-white/5 text-white/65 hover:bg-white/10 hover:text-white"
             }`}
@@ -944,12 +958,21 @@ export function Dashboard() {
         <div className="mt-4 rounded-2xl bg-white/5 p-4">
           <p className="text-sm font-semibold text-white">Tip a player</p>
           <div className="mt-3 space-y-2">
-            <input
+            <select
               value={tipForm.username}
               onChange={(event) => setTipForm((current) => ({ ...current, username: event.target.value }))}
               className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none"
-              placeholder="Username"
-            />
+            >
+              {players.length === 0 ? (
+                <option value="">No players available</option>
+              ) : (
+                players.map((player) => (
+                  <option key={player.id} value={player.username}>
+                    {player.username}
+                  </option>
+                ))
+              )}
+            </select>
             <input
               value={tipForm.amount}
               onChange={(event) => setTipForm((current) => ({ ...current, amount: event.target.value }))}
@@ -989,6 +1012,12 @@ export function Dashboard() {
           <input
             value={chatInput}
             onChange={(event) => setChatInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && activeTimeoutSeconds === 0) {
+                event.preventDefault();
+                handleSendChat();
+              }
+            }}
             className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none"
             placeholder="Type a message..."
             disabled={activeTimeoutSeconds > 0}

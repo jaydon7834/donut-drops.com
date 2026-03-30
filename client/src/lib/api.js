@@ -31,6 +31,7 @@ export const api = {
       body: JSON.stringify(payload)
     }),
   getBalance: (token) => request("/user/balance", {}, token),
+  getPlayers: (token) => request("/user/players", {}, token),
   tipUser: (token, payload) =>
     request(
       "/user/tip",
