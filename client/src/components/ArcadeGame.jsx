@@ -115,6 +115,35 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
   const [waitingBattleId, setWaitingBattleId] = useState("");
   const [activeBattle, setActiveBattle] = useState(null);
 
+  function syncWaitingBattle(battles) {
+    if (gameType !== "case-battles") {
+      return;
+    }
+
+    const ownBattle = (battles || []).find((battle) => battle.host?.id === user.id);
+
+    if (ownBattle) {
+      setWaitingBattleId(ownBattle.id);
+      setActiveBattle((current) => {
+        if (current?.phase === "opening" || current?.phase === "resolved") {
+          return current;
+        }
+
+        return {
+          phase: "waiting",
+          battleId: ownBattle.id,
+          bet: ownBattle.bet,
+          pot: Number(ownBattle.bet || 0) * 2,
+          players: [{ id: user.id, username: user.username }]
+        };
+      });
+      return;
+    }
+
+    setWaitingBattleId((currentId) => (currentId ? "" : currentId));
+    setActiveBattle((current) => (current?.phase === "waiting" ? null : current));
+  }
+
   useEffect(() => {
     setClientSeed(user.clientSeed || "donutdrop-default");
   }, [user.clientSeed]);
@@ -138,6 +167,7 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
         const data = await api.getCaseBattles(token);
         if (!cancelled) {
           setOpenBattles(data.battles || []);
+          syncWaitingBattle(data.battles || []);
         }
       } catch (error) {
         if (!cancelled) {
@@ -153,6 +183,7 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
     socket.on("case-battles:update", (payload) => {
       if (!cancelled) {
         setOpenBattles(payload?.battles || []);
+        syncWaitingBattle(payload?.battles || []);
       }
     });
 
@@ -523,7 +554,9 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
             )}
 
             {(feedback || battleMessage) && (
-              <p className="mt-4 text-sm text-white/70">{battleMessage || feedback}</p>
+              <p className={`mt-4 text-sm ${battleMessage ? "text-amber-100" : "text-white/70"}`}>
+                {battleMessage || feedback}
+              </p>
             )}
           </div>
         </div>
@@ -638,6 +671,12 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
                       );
                     })}
                   </div>
+
+                  {activeBattle.phase === "waiting" && (
+                    <div className="mt-4 rounded-2xl border border-orange-300/20 bg-orange-400/10 px-4 py-3 text-sm text-orange-100">
+                      Your battle is live and waiting for another player to join.
+                    </div>
+                  )}
                 </div>
               )}
 
