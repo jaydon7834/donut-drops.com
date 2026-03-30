@@ -7,6 +7,7 @@ export const store = {
   sessions: new Map(),
   games: new Map(),
   pendingDeposits: new Map(),
+  cryptoOrders: new Map(),
   recentGames: [],
   chatMessages: [
     {

@@ -6,13 +6,55 @@ import { createError, sanitizeUser } from "../utils/helpers.js";
 
 const router = Router();
 const BOT_SECRET = process.env.MINECRAFT_BOT_SECRET || "donutdrop-bot-secret";
-
-function randomDepositCode() {
-  return String(crypto.randomInt(100, 1000));
-}
+const CRYPTO_CONFIRM_SECRET = process.env.CRYPTO_CONFIRM_SECRET || BOT_SECRET;
+const FIXED_MINECRAFT_DEPOSIT_AMOUNT = 950;
+const USD_PER_MILLION = 0.07;
+const MIN_CRYPTO_ORDER_USD = 5;
+const DONUTS_PER_ORDER = Math.round((MIN_CRYPTO_ORDER_USD / USD_PER_MILLION) * 1_000_000);
+const supportedAssets = {
+  BTC: {
+    label: "Bitcoin",
+    address: "bc1qlxer836vvxah73m5sl9dev78tuvfn9xkg4qqky",
+    usdRate: Number(process.env.BTC_USD_RATE || 70_000),
+    decimals: 8,
+    txPattern: /^[a-fA-F0-9]{64}$/
+  },
+  ETH: {
+    label: "Ethereum",
+    address: "0xF8914Bb5a5fe8e3df8256877c4ed1E7F6d0BE190",
+    usdRate: Number(process.env.ETH_USD_RATE || 3_500),
+    decimals: 8,
+    txPattern: /^0x[a-fA-F0-9]{64}$/
+  },
+  SOL: {
+    label: "Solana",
+    address: "ExWCCU5SJbYePDX59itfm69hDAiFg9EgLUCG34Z187cg",
+    usdRate: Number(process.env.SOL_USD_RATE || 150),
+    decimals: 6,
+    txPattern: /^[1-9A-HJ-NP-Za-km-z]{64,88}$/
+  }
+};
 
 function nextDepositId() {
   return `deposit_${Date.now()}_${crypto.randomBytes(3).toString("hex")}`;
+}
+
+function nextCryptoOrderId() {
+  return `crypto_${Date.now()}_${crypto.randomBytes(3).toString("hex")}`;
+}
+
+function roundToDecimals(value, decimals) {
+  return Number(value.toFixed(decimals));
+}
+
+function createCryptoOrderView(order) {
+  const asset = supportedAssets[order.asset];
+
+  return {
+    ...order,
+    address: asset.address,
+    assetLabel: asset.label
+  };
 }
 
 router.post("/deposit/confirm", async (req, res, next) => {
@@ -24,21 +66,23 @@ router.post("/deposit/confirm", async (req, res, next) => {
     }
 
     const minecraftUsername = String(req.body.minecraftUsername || "").trim();
-    const code = String(req.body.code || "").trim();
     const amount = Number(req.body.amount);
 
-    if (!minecraftUsername || !code) {
-      throw createError("Minecraft username and code are required.");
+    if (!minecraftUsername) {
+      throw createError("Minecraft username is required.");
     }
 
     if (!Number.isFinite(amount) || amount <= 0) {
       throw createError("Amount must be greater than 0.");
     }
 
+    if (Number(amount) !== FIXED_MINECRAFT_DEPOSIT_AMOUNT) {
+      throw createError(`Minecraft deposit amount must be exactly ${FIXED_MINECRAFT_DEPOSIT_AMOUNT}.`);
+    }
+
     const session = Array.from(store.pendingDeposits.values()).find(
       (entry) =>
         entry.status === "pending" &&
-        entry.code === code &&
         entry.minecraftUsername.toLowerCase() === minecraftUsername.toLowerCase()
     );
 
@@ -71,6 +115,19 @@ router.post("/deposit/confirm", async (req, res, next) => {
 });
 
 router.use(authMiddleware);
+
+router.get("/crypto/assets", (req, res) => {
+  const assets = Object.entries(supportedAssets).map(([symbol, config]) => ({
+    symbol,
+    label: config.label,
+    address: config.address,
+    minUsdAmount: MIN_CRYPTO_ORDER_USD,
+    donutsPerOrder: DONUTS_PER_ORDER,
+    usdRate: config.usdRate
+  }));
+
+  return res.json({ assets });
+});
 
 router.patch("/minecraft/link", async (req, res, next) => {
   try {
@@ -109,7 +166,7 @@ router.post("/deposit/session", (req, res, next) => {
       id: nextDepositId(),
       userId: req.user.id,
       minecraftUsername: req.user.minecraftUsername,
-      code: randomDepositCode(),
+      requiredAmount: FIXED_MINECRAFT_DEPOSIT_AMOUNT,
       status: "pending",
       createdAt: new Date().toISOString(),
       amount: 0
@@ -132,6 +189,167 @@ router.get("/deposit/session/:sessionId", (req, res, next) => {
     }
 
     return res.json({ session });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post("/crypto/order", (req, res, next) => {
+  try {
+    const asset = String(req.body.asset || "").trim().toUpperCase();
+    const assetConfig = supportedAssets[asset];
+
+    if (!assetConfig) {
+      throw createError("Unsupported crypto asset.");
+    }
+
+    const existingOrder = Array.from(store.cryptoOrders.values()).find(
+      (order) =>
+        order.userId === req.user.id &&
+        order.asset === asset &&
+        ["pending", "submitted"].includes(order.status)
+    );
+
+    if (existingOrder) {
+      return res.json({ order: createCryptoOrderView(existingOrder) });
+    }
+
+    const expectedAmount = roundToDecimals(
+      MIN_CRYPTO_ORDER_USD / assetConfig.usdRate,
+      assetConfig.decimals
+    );
+
+    const order = {
+      id: nextCryptoOrderId(),
+      userId: req.user.id,
+      asset,
+      status: "pending",
+      usdAmount: MIN_CRYPTO_ORDER_USD,
+      donutCredit: DONUTS_PER_ORDER,
+      expectedAmount,
+      txHash: "",
+      confirmations: 0,
+      createdAt: new Date().toISOString(),
+      submittedAt: null,
+      completedAt: null
+    };
+
+    store.cryptoOrders.set(order.id, order);
+
+    return res.status(201).json({ order: createCryptoOrderView(order) });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.get("/crypto/order/:orderId", (req, res, next) => {
+  try {
+    const order = store.cryptoOrders.get(String(req.params.orderId || ""));
+
+    if (!order || order.userId !== req.user.id) {
+      throw createError("Crypto order not found.", 404);
+    }
+
+    return res.json({ order: createCryptoOrderView(order) });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post("/crypto/order/:orderId/submit", (req, res, next) => {
+  try {
+    const order = store.cryptoOrders.get(String(req.params.orderId || ""));
+
+    if (!order || order.userId !== req.user.id) {
+      throw createError("Crypto order not found.", 404);
+    }
+
+    if (!["pending", "submitted"].includes(order.status)) {
+      throw createError("This crypto order is no longer open.");
+    }
+
+    const txHash = String(req.body.txHash || "").trim();
+    const assetConfig = supportedAssets[order.asset];
+
+    if (!assetConfig.txPattern.test(txHash)) {
+      throw createError(`Invalid ${assetConfig.label} transaction hash.`);
+    }
+
+    const duplicate = Array.from(store.cryptoOrders.values()).find(
+      (entry) => entry.id !== order.id && entry.txHash.toLowerCase() === txHash.toLowerCase()
+    );
+
+    if (duplicate) {
+      throw createError("That transaction hash is already attached to another order.");
+    }
+
+    order.txHash = txHash;
+    order.status = "submitted";
+    order.submittedAt = new Date().toISOString();
+
+    return res.json({
+      order: createCryptoOrderView(order),
+      message: "Transaction submitted. Waiting for blockchain confirmation."
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post("/crypto/confirm", async (req, res, next) => {
+  try {
+    const secret = req.headers["x-bot-secret"] || req.headers["x-wallet-secret"];
+
+    if (secret !== CRYPTO_CONFIRM_SECRET) {
+      throw createError("Unauthorized crypto confirmation.", 401);
+    }
+
+    const orderId = String(req.body.orderId || "").trim();
+    const txHash = String(req.body.txHash || "").trim();
+    const amountReceived = Number(req.body.amountReceived);
+    const confirmations = Number(req.body.confirmations || 0);
+    const order = store.cryptoOrders.get(orderId);
+
+    if (!order) {
+      throw createError("Crypto order not found.", 404);
+    }
+
+    if (order.status === "confirmed") {
+      return res.json({ ok: true, order: createCryptoOrderView(order) });
+    }
+
+    if (order.txHash && txHash && order.txHash.toLowerCase() !== txHash.toLowerCase()) {
+      throw createError("Transaction hash does not match this order.");
+    }
+
+    if (!Number.isFinite(amountReceived) || amountReceived < order.expectedAmount) {
+      throw createError("Received amount is below the required crypto amount.");
+    }
+
+    if (!Number.isFinite(confirmations) || confirmations < 1) {
+      throw createError("At least one blockchain confirmation is required.");
+    }
+
+    const user = store.users.get(order.userId);
+
+    if (!user) {
+      throw createError("Crypto order user not found.", 404);
+    }
+
+    order.txHash = txHash || order.txHash;
+    order.confirmations = Math.max(order.confirmations || 0, confirmations);
+    order.status = "confirmed";
+    order.completedAt = new Date().toISOString();
+    order.amountReceived = amountReceived;
+    user.balance = Number((user.balance + order.donutCredit).toFixed(2));
+
+    await persistUsers();
+
+    return res.json({
+      ok: true,
+      order: createCryptoOrderView(order),
+      user: sanitizeUser(user)
+    });
   } catch (error) {
     return next(error);
   }

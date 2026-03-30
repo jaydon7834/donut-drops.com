@@ -50,6 +50,26 @@ export const api = {
       token
     ),
   getDepositSession: (token, sessionId) => request(`/wallet/deposit/session/${sessionId}`, {}, token),
+  getCryptoAssets: (token) => request("/wallet/crypto/assets", {}, token),
+  createCryptoOrder: (token, payload) =>
+    request(
+      "/wallet/crypto/order",
+      {
+        method: "POST",
+        body: JSON.stringify(payload)
+      },
+      token
+    ),
+  getCryptoOrder: (token, orderId) => request(`/wallet/crypto/order/${orderId}`, {}, token),
+  submitCryptoOrder: (token, orderId, payload) =>
+    request(
+      `/wallet/crypto/order/${orderId}/submit`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload)
+      },
+      token
+    ),
   tipUser: (token, payload) =>
     request(
       "/user/tip",

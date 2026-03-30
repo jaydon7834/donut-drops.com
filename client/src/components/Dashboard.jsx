@@ -26,6 +26,11 @@ const gameCards = [
 ];
 
 const sideGames = ["Cases", "Case Battles", "Blackjack", "Mines", "Plinko", "Limbo", "Dice", "Roulette", "Chicken"];
+const FALLBACK_CRYPTO_ASSETS = [
+  { symbol: "BTC", label: "Bitcoin", address: "bc1qlxer836vvxah73m5sl9dev78tuvfn9xkg4qqky", minUsdAmount: 5, donutsPerOrder: 71_428_571 },
+  { symbol: "ETH", label: "Ethereum", address: "0xF8914Bb5a5fe8e3df8256877c4ed1E7F6d0BE190", minUsdAmount: 5, donutsPerOrder: 71_428_571 },
+  { symbol: "SOL", label: "Solana", address: "ExWCCU5SJbYePDX59itfm69hDAiFg9EgLUCG34Z187cg", minUsdAmount: 5, donutsPerOrder: 71_428_571 }
+];
 
 function formatMoney(value) {
   return `$${Number(value || 0).toFixed(2)}`;
@@ -84,6 +89,10 @@ export function Dashboard() {
   const [depositSession, setDepositSession] = useState(null);
   const [walletLoading, setWalletLoading] = useState(false);
   const [walletMessage, setWalletMessage] = useState("");
+  const [cryptoAssets, setCryptoAssets] = useState([]);
+  const [selectedCrypto, setSelectedCrypto] = useState("BTC");
+  const [cryptoOrder, setCryptoOrder] = useState(null);
+  const [cryptoTxHash, setCryptoTxHash] = useState("");
 
   useEffect(() => {
     setClientSeed(user?.clientSeed || "");
@@ -93,6 +102,41 @@ export function Dashboard() {
     setMinecraftUsername(user?.minecraftUsername || user?.username || "");
     setMinecraftLinked(Boolean(user?.minecraftUsername));
   }, [user?.minecraftUsername, user?.username]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCryptoAssets() {
+      if (!token) {
+        return;
+      }
+
+      try {
+        const data = await api.getCryptoAssets(token);
+        if (!cancelled) {
+          setCryptoAssets(data.assets?.length ? data.assets : FALLBACK_CRYPTO_ASSETS);
+        }
+      } catch {
+        if (!cancelled) {
+          setCryptoAssets(FALLBACK_CRYPTO_ASSETS);
+        }
+      }
+    }
+
+    loadCryptoAssets();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  useEffect(() => {
+    if (!walletOpen || walletTab !== "deposit" || !token || !selectedCryptoAsset || cryptoOrder) {
+      return;
+    }
+
+    ensureCryptoOrder(selectedCryptoAsset.symbol);
+  }, [cryptoOrder, selectedCryptoAsset, token, walletOpen, walletTab]);
 
   useEffect(() => {
     if (!walletOpen || walletStep !== "minecraft" || !depositSession?.id || depositSession.status !== "pending") {
@@ -115,6 +159,30 @@ export function Dashboard() {
 
     return () => window.clearInterval(intervalId);
   }, [depositSession?.id, depositSession?.status, refreshBalance, token, walletOpen, walletStep]);
+
+  useEffect(() => {
+    if (!walletOpen || walletTab !== "deposit" || !cryptoOrder?.id || !["pending", "submitted"].includes(cryptoOrder.status)) {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(async () => {
+      try {
+        const data = await api.getCryptoOrder(token, cryptoOrder.id);
+        setCryptoOrder(data.order);
+
+        if (data.order.status === "confirmed") {
+          setWalletMessage(
+            `Crypto deposit confirmed. ${data.order.donutCredit.toLocaleString()} Donut Money credited.`
+          );
+          await refreshBalance();
+        }
+      } catch {
+        // Quiet polling failure.
+      }
+    }, 8000);
+
+    return () => window.clearInterval(intervalId);
+  }, [cryptoOrder?.id, cryptoOrder?.status, refreshBalance, token, walletOpen, walletTab]);
 
   useEffect(() => {
     let cancelled = false;
@@ -253,6 +321,9 @@ export function Dashboard() {
   const winRate = gamesPlayed ? ((winCount / gamesPlayed) * 100).toFixed(1) : "0.0";
   const trackerPath = buildProfitPath(recentGames, user.balance || 1000);
   const activeTimeoutSeconds = Math.max(0, Math.ceil((chatTimeoutUntil - Date.now()) / 1000));
+  const availableCryptoAssets = cryptoAssets.length ? cryptoAssets : FALLBACK_CRYPTO_ASSETS;
+  const selectedCryptoAsset =
+    availableCryptoAssets.find((asset) => asset.symbol === selectedCrypto) || availableCryptoAssets[0];
   const timeoutLabel = useMemo(() => {
     const minutes = Math.floor(activeTimeoutSeconds / 60);
     const seconds = activeTimeoutSeconds % 60;
@@ -264,6 +335,7 @@ export function Dashboard() {
     setWalletStep("wallet");
     setWalletTab("deposit");
     setWalletMessage("");
+    setCryptoTxHash("");
   }
 
   function closeWallet() {
@@ -305,6 +377,56 @@ export function Dashboard() {
       setWalletMessage(error.message);
     } finally {
       setWalletLoading(false);
+    }
+  }
+
+  async function ensureCryptoOrder(symbol = selectedCrypto) {
+    setWalletLoading(true);
+    setWalletMessage("");
+
+    try {
+      const data = await api.createCryptoOrder(token, { asset: symbol });
+      setCryptoOrder(data.order);
+      setCryptoTxHash(data.order.txHash || "");
+    } catch (error) {
+      setWalletMessage(error.message);
+    } finally {
+      setWalletLoading(false);
+    }
+  }
+
+  async function handleSelectCrypto(symbol) {
+    setSelectedCrypto(symbol);
+    setCryptoOrder(null);
+    setCryptoTxHash("");
+    await ensureCryptoOrder(symbol);
+  }
+
+  async function handleSubmitCryptoHash() {
+    if (!cryptoOrder?.id || !cryptoTxHash.trim()) {
+      return;
+    }
+
+    setWalletLoading(true);
+    setWalletMessage("");
+
+    try {
+      const data = await api.submitCryptoOrder(token, cryptoOrder.id, { txHash: cryptoTxHash.trim() });
+      setCryptoOrder(data.order);
+      setWalletMessage(data.message);
+    } catch (error) {
+      setWalletMessage(error.message);
+    } finally {
+      setWalletLoading(false);
+    }
+  }
+
+  async function copyText(value, successMessage) {
+    try {
+      await navigator.clipboard.writeText(value);
+      setWalletMessage(successMessage);
+    } catch {
+      setWalletMessage("Copy failed. Copy the value manually.");
     }
   }
 
@@ -386,17 +508,159 @@ export function Dashboard() {
                     <div>
                       <p className="text-lg font-semibold text-white">Cryptocurrencies</p>
                       <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                        {["Bitcoin", "Ethereum", "Litecoin", "Solana"].map((coin) => (
-                          <div key={coin} className="rounded-2xl bg-white/5 px-4 py-4 text-white/30 blur-[0.4px]">
-                            {coin}
-                          </div>
+                        {availableCryptoAssets.map((asset) => (
+                          <button
+                            key={asset.symbol}
+                            type="button"
+                            onClick={() => handleSelectCrypto(asset.symbol)}
+                            className={`rounded-2xl px-4 py-4 text-left transition ${
+                              selectedCrypto === asset.symbol
+                                ? "border border-emerald-400/30 bg-emerald-500/10 text-white shadow-[0_0_24px_rgba(16,185,129,0.12)]"
+                                : "bg-white/5 text-white/75 hover:bg-white/10"
+                            }`}
+                          >
+                            <p className="font-semibold">{asset.label}</p>
+                            <p className="mt-1 text-xs uppercase tracking-[0.22em] text-white/45">{asset.symbol}</p>
+                          </button>
                         ))}
                       </div>
-                      <div className="mt-5 flex flex-col items-center rounded-2xl bg-white/5 px-5 py-6 text-center">
-                        <button type="button" className="rounded-xl bg-white/10 px-5 py-3 font-semibold text-white/70">
-                          Coming Soon
-                        </button>
-                        <p className="mt-3 text-sm text-white/45">Crypto deposits temporarily disabled</p>
+
+                      <div className="mt-5 rounded-[1.6rem] border border-emerald-400/15 bg-emerald-500/5 px-5 py-5">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm uppercase tracking-[0.2em] text-white/45">Selected Asset</p>
+                            <p className="mt-2 text-2xl font-bold text-white">
+                              {selectedCryptoAsset?.label || selectedCrypto}
+                            </p>
+                          </div>
+                          <div className="rounded-full bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-300">
+                            Deposits Enabled
+                          </div>
+                        </div>
+
+                        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                          <div className="rounded-2xl bg-black/20 px-4 py-4">
+                            <p className="text-xs uppercase tracking-[0.2em] text-white/45">Minimum Spend</p>
+                            <p className="mt-2 text-xl font-bold text-white">
+                              ${selectedCryptoAsset?.minUsdAmount?.toFixed?.(2) || "5.00"}
+                            </p>
+                          </div>
+                          <div className="rounded-2xl bg-black/20 px-4 py-4">
+                            <p className="text-xs uppercase tracking-[0.2em] text-white/45">Donut Credit</p>
+                            <p className="mt-2 text-xl font-bold text-white">
+                              {Number(cryptoOrder?.donutCredit || selectedCryptoAsset?.donutsPerOrder || 0).toLocaleString()}
+                            </p>
+                          </div>
+                          <div className="rounded-2xl bg-black/20 px-4 py-4">
+                            <p className="text-xs uppercase tracking-[0.2em] text-white/45">Order Status</p>
+                            <p className="mt-2 text-xl font-bold text-white capitalize">
+                              {cryptoOrder?.status || "Not created"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 rounded-2xl bg-black/20 px-4 py-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-xs uppercase tracking-[0.2em] text-white/45">Deposit Address</p>
+                              <p className="mt-2 break-all text-sm text-white/80">{selectedCryptoAsset?.address}</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => copyText(selectedCryptoAsset?.address || "", "Deposit address copied.")}
+                              className="rounded-xl bg-white/10 px-4 py-3 text-sm font-semibold text-white"
+                            >
+                              Copy
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 rounded-2xl bg-black/20 px-4 py-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-xs uppercase tracking-[0.2em] text-white/45">Exact Amount Due</p>
+                              <p className="mt-2 text-2xl font-bold text-white">
+                                {cryptoOrder?.expectedAmount || "--"} {selectedCrypto}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                copyText(
+                                  String(cryptoOrder?.expectedAmount || ""),
+                                  "Exact crypto amount copied."
+                                )
+                              }
+                              disabled={!cryptoOrder?.expectedAmount}
+                              className="rounded-xl bg-white/10 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
+                            >
+                              Copy Amount
+                            </button>
+                          </div>
+                          <p className="mt-3 text-sm text-white/55">
+                            A backend deposit order locks the exact ${selectedCryptoAsset?.minUsdAmount || 5} checkout size.
+                            The site will only credit after the transaction is confirmed for this order.
+                          </p>
+                        </div>
+
+                        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                          <button
+                            type="button"
+                            onClick={() => ensureCryptoOrder(selectedCrypto)}
+                            className="rounded-xl bg-emerald-500 px-4 py-3 font-semibold text-slate-950"
+                          >
+                            {cryptoOrder ? "Refresh Order" : "Create Order"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => copyText(cryptoOrder?.id || "", "Order id copied.")}
+                            disabled={!cryptoOrder?.id}
+                            className="rounded-xl bg-white/10 px-4 py-3 font-semibold text-white disabled:opacity-50"
+                          >
+                            Copy Order Id
+                          </button>
+                        </div>
+
+                        <div className="mt-4 rounded-2xl bg-black/20 px-4 py-4">
+                          <p className="text-xs uppercase tracking-[0.2em] text-white/45">Submit Transaction Hash</p>
+                          <input
+                            value={cryptoTxHash}
+                            onChange={(event) => setCryptoTxHash(event.target.value)}
+                            className="mt-3 w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-4 text-sm text-white outline-none"
+                            placeholder={`Paste your ${selectedCrypto} transaction hash`}
+                          />
+                          <div className="mt-4 flex flex-wrap gap-3">
+                            <button
+                              type="button"
+                              onClick={handleSubmitCryptoHash}
+                              disabled={!cryptoOrder?.id || walletLoading}
+                              className="rounded-xl bg-emerald-500 px-4 py-3 font-semibold text-slate-950 disabled:opacity-50"
+                            >
+                              {walletLoading ? "Submitting..." : "Submit Tx Hash"}
+                            </button>
+                            {cryptoOrder?.status === "submitted" && (
+                              <div className="rounded-xl bg-amber-500/15 px-4 py-3 text-sm font-semibold text-amber-200">
+                                Waiting for blockchain confirmation
+                              </div>
+                            )}
+                            {cryptoOrder?.status === "confirmed" && (
+                              <div className="rounded-xl bg-emerald-500/15 px-4 py-3 text-sm font-semibold text-emerald-200">
+                                Deposit confirmed
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <p className="mt-4 text-sm text-white/55">
+                          Fake browser claims do not credit balance. The server only releases funds after a wallet verifier
+                          confirms the matching on-chain transaction for this order.
+                        </p>
+
+                        {walletMessage && (
+                          <div className="mt-4 rounded-2xl bg-white/5 px-4 py-4 text-sm text-white/70">
+                            {walletMessage}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </>
@@ -437,12 +701,12 @@ export function Dashboard() {
                     DonutSMP in-game deposits are available right now. You can change this status later whenever the bot goes offline.
                   </p>
                   <div className="mt-4 rounded-2xl bg-black/20 px-4 py-4">
-                    <p className="text-xs uppercase tracking-[0.25em] text-white/45">Current Deposit Bot Code</p>
-                    <p className="mt-2 text-4xl font-black tracking-[0.35em] text-white">
-                      {depositSession?.code || "---"}
+                    <p className="text-xs uppercase tracking-[0.25em] text-white/45">Minecraft Deposit Amount</p>
+                    <p className="mt-2 text-4xl font-black tracking-[0.12em] text-white">
+                      {depositSession?.requiredAmount || 950}
                     </p>
                     <p className="mt-2 text-sm text-white/55">
-                      Use this 3-digit number when paying the bot in-game. The website will watch this deposit session and credit your balance when your Minecraft bot confirms it.
+                      Pay exactly {depositSession?.requiredAmount || 950} in Minecraft money to the DonutSMP deposit bot. Once your bot confirms that payment for the linked username, the website will credit your balance.
                     </p>
                   </div>
                 </div>
