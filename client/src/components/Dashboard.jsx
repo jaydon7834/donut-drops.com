@@ -37,6 +37,28 @@ function formatMoney(value) {
   return `$${Number(value || 0).toFixed(2)}`;
 }
 
+function formatCompactNumber(value) {
+  const amount = Number(value || 0);
+
+  if (amount >= 1_000_000_000) {
+    return `${trimCompact(amount / 1_000_000_000)}b`;
+  }
+
+  if (amount >= 1_000_000) {
+    return `${trimCompact(amount / 1_000_000)}m`;
+  }
+
+  if (amount >= 1_000) {
+    return `${trimCompact(amount / 1_000)}k`;
+  }
+
+  return String(Math.round(amount));
+}
+
+function trimCompact(value) {
+  return value.toFixed(value >= 10 ? 0 : 1).replace(/\.0$/, "");
+}
+
 function buildProfitPath(recentGames, startingBalance) {
   const points = [startingBalance - recentGames.reduce((sum, game) => sum + game.profit, 0)];
 
@@ -1826,7 +1848,7 @@ export function Dashboard() {
               <p className="text-xs uppercase tracking-[0.26em] text-sky-100/65">Rain Controls</p>
               <p className="mt-2 text-sm text-white/72">
                 {rain.active
-                  ? `Live pool ${Number(rain.amount || 0).toLocaleString()} with ${rain.participants} joined`
+                  ? `Live pool ${formatCompactNumber(rain.amount || 0)} with ${rain.participants} joined`
                   : "Kick off a live rain event for everyone online."}
               </p>
             </div>
@@ -1852,7 +1874,7 @@ export function Dashboard() {
                 Rain Live
               </p>
               <p className="mt-1 text-sm font-semibold text-white">
-                Live pool {Number(rain.amount || 0).toLocaleString()}
+                Live pool {formatCompactNumber(rain.amount || 0)}
               </p>
               <p className="mt-1 text-xs text-white/70">{rain.participants} joined</p>
               <button

@@ -22,7 +22,19 @@ function canManageRain(user) {
 }
 
 function getRainAmount() {
-  return 5_000 + Math.floor(Math.random() * 20_000);
+  const presets = [
+    500_000,
+    750_000,
+    1_000_000,
+    1_500_000,
+    2_000_000,
+    2_500_000,
+    5_000_000,
+    7_500_000,
+    10_000_000
+  ];
+
+  return presets[Math.floor(Math.random() * presets.length)];
 }
 
 function serializeRain(user) {
