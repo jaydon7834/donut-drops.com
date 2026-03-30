@@ -196,7 +196,7 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-6 p-4 xl:flex-row xl:items-stretch xl:p-6">
-      <div className="w-full shrink-0 rounded-2xl bg-[#0f172a] p-5 text-white xl:w-[220px]">
+      <div className="w-full shrink-0 rounded-2xl bg-[#0f172a] p-5 text-white xl:w-[190px]">
         <div className="space-y-4">
           <div>
             <p className="text-sm text-gray-400">Bet Amount</p>
@@ -300,10 +300,10 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
         </div>
       </div>
 
-      <div className="relative min-w-0 flex-1 overflow-hidden rounded-2xl bg-[#0b0f1a] p-4 xl:p-6">
-        <div className="flex h-full min-h-[720px] w-full items-center justify-center xl:min-h-[780px]">
-          <div className="relative w-full max-w-5xl">
-          <div className="mt-2 flex origin-top scale-[1.05] flex-col items-center sm:scale-[1.1] xl:scale-[1.15] 2xl:scale-[1.25]">
+      <div className="relative min-w-0 flex-1 overflow-hidden rounded-2xl bg-[#0b0f1a] p-4 xl:p-8">
+        <div className="flex h-full min-h-[760px] w-full items-center justify-center xl:min-h-[820px]">
+          <div className="relative w-full max-w-6xl">
+          <div className="mt-2 flex origin-top scale-[1.08] flex-col items-center sm:scale-[1.14] xl:scale-[1.24] 2xl:scale-[1.35]">
             {Array.from({ length: rows }).map((_, row) => (
               <div key={row} className="flex justify-center">
                 {Array.from({ length: row + 1 }).map((__, index) => (

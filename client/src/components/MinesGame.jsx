@@ -181,7 +181,7 @@ export function MinesGame({ token, user, onBalanceChange }) {
 
   return (
     <div className="flex w-full min-w-0 flex-col items-start gap-6 px-2 py-4 sm:px-4 xl:flex-row xl:items-stretch xl:px-6 xl:py-6">
-      <div className="w-full shrink-0 rounded-[1.8rem] bg-[#131625] p-6 text-white xl:w-[220px]">
+      <div className="w-full shrink-0 rounded-[1.8rem] bg-[#131625] p-5 text-white xl:w-[200px]">
         <div className="flex items-start justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.28em] text-indigo-200/65">Mines Bet</p>
@@ -265,7 +265,7 @@ export function MinesGame({ token, user, onBalanceChange }) {
         </div>
       </div>
 
-      <div className="min-w-0 flex-1 rounded-[1.8rem] bg-[#131625] p-4 shadow-[0_0_40px_rgba(0,0,0,0.2)] xl:min-h-[640px] xl:p-8">
+      <div className="min-w-0 flex-1 rounded-[1.8rem] bg-[#131625] p-4 shadow-[0_0_40px_rgba(0,0,0,0.2)] xl:min-h-[680px] xl:p-8">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.28em] text-indigo-200/65">Mines Board</p>
@@ -276,7 +276,7 @@ export function MinesGame({ token, user, onBalanceChange }) {
           </div>
         </div>
 
-        <div className="mt-6 flex min-h-[520px] w-full items-center justify-center overflow-hidden rounded-2xl bg-[#0f172a] p-3 shadow-[0_0_40px_rgba(0,0,0,0.8)] xl:min-h-[640px] xl:p-6">
+        <div className="mt-6 flex min-h-[560px] w-full items-center justify-center overflow-hidden rounded-2xl bg-[#0f172a] p-3 shadow-[0_0_40px_rgba(0,0,0,0.8)] xl:min-h-[680px] xl:p-8">
           <div className="flex w-full justify-center">
             <div className="grid shrink-0 grid-cols-5 gap-3 sm:gap-4">
               {tiles.map((tile) => {
