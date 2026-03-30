@@ -200,7 +200,9 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
       });
 
       if (gameType === "cases") {
-        const rewardIndex = getRewardIndex(data.game.details?.reward);
+        const rewardIndex = Number.isInteger(data.game.details?.rewardIndex)
+          ? data.game.details.rewardIndex
+          : getRewardIndex(data.game.details?.reward);
         const nextSpin = spinSequence + 1;
         const targetOffset =
           ((SPIN_REPEAT_COUNT - 2) * caseRewards.length + rewardIndex) * SPIN_CARD_WIDTH;
@@ -479,7 +481,11 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
                   initial={{ x: 0 }}
                   animate={{ x: -caseSpinOffset }}
                   transition={{ duration: 2.8, ease: [0.16, 1, 0.3, 1] }}
-                  className="flex gap-4 px-[40%]"
+                  className="flex gap-4"
+                  style={{
+                    paddingLeft: "calc(50% - 90px)",
+                    paddingRight: "calc(50% - 90px)"
+                  }}
                 >
                   {Array.from({ length: SPIN_REPEAT_COUNT }).flatMap((_, row) =>
                     caseRewards.map((reward, index) => (

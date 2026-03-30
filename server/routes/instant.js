@@ -47,15 +47,21 @@ const CASE_REWARDS = [
 function getCaseReward(rawValue) {
   let cursor = 0;
 
-  for (const reward of CASE_REWARDS) {
+  for (const [index, reward] of CASE_REWARDS.entries()) {
     cursor += reward.weight;
 
     if (rawValue < cursor) {
-      return reward;
+      return {
+        ...reward,
+        index
+      };
     }
   }
 
-  return CASE_REWARDS[CASE_REWARDS.length - 1];
+  return {
+    ...CASE_REWARDS[CASE_REWARDS.length - 1],
+    index: CASE_REWARDS.length - 1
+  };
 }
 
 function serializeOpenBattle(battle) {
@@ -149,7 +155,8 @@ function resolveInstantResult(gameType, rawValue, payload) {
       details: {
         reward: reward.label,
         rarity: reward.rarity,
-        image: reward.image
+        image: reward.image,
+        rewardIndex: reward.index
       }
     };
   }
