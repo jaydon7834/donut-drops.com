@@ -53,8 +53,6 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
       return undefined;
     }
 
-    let cancelled = false;
-
     async function releaseBall() {
       if (queueRemainingRef.current <= 0) {
         return;
@@ -73,10 +71,6 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
           rows,
           clientSeed
         });
-
-        if (cancelled) {
-          return;
-        }
 
         const ballId = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
         const nextBall = {
@@ -111,7 +105,6 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
     }, 1000);
 
     return () => {
-      cancelled = true;
       if (dropIntervalRef.current && queueRemaining <= 1) {
         window.clearInterval(dropIntervalRef.current);
         dropIntervalRef.current = null;
