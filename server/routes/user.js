@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
-import { getRecentGamesForUser, persistUsers } from "../state/store.js";
-import { sanitizeUser } from "../utils/helpers.js";
+import { findUserByUsername, getRecentGamesForUser, persistUsers } from "../state/store.js";
+import { createError, sanitizeUser } from "../utils/helpers.js";
 
 const router = Router();
 
@@ -41,6 +41,47 @@ router.patch("/seed", async (req, res) => {
   return res.json({
     user: sanitizeUser(req.user)
   });
+});
+
+router.post("/tip", async (req, res, next) => {
+  try {
+    const recipientUsername = String(req.body.username || "").trim();
+    const amount = Number(req.body.amount);
+
+    if (!recipientUsername) {
+      throw createError("Recipient username is required.");
+    }
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw createError("Tip amount must be greater than 0.");
+    }
+
+    if (amount > req.user.balance) {
+      throw createError("Insufficient balance.");
+    }
+
+    const recipient = findUserByUsername(recipientUsername);
+
+    if (!recipient) {
+      throw createError("Recipient not found.", 404);
+    }
+
+    if (recipient.id === req.user.id) {
+      throw createError("You cannot tip yourself.");
+    }
+
+    req.user.balance = Number((req.user.balance - amount).toFixed(2));
+    recipient.balance = Number((recipient.balance + amount).toFixed(2));
+    await persistUsers();
+
+    return res.json({
+      user: sanitizeUser(req.user),
+      recipient: sanitizeUser(recipient),
+      amount: Number(amount.toFixed(2))
+    });
+  } catch (error) {
+    return next(error);
+  }
 });
 
 export default router;

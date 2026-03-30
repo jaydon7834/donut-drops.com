@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
-import { persistUsers, pushRecentGame } from "../state/store.js";
+import { nextGameId, persistUsers, pushRecentGame, store } from "../state/store.js";
 import { createFairContext, generateDiceResult } from "../utils/provablyFair.js";
 import { createError, ensurePositiveBet } from "../utils/helpers.js";
 
@@ -25,13 +25,34 @@ router.post("/roll", async (req, res, next) => {
     const chance = over ? 100 - target : target;
     const multiplier = Number((99 / chance).toFixed(2));
     const payout = isWin ? Number((bet * multiplier).toFixed(2)) : 0;
+    const gameId = nextGameId("dice");
 
     req.user.balance = Number((req.user.balance - bet + payout).toFixed(2));
     req.user.clientSeed = fair.clientSeed;
     req.user.nonce += 1;
 
+    store.games.set(gameId, {
+      gameId,
+      userId: req.user.id,
+      gameType: "dice",
+      bet,
+      active: false,
+      multiplier,
+      serverSeed: fair.serverSeed,
+      serverSeedHash: fair.serverSeedHash,
+      clientSeed: fair.clientSeed,
+      nonce: fair.nonce,
+      createdAt: new Date().toISOString(),
+      result: {
+        roll: result.roll,
+        target,
+        over,
+        isWin
+      }
+    });
+
     pushRecentGame({
-      _id: `dice_${Date.now()}`,
+      _id: gameId,
       userId: req.user.id,
       gameType: "dice",
       betAmount: bet,
@@ -43,6 +64,7 @@ router.post("/roll", async (req, res, next) => {
     return res.status(201).json({
       balance: req.user.balance,
       game: {
+        gameId,
         bet,
         payout,
         result: {

@@ -31,6 +31,15 @@ export const api = {
       body: JSON.stringify(payload)
     }),
   getBalance: (token) => request("/user/balance", {}, token),
+  tipUser: (token, payload) =>
+    request(
+      "/user/tip",
+      {
+        method: "POST",
+        body: JSON.stringify(payload)
+      },
+      token
+    ),
   updateClientSeed: (token, clientSeed) =>
     request(
       "/user/seed",
@@ -70,6 +79,25 @@ export const api = {
   rollDice: (token, payload) =>
     request(
       "/game/dice/roll",
+      {
+        method: "POST",
+        body: JSON.stringify(payload)
+      },
+      token
+    ),
+  playInstant: (token, payload) =>
+    request(
+      "/game/instant/play",
+      {
+        method: "POST",
+        body: JSON.stringify(payload)
+      },
+      token
+    ),
+  getChat: (token) => request("/chat", {}, token),
+  sendChat: (token, payload) =>
+    request(
+      "/chat",
       {
         method: "POST",
         body: JSON.stringify(payload)

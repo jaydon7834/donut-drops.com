@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#0c4a6e"/>
+      <stop offset="100%" stop-color="#67e8f9"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="url(#bg)"/>
+  <g fill="#dbeafe">
+    <circle cx="220" cy="140" r="12"/>
+    <circle cx="320" cy="140" r="12"/>
+    <circle cx="420" cy="140" r="12"/>
+    <circle cx="520" cy="140" r="12"/>
+    <circle cx="270" cy="220" r="12"/>
+    <circle cx="370" cy="220" r="12"/>
+    <circle cx="470" cy="220" r="12"/>
+    <circle cx="220" cy="300" r="12"/>
+    <circle cx="320" cy="300" r="12"/>
+    <circle cx="420" cy="300" r="12"/>
+    <circle cx="520" cy="300" r="12"/>
+  </g>
+  <circle cx="390" cy="100" r="22" fill="#f472b6"/>
+  <text x="70" y="520" font-size="84" fill="#fff" font-family="Verdana" font-weight="800">PLINKO</text>
+</svg>

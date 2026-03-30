@@ -2,7 +2,7 @@ import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
 import { nextGameId, persistUsers, pushRecentGame, store } from "../state/store.js";
 import { createFairContext, generateMinesPositions } from "../utils/provablyFair.js";
-import { createError, ensurePositiveBet } from "../utils/helpers.js";
+import { createError, ensureIntegerInRange, ensurePositiveBet } from "../utils/helpers.js";
 
 const router = Router();
 
@@ -13,6 +13,7 @@ function multiplierForReveals(revealedTiles) {
 function sanitizeGame(game) {
   return {
     gameId: game.gameId,
+    gameType: game.gameType,
     mines: game.mines,
     bet: game.bet,
     revealedTiles: game.revealedTiles,
@@ -20,7 +21,9 @@ function sanitizeGame(game) {
     active: game.active,
     serverSeedHash: game.serverSeedHash,
     clientSeed: game.clientSeed,
-    nonce: game.nonce
+    nonce: game.nonce,
+    actionNonce: game.actionNonce,
+    createdAt: game.createdAt
   };
 }
 
@@ -28,16 +31,17 @@ router.use(authMiddleware);
 
 router.post("/start", async (req, res, next) => {
   try {
-    const mines = Number(req.body.mines);
+    const mines = ensureIntegerInRange(
+      req.body.mines,
+      3,
+      10,
+      "Mines count must be between 3 and 10."
+    );
     const bet = ensurePositiveBet(req.body.bet, req.user.balance);
     const clientSeed = req.body.clientSeed;
 
-    if (!Number.isInteger(mines) || mines < 3 || mines > 10) {
-      throw createError("Mines count must be between 3 and 10.");
-    }
-
     const existingActiveGame = Array.from(store.games.values()).find(
-      (game) => game.userId === req.user.id && game.active
+      (game) => game.userId === req.user.id && game.gameType === "mines" && game.active
     );
 
     if (existingActiveGame) {
@@ -55,6 +59,7 @@ router.post("/start", async (req, res, next) => {
     const game = {
       gameId: nextGameId("mines"),
       userId: req.user.id,
+      gameType: "mines",
       mines,
       bet,
       revealedTiles: [],
@@ -64,7 +69,9 @@ router.post("/start", async (req, res, next) => {
       serverSeed: fair.serverSeed,
       serverSeedHash: fair.serverSeedHash,
       clientSeed: fair.clientSeed,
-      nonce: fair.nonce
+      nonce: fair.nonce,
+      actionNonce: 0,
+      createdAt: new Date().toISOString()
     };
 
     req.user.balance = Number((req.user.balance - bet).toFixed(2));
@@ -86,7 +93,12 @@ router.post("/start", async (req, res, next) => {
 router.post("/click", (req, res, next) => {
   try {
     const gameId = String(req.body.gameId || "");
-    const tileIndex = Number(req.body.tileIndex);
+    const tileIndex = ensureIntegerInRange(
+      req.body.tileIndex,
+      0,
+      24,
+      "Tile index must be between 0 and 24."
+    );
     const game = store.games.get(gameId);
 
     if (!game || game.userId !== req.user.id) {
@@ -97,14 +109,11 @@ router.post("/click", (req, res, next) => {
       throw createError("This game is no longer active.");
     }
 
-    if (!Number.isInteger(tileIndex) || tileIndex < 0 || tileIndex > 24) {
-      throw createError("Tile index must be between 0 and 24.");
-    }
-
     if (game.revealedTiles.includes(tileIndex)) {
       throw createError("Tile already revealed.");
     }
 
+    game.actionNonce += 1;
     game.revealedTiles.push(tileIndex);
 
     if (game.minePositions.includes(tileIndex)) {
@@ -161,6 +170,7 @@ router.post("/cashout", async (req, res, next) => {
     const payout = Number((game.bet * game.multiplier).toFixed(2));
     req.user.balance = Number((req.user.balance + payout).toFixed(2));
     game.active = false;
+    game.actionNonce += 1;
 
     pushRecentGame({
       _id: game.gameId,

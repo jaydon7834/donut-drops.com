@@ -1,51 +1,49 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext.jsx";
 import { MinesGame } from "./MinesGame.jsx";
 import { DiceGame } from "./DiceGame.jsx";
+import { ArcadeGame } from "./ArcadeGame.jsx";
 import { FairnessCard } from "./FairnessCard.jsx";
+import { GameCard } from "./GameCard.jsx";
+import { WalletDisplay } from "./WalletDisplay.jsx";
+import { api } from "../lib/api.js";
+import { parseBetInput } from "../lib/betting.js";
+
+const topNavItems = ["Fairness", "Affiliate", "Bonus", "Leaderboard", "Profile", "Store"];
 
 const gameCards = [
-  { id: "blackjack", label: "Blackjack", accent: "from-orange-700 via-orange-500 to-amber-300", players: 6 },
-  { id: "mines", label: "Mines", accent: "from-emerald-900 via-emerald-500 to-lime-300", players: 8 },
-  { id: "roulette", label: "Roulette", accent: "from-fuchsia-900 via-pink-500 to-amber-300", players: 7 },
-  { id: "limbo", label: "Limbo", accent: "from-amber-800 via-orange-500 to-yellow-300", players: 6 },
-  { id: "plinko", label: "Plinko", accent: "from-cyan-900 via-cyan-500 to-sky-300", players: 3 }
+  { id: "blackjack", label: "Blackjack", accent: "from-orange-700 via-orange-500 to-amber-300", players: 6, image: "/images/blackjack-card.svg" },
+  { id: "mines", label: "Mines", accent: "from-emerald-900 via-emerald-500 to-lime-300", players: 8, image: "/images/mines-card.svg" },
+  { id: "roulette", label: "Roulette", accent: "from-fuchsia-900 via-pink-500 to-amber-300", players: 7, image: "/images/roulette-card.svg" },
+  { id: "limbo", label: "Limbo", accent: "from-amber-800 via-orange-500 to-yellow-300", players: 6, image: "/images/limbo-card.svg" },
+  { id: "plinko", label: "Plinko", accent: "from-cyan-900 via-cyan-500 to-sky-300", players: 3, image: "/images/plinko-card.svg" }
 ];
 
 const sideGames = ["Cases", "Case Battles", "Blackjack", "Mines", "Plinko", "Limbo", "Dice", "Roulette", "Chicken"];
 
-const chatMessages = [
-  { user: "system", text: "Welcome to DonutDrop chat." },
-  { user: "ghostyy7173", text: "can someone pay me" },
-  { user: "QKID2010", text: "/pay schocate 1000" },
-  { user: "striker2947", text: "/pay gasik or homo" },
-  { user: "farex_x", text: "no stfu" },
-  { user: "cnxsticp", text: "is legit?" }
-];
+function formatMoney(value) {
+  return `$${Number(value || 0).toFixed(2)}`;
+}
 
-function PlaceholderPanel({ title, onBack }) {
-  return (
-    <section className="glass-panel rounded-[2rem] p-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-[0.35em] text-accent">{title}</p>
-          <h2 className="mt-2 text-3xl font-semibold text-white">Lobby Coming Next</h2>
-          <p className="mt-3 max-w-2xl text-white/60">
-            This section is wired into the main screen now. Mines and Dice are playable today, and
-            this game can be built next without changing the lobby structure again.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onBack}
-          className="rounded-2xl border border-white/10 px-4 py-3 text-sm text-white/75 transition hover:border-white/25 hover:text-white"
-        >
-          Back To Lobby
-        </button>
-      </div>
-    </section>
-  );
+function buildProfitPath(recentGames, startingBalance) {
+  const points = [startingBalance - recentGames.reduce((sum, game) => sum + game.profit, 0)];
+
+  recentGames.forEach((game) => {
+    points.push(points[points.length - 1] + game.profit);
+  });
+
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const range = Math.max(max - min, 1);
+
+  return points
+    .map((point, index) => {
+      const x = (index / Math.max(points.length - 1, 1)) * 100;
+      const y = 100 - ((point - min) / range) * 100;
+      return `${index === 0 ? "M" : "L"} ${x} ${y}`;
+    })
+    .join(" ");
 }
 
 export function Dashboard() {
@@ -60,13 +58,52 @@ export function Dashboard() {
     setRecentGames
   } = useAuth();
   const [activeView, setActiveView] = useState("lobby");
+  const [activeTopTab, setActiveTopTab] = useState("");
   const [clientSeed, setClientSeed] = useState(user?.clientSeed || "");
   const [savingSeed, setSavingSeed] = useState(false);
   const [seedMessage, setSeedMessage] = useState("");
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatError, setChatError] = useState("");
+  const [chatTimeoutUntil, setChatTimeoutUntil] = useState(0);
+  const [tipForm, setTipForm] = useState({ username: "", amount: "100" });
+  const [tipMessage, setTipMessage] = useState("");
+  const [tipping, setTipping] = useState(false);
 
   useEffect(() => {
     setClientSeed(user?.clientSeed || "");
   }, [user?.clientSeed]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadChat() {
+      if (!token) {
+        return;
+      }
+
+      try {
+        const data = await api.getChat(token);
+        if (!cancelled) {
+          setChatMessages(data.messages || []);
+          setChatTimeoutUntil(data.timeoutUntil || 0);
+          setChatError("");
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setChatError(error.message);
+        }
+      }
+    }
+
+    loadChat();
+    const intervalId = window.setInterval(loadChat, 4000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [token]);
 
   async function updateBalance(balance) {
     setUser((currentUser) => ({ ...currentUser, balance }));
@@ -95,7 +132,544 @@ export function Dashboard() {
     }
   }
 
+  async function handleSendChat() {
+    if (!chatInput.trim()) {
+      return;
+    }
+
+    try {
+      const data = await api.sendChat(token, { text: chatInput });
+      setChatMessages(data.messages || []);
+      setChatTimeoutUntil(data.timeoutUntil || 0);
+      setChatInput("");
+      setChatError("");
+    } catch (error) {
+      setChatError(error.message);
+      const freshChat = await api.getChat(token).catch(() => null);
+      if (freshChat) {
+        setChatMessages(freshChat.messages || []);
+        setChatTimeoutUntil(freshChat.timeoutUntil || 0);
+      }
+    }
+  }
+
+  async function handleTip() {
+    setTipping(true);
+    setTipMessage("");
+
+    try {
+      const amount = parseBetInput(tipForm.amount);
+      const data = await api.tipUser(token, {
+        username: tipForm.username,
+        amount
+      });
+      setUser(data.user);
+      setTipForm((current) => ({ ...current, amount: "100" }));
+      setTipMessage(`Tipped ${data.recipient.username} ${formatMoney(data.amount)}.`);
+    } catch (error) {
+      setTipMessage(error.message);
+    } finally {
+      setTipping(false);
+    }
+  }
+
+  const totalProfit = recentGames.reduce((sum, game) => sum + game.profit, 0);
+  const totalWagered = recentGames.reduce((sum, game) => sum + game.betAmount, 0);
+  const gamesPlayed = recentGames.length;
+  const winCount = recentGames.filter((game) => game.profit > 0).length;
+  const biggestWin = recentGames.reduce((max, game) => Math.max(max, game.profit), 0);
+  const winRate = gamesPlayed ? ((winCount / gamesPlayed) * 100).toFixed(1) : "0.0";
+  const trackerPath = buildProfitPath(recentGames, user.balance || 1000);
+  const activeTimeoutSeconds = Math.max(0, Math.ceil((chatTimeoutUntil - Date.now()) / 1000));
+  const timeoutLabel = useMemo(() => {
+    const minutes = Math.floor(activeTimeoutSeconds / 60);
+    const seconds = activeTimeoutSeconds % 60;
+    return `${minutes}:${String(seconds).padStart(2, "0")}`;
+  }, [activeTimeoutSeconds]);
+
+  function renderTrackerPanel() {
+    return (
+      <section className="space-y-5">
+        <div className="rounded-[2rem] border border-cyan-400/10 bg-[linear-gradient(180deg,rgba(13,34,43,0.96),rgba(19,20,29,0.96))] p-6">
+          <p className="text-xs uppercase tracking-[0.35em] text-cyan-200/70">Stake Loss Calculator</p>
+          <h2 className="mt-3 text-4xl font-black text-white">Live bankroll tracker</h2>
+          <p className="mt-3 max-w-3xl text-white/65">
+            Every loss drags the line down and every win snaps it back up, so you can feel the session
+            swing without digging through raw game history.
+          </p>
+        </div>
+
+        <div className="grid gap-5 lg:grid-cols-[360px,1fr]">
+          <div className="rounded-[1.8rem] border border-white/6 bg-[#171824] p-6">
+            <p className="text-sm uppercase tracking-[0.2em] text-white/45">Session Totals</p>
+            <div className="mt-5 grid gap-4">
+              {[
+                { label: "Current Balance", value: formatMoney(user.balance) },
+                { label: "Net Profit / Loss", value: `${totalProfit >= 0 ? "+" : "-"}${formatMoney(Math.abs(totalProfit))}` },
+                { label: "Total Wagered", value: formatMoney(totalWagered) },
+                { label: "Games Played", value: String(gamesPlayed) }
+              ].map((item) => (
+                <div key={item.label} className="rounded-[1.3rem] border border-white/6 bg-[#11121a] p-5">
+                  <p className="text-sm text-white/45">{item.label}</p>
+                  <p className={`mt-3 text-3xl font-black ${item.label === "Net Profit / Loss" ? (totalProfit >= 0 ? "text-emerald-300" : "text-rose-300") : "text-white"}`}>
+                    {item.value}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-[1.8rem] border border-white/6 bg-[#171824] p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm uppercase tracking-[0.2em] text-white/45">Profit Curve</p>
+                <p className="mt-2 text-white/65">Losses dip red, wins push the line back toward green.</p>
+              </div>
+              <div className={`rounded-full px-4 py-2 text-sm font-semibold ${totalProfit >= 0 ? "bg-emerald-500/10 text-emerald-200" : "bg-rose-500/10 text-rose-200"}`}>
+                {totalProfit >= 0 ? "Up session" : "Down session"}
+              </div>
+            </div>
+
+            <div className="mt-6 rounded-[1.5rem] bg-[#102536] p-5">
+              <svg viewBox="0 0 100 100" className="h-72 w-full" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="trackerFill" x1="0%" x2="0%" y1="0%" y2="100%">
+                    <stop offset="0%" stopColor="rgba(34,197,94,0.25)" />
+                    <stop offset="100%" stopColor="rgba(239,68,68,0.08)" />
+                  </linearGradient>
+                </defs>
+                <path d={`${trackerPath} L 100 100 L 0 100 Z`} fill="url(#trackerFill)" opacity="0.65" />
+                <path
+                  d={trackerPath}
+                  fill="none"
+                  stroke={totalProfit >= 0 ? "#4ade80" : "#fb7185"}
+                  strokeWidth="2.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  function renderTopPanel() {
+    if (activeTopTab === "bonus") {
+      return (
+        <section className="space-y-5">
+          <div className="rounded-[2rem] border border-emerald-400/10 bg-[linear-gradient(180deg,rgba(28,47,36,0.96),rgba(17,18,29,0.96))] p-6">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.35em] text-indigo-200/65">Bonus Center</p>
+                <h2 className="mt-3 text-4xl font-black text-white">Claim Rewards</h2>
+                <p className="mt-3 text-white/65">
+                  30-minute, daily, weekly, monthly bonuses plus rakeback.
+                </p>
+              </div>
+              <div className="rounded-2xl bg-white/5 px-4 py-3 text-sm text-white/75">
+                Total Claimed: {formatMoney(Math.max(totalProfit, 0))}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-4">
+            {[
+              { label: "30 Minute Bonus", amount: totalWagered >= 100 ? 5 : 0, meta: "Faucet reward after meeting the wager requirement." },
+              { label: "Daily Bonus", amount: totalWagered * 0.03, meta: "Based on your past 24h wagering." },
+              { label: "Weekly Bonus", amount: totalWagered * 0.08, meta: "Based on your past 7d wagering." },
+              { label: "Monthly Bonus", amount: totalWagered * 0.15, meta: "Based on your past 30d wagering." }
+            ].map((bonus) => (
+              <div key={bonus.label} className="rounded-[1.8rem] border border-white/6 bg-[#171824] p-6">
+                <p className="text-sm uppercase tracking-[0.04em] text-indigo-200/70">{bonus.label}</p>
+                <p className="mt-4 text-4xl font-black text-white">{formatMoney(bonus.amount)}</p>
+                <p className="mt-4 min-h-[52px] text-sm leading-6 text-white/60">{bonus.meta}</p>
+                <div className="mt-4 rounded-xl bg-black/20 px-4 py-3 text-sm text-white/55">
+                  Available in 0m 0s
+                </div>
+                <button
+                  type="button"
+                  className="mt-4 w-full rounded-xl bg-emerald-500 px-4 py-3 font-semibold text-slate-950"
+                >
+                  On Cooldown
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-[1.6fr,1fr]">
+            <div className="rounded-[1.8rem] border border-white/6 bg-[#171824] p-6">
+              <p className="text-sm uppercase tracking-[0.2em] text-indigo-200/70">Rakeback</p>
+              <div className="mt-4 rounded-xl bg-black/20 px-4 py-3 text-sm text-white/65">
+                Rakeback rate: claimable right now from calculated losses
+              </div>
+              <div className="mt-5 rounded-[1.4rem] border border-white/6 bg-[#11121a] p-6">
+                <p className="text-sm uppercase tracking-[0.25em] text-white/45">Available Rakeback</p>
+                <p className="mt-3 text-4xl font-black text-white">
+                  {formatMoney(Math.max(totalWagered * 0.02 - Math.max(totalProfit, 0), 0))}
+                </p>
+                <p className="mt-3 text-sm text-white/55">
+                  Claimable once per hour based on your wagered volume.
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-[1.8rem] border border-white/6 bg-[#171824] p-6">
+              <p className="text-sm uppercase tracking-[0.25em] text-white/45">Status</p>
+              <p className="mt-4 text-white/80">Available in 0m 0s</p>
+              <button
+                type="button"
+                className="mt-5 w-full rounded-xl bg-emerald-500 px-4 py-3 font-semibold text-slate-950"
+              >
+                Claim Rakeback
+              </button>
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    if (activeTopTab === "leaderboard") {
+      const leaderboard = [
+        { name: user.username, wagered: totalWagered || 1260, rank: 1 },
+        { name: "Wild Fire", wagered: 1160, rank: 2 },
+        { name: "Pure Fire", wagered: 860, rank: 3 },
+        { name: "Elite Arrow", wagered: 630, rank: 4 },
+        { name: "Cool Phoenix", wagered: 520, rank: 5 }
+      ];
+
+      return (
+        <section className="space-y-5">
+          <div className="rounded-[2rem] border border-emerald-400/10 bg-[linear-gradient(180deg,rgba(20,34,28,0.96),rgba(18,19,28,0.96))] p-6">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h2 className="text-4xl font-black text-white">Top Players</h2>
+                <p className="mt-3 text-white/65">Daily, weekly, and monthly legends battling for #1.</p>
+              </div>
+              <div className="flex rounded-2xl bg-white/5 p-2 text-sm">
+                {["Daily", "Weekly", "Monthly"].map((label, index) => (
+                  <button
+                    key={label}
+                    type="button"
+                    className={`rounded-xl px-4 py-2 ${index === 0 ? "bg-white/10 text-white" : "text-white/50"}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-3">
+            {leaderboard.slice(0, 3).map((entry, index) => (
+              <div
+                key={entry.name}
+                className={`rounded-[1.8rem] border p-6 ${
+                  index === 0
+                    ? "border-emerald-400/20 bg-[linear-gradient(180deg,rgba(29,72,49,0.5),rgba(18,19,28,0.95))]"
+                    : "border-white/6 bg-[#171824]"
+                }`}
+              >
+                <p className="rounded-xl bg-white/5 px-3 py-2 text-sm text-indigo-100/75">#{entry.rank}</p>
+                <h3 className="mt-6 text-4xl font-black text-white">{entry.name}</h3>
+                <p className="mt-5 text-xs uppercase tracking-[0.25em] text-white/45">Wagered</p>
+                <p className="mt-2 text-3xl font-black text-sky-100">${entry.wagered.toFixed(2)}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="rounded-[1.8rem] border border-white/6 bg-[#151622] p-6">
+            <div className="grid grid-cols-[100px,1fr,160px] border-b border-white/6 pb-4 text-sm uppercase tracking-[0.2em] text-white/40">
+              <span>Rank</span>
+              <span>Player</span>
+              <span>Wagered</span>
+            </div>
+            <div className="divide-y divide-white/6">
+              {leaderboard.map((entry) => (
+                <div key={entry.rank} className="grid grid-cols-[100px,1fr,160px] py-4 text-white/85">
+                  <span className="font-semibold">#{entry.rank}</span>
+                  <span>{entry.name}</span>
+                  <span>${entry.wagered.toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    if (activeTopTab === "fairness") {
+      return (
+        <section className="space-y-5">
+          <div className="rounded-[2rem] border border-emerald-400/10 bg-[linear-gradient(180deg,rgba(24,36,30,0.96),rgba(20,21,30,0.96))] p-6">
+            <p className="text-xs uppercase tracking-[0.35em] text-indigo-200/65">Provably Fair</p>
+            <h2 className="mt-3 text-4xl font-black text-white">Provably Fair</h2>
+            <p className="mt-3 text-white/65">
+              Ensuring every game outcome is transparent and verifiable.
+            </p>
+          </div>
+
+          <div className="grid gap-5 lg:grid-cols-[320px,1fr]">
+            <section className="glass-panel rounded-[2rem] p-5">
+              <p className="text-xs uppercase tracking-[0.3em] text-white/45">Client Seed Control</p>
+              <input
+                value={clientSeed}
+                onChange={(event) => setClientSeed(event.target.value)}
+                className="mt-4 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-accent"
+                placeholder="Enter client seed"
+              />
+              <button
+                type="button"
+                onClick={handleSaveSeed}
+                disabled={savingSeed}
+                className="mt-3 w-full rounded-2xl bg-white/10 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/15 disabled:opacity-50"
+              >
+                {savingSeed ? "Saving..." : "Save seed"}
+              </button>
+              {seedMessage && <p className="mt-3 text-sm text-white/60">{seedMessage}</p>}
+            </section>
+
+            <FairnessCard
+              title="How DonutDrop verifies rounds"
+              data={{
+                serverSeedHash: "Shown before play so the hidden server seed is committed in advance.",
+                clientSeed: `Current player seed: ${clientSeed || "donutdrop-default"}`,
+                nonce: `Current nonce: ${user.nonce}`,
+                formula: "SHA256(serverSeed:clientSeed:nonce) generates deterministic game randomness."
+              }}
+            />
+          </div>
+        </section>
+      );
+    }
+
+    if (activeTopTab === "affiliate") {
+      const referralCode = user.username.toUpperCase();
+      const referralLink = `https://donut-drops.com/?ref=${referralCode}`;
+
+      return (
+        <section className="space-y-5">
+          <div className="rounded-[1.8rem] border border-white/6 bg-[#171824] p-6">
+            <p className="text-sm uppercase tracking-[0.2em] text-indigo-200/70">Affiliate</p>
+            <div className="mt-5 grid gap-4 xl:grid-cols-4">
+              {[
+                { label: "Commission", value: "5%" },
+                { label: "Users Referred", value: "0" },
+                { label: "Total Earned", value: formatMoney(Math.max(totalProfit, 0) * 0.05) },
+                { label: "Total Claimed", value: "$0" }
+              ].map((card) => (
+                <div key={card.label} className="rounded-[1.3rem] border border-white/6 bg-[#11121a] p-5">
+                  <p className="text-xs uppercase tracking-[0.2em] text-white/45">{card.label}</p>
+                  <p className="mt-3 text-3xl font-black text-white">{card.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid gap-5 lg:grid-cols-[1.7fr,320px]">
+            <div className="rounded-[1.8rem] border border-white/6 bg-[#171824] p-6">
+              <p className="text-sm uppercase tracking-[0.2em] text-indigo-200/70">Your Referral</p>
+
+              <label className="mt-5 block">
+                <span className="text-sm font-semibold text-white">Referral Code</span>
+                <div className="mt-3 rounded-xl bg-black/20 px-5 py-4 text-white">{referralCode}</div>
+              </label>
+
+              <label className="mt-5 block">
+                <span className="text-sm font-semibold text-white">Referral Link</span>
+                <div className="mt-3 rounded-xl bg-black/20 px-5 py-4 text-white">{referralLink}</div>
+              </label>
+
+              <div className="mt-5 rounded-xl bg-black/20 px-5 py-4 text-white/65">
+                You earn 5% of your referrals&apos; wager volume. The more they play, the more you earn.
+              </div>
+            </div>
+
+            <div className="rounded-[1.8rem] border border-white/6 bg-[#171824] p-6">
+              <p className="text-sm uppercase tracking-[0.2em] text-indigo-200/70">Claim</p>
+              <div className="mt-5 rounded-[1.3rem] bg-[#11121a] p-5">
+                <p className="text-xs uppercase tracking-[0.2em] text-white/45">Ready To Claim</p>
+                <p className="mt-3 text-4xl font-black text-white">$0.00</p>
+              </div>
+              <button
+                type="button"
+                className="mt-5 w-full rounded-xl bg-emerald-500 px-4 py-3 font-semibold text-slate-950"
+              >
+                Claim Earnings
+              </button>
+              <p className="mt-4 text-sm leading-6 text-white/55">
+                Claims typically settle instantly, though rare delays may extend this process up to one
+                hour. Minimum amount to claim is $10M.
+              </p>
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    if (activeTopTab === "profile") {
+      return (
+        <section className="space-y-5">
+          <div className="rounded-[1.8rem] border border-white/6 bg-[#171824] p-6">
+            <p className="text-sm uppercase tracking-[0.2em] text-indigo-200/70">Profile</p>
+            <div className="mt-5 flex flex-wrap items-center gap-4">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#11121a] text-3xl font-black text-white">
+                {user.username?.charAt(0)?.toUpperCase() || "D"}
+              </div>
+              <div>
+                <h2 className="text-3xl font-black text-white">{user.username}</h2>
+                <p className="text-white/60">@{user.username}</p>
+                <div className="mt-2 flex flex-wrap gap-2 text-sm">
+                  <span className="rounded-full bg-emerald-500 px-3 py-1 font-semibold text-slate-950">
+                    Level 1
+                  </span>
+                  <span className="rounded-full bg-white/5 px-3 py-1 text-white/65">
+                    ${totalWagered.toFixed(2)} wagered
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-8">
+              <div className="flex items-center justify-between text-sm text-white/60">
+                <span>Progress to Level 2</span>
+                <span>${Math.max(500 - totalWagered, 0).toFixed(2)} remaining</span>
+              </div>
+              <div className="mt-3 h-3 overflow-hidden rounded-full bg-white/5">
+                <div
+                  className="h-full rounded-full bg-emerald-500"
+                  style={{ width: `${Math.min((totalWagered / 500) * 100, 100)}%` }}
+                />
+              </div>
+              <div className="mt-3 flex items-center justify-between text-sm text-white/55">
+                <span>${totalWagered.toFixed(2)} / $500 this level</span>
+                <span>{Math.min((totalWagered / 500) * 100, 100).toFixed(0)}% complete</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-[1.8rem] border border-white/6 bg-[#171824] p-6">
+            <p className="text-sm uppercase tracking-[0.2em] text-indigo-200/70">Account</p>
+            <div className="mt-4 flex flex-wrap gap-2 rounded-2xl bg-white/5 p-2 text-sm">
+              {["Stats", "Game History", "Transactions", "Preferences", "Security"].map((tab, index) => (
+                <button
+                  key={tab}
+                  type="button"
+                  className={`rounded-xl px-4 py-2 ${index === 0 ? "bg-white/10 text-white" : "text-white/50"}`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-5 grid gap-4 xl:grid-cols-4">
+              {[
+                { label: "Lifetime Wagered", value: `$${totalWagered.toFixed(2)}` },
+                { label: "Games Played", value: String(gamesPlayed) },
+                { label: "Win Rate", value: `${winRate}%` },
+                { label: "Biggest Win", value: formatMoney(biggestWin) }
+              ].map((card) => (
+                <div key={card.label} className="rounded-[1.3rem] border border-white/6 bg-[#11121a] p-5">
+                  <p className="text-sm text-white/45">{card.label}</p>
+                  <p className="mt-3 text-4xl font-black text-white">{card.value}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-5 rounded-xl bg-black/20 px-5 py-4 text-white/60">
+              {gamesPlayed === 0
+                ? "No games played yet. Start playing to see your stats here."
+                : "Your account stats update live as you play across DonutDrop."}
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    if (activeTopTab === "store") {
+      return (
+        <section className="space-y-5">
+          <div className="rounded-[2rem] border border-amber-400/10 bg-[linear-gradient(180deg,rgba(49,38,10,0.68),rgba(20,21,30,0.96))] p-6">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.35em] text-indigo-200/65">Marketplace</p>
+                <h2 className="mt-3 text-4xl font-black text-yellow-300">Store</h2>
+                <p className="mt-3 text-white/65">Purchase Donut Money and redeem codes.</p>
+              </div>
+              <div className="rounded-2xl border border-yellow-300/20 bg-yellow-300/10 px-4 py-3 text-sm font-semibold text-yellow-200">
+                Rate: $0.058 per million
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-5 lg:grid-cols-[460px,1fr]">
+            <div className="rounded-[1.8rem] border border-white/6 bg-[#171824] p-6">
+              <p className="text-sm uppercase tracking-[0.2em] text-indigo-200/70">Buy Donut Money</p>
+              <div className="mt-5 overflow-hidden rounded-[1.4rem] bg-[linear-gradient(135deg,rgba(70,30,8,0.95),rgba(23,38,28,0.95))] p-5">
+                <div className="rounded-[1rem] bg-black/15 p-5">
+                  <p className="text-4xl font-black uppercase tracking-[0.05em] text-lime-300">Donut Store</p>
+                  <p className="mt-10 text-sm text-white/65">Instant top-ups for Mines, Dice, and the full lobby.</p>
+                </div>
+              </div>
+
+              <p className="mt-5 text-white/65">
+                Purchase coins instantly with Bitcoin, CashApp, PayPal, or Credit Card.
+              </p>
+
+              <div className="mt-5 flex gap-3 text-sm font-semibold text-white/65">
+                {["BTC", "Card", "CashApp", "PayPal"].map((method) => (
+                  <div key={method} className="rounded-xl bg-white/5 px-3 py-2">
+                    {method}
+                  </div>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                className="mt-5 w-full rounded-xl bg-gradient-to-r from-yellow-300 to-amber-400 px-4 py-4 text-lg font-bold text-slate-950"
+              >
+                Purchase
+              </button>
+              <button
+                type="button"
+                className="mt-3 w-full rounded-xl bg-white/5 px-4 py-4 text-sm font-semibold text-white"
+              >
+                Redeem Code
+              </button>
+            </div>
+
+            <div className="rounded-[1.8rem] border border-white/6 bg-[#171824] p-6">
+              <h3 className="text-2xl font-bold text-white">Store Notes</h3>
+              <div className="mt-5 space-y-4 text-white/65">
+                <div className="rounded-xl bg-black/20 px-5 py-4">
+                  Wallet deposits are staged to feel instant in the lobby once payment clears.
+                </div>
+                <div className="rounded-xl bg-black/20 px-5 py-4">
+                  Promo codes can be wired into bonuses next so the store and bonus center connect.
+                </div>
+                <div className="rounded-xl bg-black/20 px-5 py-4">
+                  This section is now clickable and styled like a real marketplace instead of a dead header.
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    return null;
+  }
+
   function renderMainPanel() {
+    if (topNavItems.some((item) => item.toLowerCase() === activeTopTab)) {
+      return renderTopPanel();
+    }
+
+    if (activeView === "tracker") {
+      return renderTrackerPanel();
+    }
+
     if (activeView === "mines") {
       return (
         <MinesGame
@@ -117,25 +691,36 @@ export function Dashboard() {
     }
 
     if (activeView !== "lobby") {
-      return <PlaceholderPanel title={activeView} onBack={() => setActiveView("lobby")} />;
+      return (
+        <ArcadeGame
+          token={token}
+          gameType={activeView}
+          user={user}
+          onBalanceChange={updateBalance}
+          onBack={() => setActiveView("lobby")}
+        />
+      );
     }
 
     return (
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-        <section className="overflow-hidden rounded-[2rem] bg-gradient-to-br from-sky-500 via-blue-300 to-amber-300 p-6 shadow-[0_24px_80px_rgba(59,130,246,0.15)]">
+        <section className="casino-card overflow-hidden rounded-[2rem] bg-[radial-gradient(circle_at_top_left,rgba(255,122,0,0.28),transparent_26%),radial-gradient(circle_at_right,rgba(168,85,247,0.24),transparent_22%),linear-gradient(135deg,#122238,#172554_42%,#3b1904_100%)] p-6 shadow-[0_24px_80px_rgba(59,130,246,0.15)]">
           <div className="max-w-4xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.45em] text-white/90">Welcome</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.45em] text-orange-200">Welcome</p>
             <h2 className="mt-3 max-w-3xl text-4xl font-black leading-tight text-white sm:text-5xl">
-              Free codes, events, updates, and playable games.
+              High-stakes motion, live games, and a cleaner DonutDrop lobby.
             </h2>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-slate-900/80">
-              Your lobby is now the first thing you land on after logging in. Jump into Mines or
-              Dice from here, keep the casino-style navigation, and expand the other games over time.
+            <p className="mt-4 max-w-2xl text-base leading-7 text-white/72">
+              Move between Mines, Dice, and the rest of the floor with a sharper visual system, richer
+              glow, and faster game switching.
             </p>
             <button
               type="button"
-              onClick={() => setActiveView("mines")}
-              className="mt-6 rounded-2xl bg-emerald-500 px-6 py-3 font-semibold text-slate-950 transition hover:brightness-110"
+              onClick={() => {
+                setActiveTopTab("");
+                setActiveView("mines");
+              }}
+              className="neon-button-green mt-6"
             >
               Start Playing
             </button>
@@ -150,29 +735,17 @@ export function Dashboard() {
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             {gameCards.map((game) => (
-              <motion.button
+              <GameCard
                 key={game.id}
-                whileHover={{ y: -6 }}
-                whileTap={{ scale: 0.98 }}
-                type="button"
-                onClick={() => setActiveView(game.id)}
-                className="overflow-hidden rounded-[1.6rem] border border-white/10 bg-white/5 text-left"
-              >
-                <div className={`flex h-64 items-end bg-gradient-to-br ${game.accent} p-4`}>
-                  <span className="text-4xl font-black uppercase tracking-[0.08em] text-white">
-                    {game.label}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between px-4 py-4">
-                  <div>
-                    <p className="font-semibold text-white">{game.label}</p>
-                  </div>
-                  <p className="text-sm text-white/65">
-                    <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-emerald-400" />
-                    {game.players} playing
-                  </p>
-                </div>
-              </motion.button>
+                title={game.label}
+                players={game.players}
+                image={game.image}
+                accent={game.accent}
+                onClick={() => {
+                  setActiveTopTab("");
+                  setActiveView(game.id);
+                }}
+              />
             ))}
           </div>
         </section>
@@ -189,6 +762,34 @@ export function Dashboard() {
           </p>
         </div>
         <div className="mt-8 border-t border-white/5 px-3 pt-6">
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTopTab("");
+              setActiveView("lobby");
+            }}
+            className={`mb-2 w-full rounded-2xl px-4 py-3 text-left text-sm transition ${
+              activeView === "lobby" && !activeTopTab
+                ? "bg-emerald-500/15 text-emerald-100"
+                : "bg-white/5 text-white/65 hover:bg-white/10 hover:text-white"
+            }`}
+          >
+            Home
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTopTab("");
+              setActiveView("tracker");
+            }}
+            className={`mb-4 w-full rounded-2xl px-4 py-3 text-left text-sm transition ${
+              activeView === "tracker"
+                ? "bg-cyan-500/15 text-cyan-100"
+                : "bg-white/5 text-white/65 hover:bg-white/10 hover:text-white"
+            }`}
+          >
+            Stake Loss Calculator
+          </button>
           <p className="px-3 text-xs uppercase tracking-[0.35em] text-white/35">Games</p>
           <div className="mt-4 space-y-1">
             {sideGames.map((game) => {
@@ -201,7 +802,10 @@ export function Dashboard() {
                 <button
                   key={game}
                   type="button"
-                  onClick={() => setActiveView(normalized)}
+                  onClick={() => {
+                    setActiveTopTab("");
+                    setActiveView(normalized);
+                  }}
                   className={`w-full rounded-2xl px-4 py-3 text-left text-sm transition ${
                     isActive
                       ? "bg-white/10 text-white"
@@ -225,24 +829,45 @@ export function Dashboard() {
           <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
             <div>
               <div className="flex flex-wrap gap-2 text-sm text-white/55">
-                {["Fairness", "Affiliate", "Bonus", "Leaderboard", "Profile", "Store"].map((item) => (
-                  <span key={item} className="rounded-xl bg-white/5 px-4 py-2">
+                {topNavItems.map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => {
+                      setActiveTopTab(item.toLowerCase());
+                      setActiveView("lobby");
+                    }}
+                    className={`rounded-xl px-4 py-2 transition ${
+                      activeTopTab === item.toLowerCase()
+                        ? "bg-white/10 text-yellow-300"
+                        : "bg-white/5 text-white/55 hover:bg-white/10 hover:text-white"
+                    }`}
+                  >
                     {item}
-                  </span>
+                  </button>
                 ))}
               </div>
               <h1 className="mt-4 text-3xl font-semibold text-white">
-                {activeView === "lobby"
+                {topNavItems.some((item) => item.toLowerCase() === activeTopTab)
+                  ? `${activeTopTab.charAt(0).toUpperCase() + activeTopTab.slice(1)} hub`
+                  : activeView === "lobby"
                   ? "Casino lobby with playable games"
                   : `${activeView.charAt(0).toUpperCase() + activeView.slice(1)} table`}
               </h1>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <div className="rounded-2xl bg-white/5 px-5 py-4">
-                <p className="text-xs uppercase tracking-[0.3em] text-white/35">Wallet</p>
-                <p className="mt-1 text-2xl font-semibold text-mint">${user.balance?.toFixed(2)}</p>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTopTab("");
+                  setActiveView("lobby");
+                }}
+                className="rounded-2xl border border-white/10 px-5 py-4 text-white/75 transition hover:border-white/25 hover:text-white"
+              >
+                Home
+              </button>
+              <WalletDisplay balance={user.balance} />
               <button
                 type="button"
                 className="rounded-2xl bg-emerald-500 px-5 py-4 font-semibold text-slate-950"
@@ -255,6 +880,14 @@ export function Dashboard() {
               >
                 {user.username}
               </button>
+              <a
+                href="https://discord.gg/nr3edCRG"
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-2xl bg-indigo-500/15 px-5 py-4 font-medium text-indigo-100 transition hover:bg-indigo-500/25"
+              >
+                Discord
+              </a>
               <button
                 type="button"
                 onClick={logout}
@@ -270,77 +903,31 @@ export function Dashboard() {
 
         {(activeView === "mines" || activeView === "dice") && (
           <>
-            {seedMessage && <p className="text-sm text-white/60">{seedMessage}</p>}
-            <div className="grid gap-5 lg:grid-cols-[320px,1fr]">
-              <aside className="space-y-5">
-                <section className="glass-panel rounded-[2rem] p-5">
-                  <p className="text-xs uppercase tracking-[0.3em] text-white/45">Profile</p>
-                  <h2 className="mt-3 text-2xl font-semibold text-white">{user.username}</h2>
-                  <p className="text-sm text-white/55">{user.email}</p>
-                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                    <div className="rounded-2xl bg-white/5 p-4">
-                      <p className="text-white/45">Balance</p>
-                      <p className="mt-2 text-lg font-semibold text-mint">${user.balance?.toFixed(2)}</p>
+            <section className="glass-panel rounded-[2rem] p-5">
+              <div className="flex items-center justify-between">
+                <p className="text-xs uppercase tracking-[0.3em] text-white/45">Recent Games</p>
+                {seedMessage && <p className="text-sm text-white/55">{seedMessage}</p>}
+              </div>
+              <div className="mt-4 grid gap-3 lg:grid-cols-3">
+                {recentGames.length === 0 ? (
+                  <p className="text-sm text-white/55">No rounds yet. Spin up a game to populate history.</p>
+                ) : (
+                  recentGames.map((game) => (
+                    <div key={game._id} className="rounded-2xl bg-white/5 p-4 text-sm text-white/75">
+                      <div className="flex items-center justify-between capitalize">
+                        <span>{game.gameType}</span>
+                        <span className={game.profit >= 0 ? "text-emerald-300" : "text-rose-300"}>
+                          {game.profit >= 0 ? "+" : ""}${game.profit.toFixed(2)}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-white/45">
+                        Bet ${game.betAmount.toFixed(2)} | {game.status.replace("_", " ")}
+                      </p>
                     </div>
-                    <div className="rounded-2xl bg-white/5 p-4">
-                      <p className="text-white/45">Nonce</p>
-                      <p className="mt-2 text-lg font-semibold text-white">{user.nonce}</p>
-                    </div>
-                  </div>
-                </section>
-
-                <section className="glass-panel rounded-[2rem] p-5">
-                  <p className="text-xs uppercase tracking-[0.3em] text-white/45">Provably Fair</p>
-                  <h3 className="mt-3 text-lg font-semibold text-white">Client seed control</h3>
-                  <input
-                    value={clientSeed}
-                    onChange={(event) => setClientSeed(event.target.value)}
-                    className="mt-4 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-accent"
-                    placeholder="Enter client seed"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleSaveSeed}
-                    disabled={savingSeed}
-                    className="mt-3 w-full rounded-2xl bg-white/10 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/15 disabled:opacity-50"
-                  >
-                    {savingSeed ? "Saving..." : "Save seed"}
-                  </button>
-                </section>
-
-                <section className="glass-panel rounded-[2rem] p-5">
-                  <p className="text-xs uppercase tracking-[0.3em] text-white/45">Recent Games</p>
-                  <div className="mt-4 space-y-3">
-                    {recentGames.length === 0 ? (
-                      <p className="text-sm text-white/55">No rounds yet. Spin up a game to populate history.</p>
-                    ) : (
-                      recentGames.map((game) => (
-                        <div key={game._id} className="rounded-2xl bg-white/5 p-4 text-sm text-white/75">
-                          <div className="flex items-center justify-between capitalize">
-                            <span>{game.gameType}</span>
-                            <span className={game.profit >= 0 ? "text-emerald-300" : "text-rose-300"}>
-                              {game.profit >= 0 ? "+" : ""}${game.profit.toFixed(2)}
-                            </span>
-                          </div>
-                          <p className="mt-2 text-white/45">
-                            Bet ${game.betAmount.toFixed(2)} | {game.status.replace("_", " ")}
-                          </p>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </section>
-              </aside>
-
-              <FairnessCard
-                title="How DonutDrop verifies rounds"
-                data={{
-                  formula: "SHA256(serverSeed:clientSeed:nonce) generates deterministic game randomness.",
-                  input: "Server seed stays hidden until settlement while the client seed remains user-controlled.",
-                  nonce: "Nonce increments per bet so every result is unique even when the seed stays the same."
-                }}
-              />
-            </div>
+                  ))
+                )}
+              </div>
+            </section>
           </>
         )}
       </main>
@@ -354,25 +941,62 @@ export function Dashboard() {
           </p>
         </div>
 
+        <div className="mt-4 rounded-2xl bg-white/5 p-4">
+          <p className="text-sm font-semibold text-white">Tip a player</p>
+          <div className="mt-3 space-y-2">
+            <input
+              value={tipForm.username}
+              onChange={(event) => setTipForm((current) => ({ ...current, username: event.target.value }))}
+              className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none"
+              placeholder="Username"
+            />
+            <input
+              value={tipForm.amount}
+              onChange={(event) => setTipForm((current) => ({ ...current, amount: event.target.value }))}
+              className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none"
+              placeholder="100k"
+            />
+            <button
+              type="button"
+              onClick={handleTip}
+              disabled={tipping}
+              className="w-full rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-slate-950 disabled:opacity-50"
+            >
+              {tipping ? "Sending..." : "Send Tip"}
+            </button>
+            {tipMessage && <p className="text-xs text-white/60">{tipMessage}</p>}
+          </div>
+        </div>
+
         <div className="mt-4 space-y-3">
           <div className="rounded-2xl border border-indigo-400/40 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-200">
             Join our Discord!
           </div>
           {chatMessages.map((message) => (
-            <div key={`${message.user}-${message.text}`} className="rounded-2xl bg-white/5 p-4">
-              <p className="text-sm text-sky-300">{message.user}</p>
+            <div key={`${message.id}-${message.createdAt}`} className="rounded-2xl bg-white/5 p-4">
+              <p className="text-sm text-sky-300">{message.username}</p>
               <p className="mt-2 text-sm leading-6 text-white/80">{message.text}</p>
             </div>
           ))}
         </div>
 
+        {chatError && <p className="mt-4 text-sm text-rose-300">{chatError}</p>}
+        {activeTimeoutSeconds > 0 && (
+          <p className="mt-2 text-sm text-amber-200">Timed out for spam. Chat unlocks in {timeoutLabel}.</p>
+        )}
+
         <div className="mt-4 flex gap-2">
           <input
+            value={chatInput}
+            onChange={(event) => setChatInput(event.target.value)}
             className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none"
             placeholder="Type a message..."
+            disabled={activeTimeoutSeconds > 0}
           />
           <button
             type="button"
+            onClick={handleSendChat}
+            disabled={activeTimeoutSeconds > 0}
             className="rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-slate-950"
           >
             Send

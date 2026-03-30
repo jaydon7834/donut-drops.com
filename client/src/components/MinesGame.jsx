@@ -1,16 +1,39 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { api } from "../lib/api.js";
+import { formatBetInput, parseBetInput } from "../lib/betting.js";
 import { FairnessCard } from "./FairnessCard.jsx";
+import { GameLayout } from "./GameLayout.jsx";
+
+function Tile({ state, onClick, disabled, shake }) {
+  return (
+    <motion.div
+      whileHover={{ scale: disabled ? 1 : 1.1, y: disabled ? 0 : -4 }}
+      whileTap={{ scale: disabled ? 1 : 0.9 }}
+      animate={shake ? { x: [0, -2, 2, -2, 2, 0] } : { rotateY: state !== "hidden" ? 180 : 0 }}
+      transition={{ duration: 0.35 }}
+      onClick={disabled ? undefined : onClick}
+      className={`w-16 h-16 rounded-xl flex items-center justify-center cursor-pointer text-sm font-black select-none
+        ${state === "hidden" ? "bg-gray-700 text-white/80" : ""}
+        ${state === "safe" ? "bg-green-500 shadow-lg shadow-green-500/30 text-white" : ""}
+        ${state === "mine" ? "bg-red-500 shadow-lg shadow-red-500/30 text-white" : ""}
+        ${disabled ? "opacity-80 cursor-not-allowed" : ""}`}
+    >
+      {state === "mine" ? "💣" : state === "safe" ? "◆" : ""}
+    </motion.div>
+  );
+}
 
 export function MinesGame({ token, user, onBalanceChange }) {
   const [betAmount, setBetAmount] = useState(25);
+  const [betInput, setBetInput] = useState("25");
   const [minesCount, setMinesCount] = useState(3);
   const [clientSeed, setClientSeed] = useState(user.clientSeed || "donutdrop-default");
   const [activeGame, setActiveGame] = useState(null);
   const [settledGame, setSettledGame] = useState(null);
   const [feedback, setFeedback] = useState({ text: "", tone: "neutral" });
   const [loading, setLoading] = useState(false);
+  const clickCountRef = useRef(0);
 
   const tiles = useMemo(() => Array.from({ length: 25 }, (_, index) => index), []);
   const revealedTiles = activeGame?.revealedTiles || settledGame?.revealedTiles || [];
@@ -24,10 +47,11 @@ export function MinesGame({ token, user, onBalanceChange }) {
     setLoading(true);
     setFeedback({ text: "", tone: "neutral" });
     setSettledGame(null);
+    clickCountRef.current = 0;
 
     try {
       const data = await api.startMines(token, {
-        bet: betAmount,
+        bet: parseBetInput(betInput),
         mines: minesCount,
         clientSeed
       });
@@ -42,6 +66,57 @@ export function MinesGame({ token, user, onBalanceChange }) {
     }
   }
 
+  function handleBetInputChange(value) {
+    setBetInput(value);
+    const parsed = parseBetInput(value);
+    if (parsed > 0) {
+      setBetAmount(parsed);
+    }
+  }
+
+  function adjustBet(multiplier) {
+    const nextBet = Math.max(1, Math.round(parseBetInput(betInput || betAmount) * multiplier));
+    setBetAmount(nextBet);
+    setBetInput(formatBetInput(nextBet));
+  }
+
+  function playTntSizzle() {
+    if (typeof window === "undefined" || !window.AudioContext) {
+      return;
+    }
+
+    const context = new window.AudioContext();
+    const now = context.currentTime;
+    const duration = 0.35;
+
+    const oscillator = context.createOscillator();
+    const filter = context.createBiquadFilter();
+    const gain = context.createGain();
+
+    oscillator.type = "sawtooth";
+    oscillator.frequency.setValueAtTime(190, now);
+    oscillator.frequency.exponentialRampToValueAtTime(120, now + duration);
+
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(900, now);
+    filter.Q.setValueAtTime(1.2, now);
+
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.018, now + 0.04);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+    oscillator.connect(filter);
+    filter.connect(gain);
+    gain.connect(context.destination);
+
+    oscillator.start(now);
+    oscillator.stop(now + duration);
+
+    oscillator.onended = () => {
+      context.close().catch(() => {});
+    };
+  }
+
   async function handleTileClick(tileIndex) {
     if (!activeGame || loading || activeGame.revealedTiles.includes(tileIndex)) {
       return;
@@ -54,6 +129,11 @@ export function MinesGame({ token, user, onBalanceChange }) {
         gameId: activeGame.gameId,
         tileIndex
       });
+
+      clickCountRef.current += 1;
+      if (clickCountRef.current % 2 === 0) {
+        playTntSizzle();
+      }
 
       if (data.result === "mine") {
         setActiveGame(null);
@@ -102,150 +182,183 @@ export function MinesGame({ token, user, onBalanceChange }) {
   }
 
   return (
-    <div className="space-y-5">
-      <section className="glass-panel rounded-3xl p-5">
-        <div className="grid gap-4 lg:grid-cols-[1.1fr,1fr]">
-          <div className="space-y-4">
-            <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-white/45">Mines</p>
-              <h2 className="mt-2 text-2xl font-semibold text-white">Thread the grid, avoid the traps</h2>
-            </div>
+    <GameLayout
+      eyebrow="Mines"
+      title="Thread the grid, dodge the TNT"
+      subtitle="The flagship board now runs inside the same high-end table shell, with brighter multiplier feedback, cleaner controls, and a more alive reveal board."
+      accent="from-orange-500/12 via-emerald-500/5 to-purple-500/10"
+      controls={
+        <div className="space-y-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.35em] text-amber-200/70">Mines Bet</p>
+            <h3 className="mt-2 text-3xl font-black text-white">Place your round</h3>
+          </div>
 
-            <div className="grid gap-3 sm:grid-cols-3">
-              <label className="rounded-2xl bg-white/5 p-4 text-sm text-white/70">
+          <div className="space-y-3">
+              <label className="rounded-2xl border border-white/8 bg-black/20 p-4 text-sm text-white/70 block">
                 Bet Amount
-                <input
-                  type="number"
-                  min="1"
-                  value={betAmount}
-                  onChange={(event) => setBetAmount(Number(event.target.value))}
-                  className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-white outline-none focus:border-accent"
-                />
+                <div className="mt-2 flex overflow-hidden rounded-xl border border-white/10 bg-black/30">
+                  <input
+                    value={betInput}
+                    onChange={(event) => handleBetInputChange(event.target.value)}
+                    className="w-full bg-transparent px-3 py-2 text-white outline-none"
+                    placeholder="1m"
+                  />
+                  <div className="flex items-center gap-1 px-2">
+                    <button
+                      type="button"
+                      onClick={() => adjustBet(0.5)}
+                      className="rounded-lg bg-white/10 px-2 py-1 text-xs font-semibold text-white"
+                    >
+                      1/2
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => adjustBet(2)}
+                      className="rounded-lg bg-white/10 px-2 py-1 text-xs font-semibold text-white"
+                    >
+                      2x
+                    </button>
+                  </div>
+                </div>
+                <p className="mt-2 text-xs text-white/40">Supports 10k, 1m, 1b and more.</p>
               </label>
-              <label className="rounded-2xl bg-white/5 p-4 text-sm text-white/70">
+              <label className="rounded-2xl border border-white/8 bg-black/20 p-4 text-sm text-white/70 block">
                 Mines
+                <div className="mt-2 flex items-center justify-between text-sm text-white">
+                  <span>Number of Mines</span>
+                  <span>{minesCount}</span>
+                </div>
                 <input
-                  type="number"
+                  type="range"
                   min="3"
                   max="10"
                   value={minesCount}
                   onChange={(event) => setMinesCount(Number(event.target.value))}
-                  className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-white outline-none focus:border-accent"
+                  className="mt-4 w-full accent-emerald-400"
                 />
+                <div className="mt-2 flex items-center justify-between text-xs text-white/40">
+                  <span>3</span>
+                  <span>10</span>
+                </div>
               </label>
-              <label className="rounded-2xl bg-white/5 p-4 text-sm text-white/70">
+              <label className="rounded-2xl border border-white/8 bg-black/20 p-4 text-sm text-white/70 block">
                 Client Seed
                 <input
                   value={clientSeed}
                   onChange={(event) => setClientSeed(event.target.value)}
-                  className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-white outline-none focus:border-accent"
+                  className="casino-input mt-2"
                 />
               </label>
-            </div>
+          </div>
 
-            <div className="flex gap-3">
-              <button
+          <div className="flex gap-3">
+            <button
                 type="button"
                 onClick={handleStart}
                 disabled={loading || Boolean(activeGame)}
-                className="rounded-2xl bg-accent px-5 py-3 font-semibold text-black disabled:opacity-50"
+                className="neon-button disabled:opacity-50"
               >
                 {loading && !activeGame ? "Starting..." : "Start round"}
-              </button>
-              <button
+            </button>
+            <motion.button
                 type="button"
                 onClick={handleCashout}
                 disabled={loading || !activeGame}
-                className="rounded-2xl bg-white/10 px-5 py-3 font-semibold text-white disabled:opacity-50"
+                animate={activeGame ? { boxShadow: ["0 0 0 rgba(34,197,94,0.0)", "0 0 24px rgba(34,197,94,0.24)", "0 0 0 rgba(34,197,94,0.0)"] } : {}}
+                transition={{ duration: 1.8, repeat: Infinity }}
+                className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-5 py-3 font-semibold text-emerald-100 disabled:opacity-50"
               >
                 Cash out
-              </button>
-            </div>
+            </motion.button>
+          </div>
 
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl bg-black/20 p-4">
+          <div className="rounded-[1.6rem] border border-white/8 bg-black/20 p-4">
+            <div className="grid gap-3">
+              <div className="rounded-2xl border border-white/8 bg-black/25 p-4">
                 <p className="text-sm text-white/50">Current Multiplier</p>
                 <p className="mt-2 text-xl font-semibold text-white">{currentMultiplier.toFixed(2)}x</p>
               </div>
-              <div className="rounded-2xl bg-black/20 p-4">
+              <div className="rounded-2xl border border-white/8 bg-black/25 p-4">
                 <p className="text-sm text-white/50">Payout Preview</p>
                 <p className="mt-2 text-xl font-semibold text-mint">${payoutPreview}</p>
               </div>
-              <div className="rounded-2xl bg-black/20 p-4">
+              <div className="rounded-2xl border border-white/8 bg-black/25 p-4">
                 <p className="text-sm text-white/50">Server Seed Hash</p>
                 <p className="mt-2 break-all font-mono text-xs text-white/80">
                   {activeGame?.serverSeedHash || settledGame?.serverSeedHash || "Awaiting round"}
                 </p>
               </div>
             </div>
+          </div>
 
-            {feedback.text && (
-              <motion.p
+          {feedback.text && (
+            <motion.p
                 key={feedback.text}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 className={`rounded-2xl px-4 py-3 text-sm ${
                   feedback.tone === "win"
-                    ? "bg-emerald-500/10 text-emerald-200 shadow-[0_0_30px_rgba(16,185,129,0.15)]"
+                    ? "border border-emerald-400/15 bg-emerald-500/10 text-emerald-200 shadow-[0_0_30px_rgba(16,185,129,0.15)]"
                     : feedback.tone === "loss"
-                      ? "bg-rose-500/10 text-rose-200"
-                      : "bg-white/5 text-white/70"
+                      ? "border border-rose-400/15 bg-rose-500/10 text-rose-200"
+                      : "border border-white/8 bg-white/5 text-white/70"
                 }`}
-              >
+            >
                 {feedback.text}
-              </motion.p>
-            )}
+            </motion.p>
+          )}
+        </div>
+      }
+      main={
+        <div className="rounded-[1.75rem] border border-amber-500/10 bg-black/25 p-4">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.35em] text-white/40">Active Board</p>
+              <p className="mt-1 text-sm text-white/65">
+                {activeGame ? "Safe clicks build multiplier." : "Start a round to unlock the grid."}
+              </p>
+            </div>
+            <div className="rounded-full border border-amber-400/15 bg-amber-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-amber-100">
+              {minesCount} mines
+            </div>
           </div>
 
           <div className="grid grid-cols-5 gap-3">
             {tiles.map((tile) => {
               const isRevealed = revealedTiles.includes(tile);
               const isMine = minePositions.includes(tile);
+              const state = isMine ? "mine" : isRevealed ? "safe" : "hidden";
 
               return (
-                <motion.button
+                <Tile
                   key={tile}
-                  whileHover={{ scale: activeGame ? 1.04 : 1 }}
-                  whileTap={{ scale: activeGame ? 0.96 : 1 }}
-                  animate={
-                    feedback.tone === "loss" && settledGame?.active === false
-                      ? { x: [0, -2, 2, -2, 2, 0] }
-                      : { rotateY: isRevealed || isMine ? 180 : 0 }
-                  }
-                  transition={{ duration: 0.35 }}
-                  type="button"
                   onClick={() => handleTileClick(tile)}
+                  state={state}
                   disabled={!activeGame || loading}
-                  className={`aspect-square rounded-2xl border text-lg font-semibold transition ${
-                    isMine
-                      ? "border-rose-500/50 bg-rose-500/20 text-rose-100"
-                      : isRevealed
-                        ? "border-emerald-500/40 bg-emerald-500/20 text-emerald-100 shadow-[0_0_24px_rgba(16,185,129,0.12)]"
-                        : "border-white/10 bg-white/5 text-white/70 hover:border-accent/50"
-                  } disabled:cursor-not-allowed disabled:opacity-90`}
-                >
-                  {isMine ? "X" : isRevealed ? "O" : "?"}
-                </motion.button>
+                  shake={feedback.tone === "loss" && settledGame?.active === false}
+                />
               );
             })}
           </div>
         </div>
-      </section>
-
-      <FairnessCard
-        title="Mines settlement"
-        data={
-          settledGame
-            ? {
-                serverSeedHash: settledGame.serverSeedHash,
-                serverSeed: settledGame.serverSeed,
-                clientSeed: settledGame.clientSeed,
-                nonce: settledGame.nonce,
-                mines: settledGame.minePositions.join(", ")
-              }
-            : null
-        }
-      />
-    </div>
+      }
+      side={
+        <FairnessCard
+          title="Mines settlement"
+          data={
+            settledGame
+              ? {
+                  serverSeedHash: settledGame.serverSeedHash,
+                  serverSeed: settledGame.serverSeed,
+                  clientSeed: settledGame.clientSeed,
+                  nonce: settledGame.nonce,
+                  mines: settledGame.minePositions.join(", ")
+                }
+              : null
+          }
+        />
+      }
+    />
   );
 }

@@ -4,9 +4,15 @@ import authRoutes from "./routes/auth.js";
 import userRoutes from "./routes/user.js";
 import minesRoutes from "./routes/mines.js";
 import diceRoutes from "./routes/dice.js";
+import instantRoutes from "./routes/instant.js";
+import chatRoutes from "./routes/chat.js";
 import { initializeStore } from "./state/store.js";
+import { createRateLimiter } from "./middleware/rateLimit.js";
 
 const app = express();
+const PORT = process.env.PORT || 4000;
+const authLimiter = createRateLimiter({ windowMs: 60 * 1000, maxHits: 30, keyPrefix: "auth" });
+const gameLimiter = createRateLimiter({ windowMs: 10 * 1000, maxHits: 50, keyPrefix: "game" });
 
 app.use(
   cors({
@@ -15,15 +21,21 @@ app.use(
   })
 );
 app.use(express.json());
+app.use((req, res, next) => {
+  res.setHeader("Cache-Control", "no-store");
+  next();
+});
 
 app.get("/health", (req, res) => {
   res.json({ ok: true });
 });
 
-app.use("/auth", authRoutes);
+app.use("/auth", authLimiter, authRoutes);
 app.use("/user", userRoutes);
-app.use("/game/mines", minesRoutes);
-app.use("/game/dice", diceRoutes);
+app.use("/game/mines", gameLimiter, minesRoutes);
+app.use("/game/dice", gameLimiter, diceRoutes);
+app.use("/game/instant", gameLimiter, instantRoutes);
+app.use("/chat", chatRoutes);
 
 app.use((error, req, res, next) => {
   console.error(error);
@@ -39,8 +51,8 @@ app.use((error, req, res, next) => {
 
 initializeStore()
   .then(() => {
-    app.listen(4000, () => {
-      console.log("DonutDrop API running on http://localhost:4000");
+    app.listen(PORT, () => {
+      console.log(`DonutDrop API running on http://localhost:${PORT}`);
     });
   })
   .catch((error) => {

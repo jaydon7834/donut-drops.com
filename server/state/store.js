@@ -6,14 +6,25 @@ export const store = {
   users: new Map(),
   sessions: new Map(),
   games: new Map(),
-  recentGames: []
+  recentGames: [],
+  chatMessages: [
+    {
+      id: "chat_seed_1",
+      username: "system",
+      text: "Welcome to DonutDrop chat.",
+      createdAt: new Date().toISOString()
+    }
+  ],
+  chatTimeouts: new Map()
 };
 
 let userSequence = 1;
 let gameSequence = 1;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const USERS_FILE = path.join(__dirname, "..", "users.json");
+const USERS_FILE = process.env.USERS_FILE
+  ? path.resolve(process.env.USERS_FILE)
+  : path.join(__dirname, "..", "users.json");
 
 export async function initializeStore() {
   try {
@@ -79,4 +90,8 @@ export function getRecentGamesForUser(userId) {
 export function pushRecentGame(entry) {
   store.recentGames.unshift(entry);
   store.recentGames = store.recentGames.slice(0, 50);
+}
+
+export function getChatMessages() {
+  return store.chatMessages.slice(-60);
 }
