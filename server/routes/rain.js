@@ -13,12 +13,7 @@ function canManageRain(user) {
     .map((value) => value.trim())
     .filter(Boolean);
 
-  if (envList.length > 0) {
-    return envList.includes(String(user.id));
-  }
-
-  const firstUserId = store.users.keys().next().value;
-  return Boolean(firstUserId) && firstUserId === user.id;
+  return envList.length > 0 && envList.includes(String(user.id));
 }
 
 function getRainAmount() {
