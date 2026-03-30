@@ -93,6 +93,9 @@ export function Dashboard() {
   const [selectedCrypto, setSelectedCrypto] = useState("BTC");
   const [cryptoOrder, setCryptoOrder] = useState(null);
   const [cryptoTxHash, setCryptoTxHash] = useState("");
+  const availableCryptoAssets = cryptoAssets.length ? cryptoAssets : FALLBACK_CRYPTO_ASSETS;
+  const selectedCryptoAsset =
+    availableCryptoAssets.find((asset) => asset.symbol === selectedCrypto) || availableCryptoAssets[0];
 
   useEffect(() => {
     setClientSeed(user?.clientSeed || "");
@@ -321,9 +324,6 @@ export function Dashboard() {
   const winRate = gamesPlayed ? ((winCount / gamesPlayed) * 100).toFixed(1) : "0.0";
   const trackerPath = buildProfitPath(recentGames, user.balance || 1000);
   const activeTimeoutSeconds = Math.max(0, Math.ceil((chatTimeoutUntil - Date.now()) / 1000));
-  const availableCryptoAssets = cryptoAssets.length ? cryptoAssets : FALLBACK_CRYPTO_ASSETS;
-  const selectedCryptoAsset =
-    availableCryptoAssets.find((asset) => asset.symbol === selectedCrypto) || availableCryptoAssets[0];
   const timeoutLabel = useMemo(() => {
     const minutes = Math.floor(activeTimeoutSeconds / 60);
     const seconds = activeTimeoutSeconds % 60;
