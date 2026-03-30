@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { MinesGame } from "./MinesGame.jsx";
 import { DiceGame } from "./DiceGame.jsx";
 import { BlackjackGame } from "./BlackjackGame.jsx";
+import { ChickenGame } from "./ChickenGame.jsx";
 import { RouletteGame } from "./RouletteGame.jsx";
 import { LimboGame } from "./LimboGame.jsx";
 import { PlinkoGame } from "./PlinkoGame.jsx";
@@ -944,6 +945,16 @@ export function Dashboard() {
     if (activeView === "blackjack") {
       return (
         <BlackjackGame
+          token={token}
+          onBalanceChange={updateBalance}
+          onBack={() => setActiveView("lobby")}
+        />
+      );
+    }
+
+    if (activeView === "chicken") {
+      return (
+        <ChickenGame
           token={token}
           onBalanceChange={updateBalance}
           onBack={() => setActiveView("lobby")}

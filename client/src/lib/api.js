@@ -131,6 +131,33 @@ export const api = {
       },
       token
     ),
+  startChicken: (token, payload) =>
+    request(
+      "/game/chicken/start",
+      {
+        method: "POST",
+        body: JSON.stringify(payload)
+      },
+      token
+    ),
+  stepChicken: (token, payload) =>
+    request(
+      "/game/chicken/step",
+      {
+        method: "POST",
+        body: JSON.stringify(payload)
+      },
+      token
+    ),
+  cashoutChicken: (token, payload) =>
+    request(
+      "/game/chicken/cashout",
+      {
+        method: "POST",
+        body: JSON.stringify(payload)
+      },
+      token
+    ),
   spinRoulette: (token, payload) =>
     request(
       "/game/roulette/spin",
