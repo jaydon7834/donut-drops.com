@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { api } from "../lib/api.js";
 import { formatBetInput, parseBetInput } from "../lib/betting.js";
@@ -27,17 +27,46 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
   const [result, setResult] = useState(null);
   const [feedback, setFeedback] = useState("");
   const [queueRemaining, setQueueRemaining] = useState(0);
+  const dropIntervalRef = useRef(null);
+  const autoRestartTimeoutRef = useRef(null);
+  const queueRemainingRef = useRef(0);
 
   const dropping = queueRemaining > 0 || activeBalls.length > 0;
 
   useEffect(() => {
-    if (queueRemaining <= 0) {
+    queueRemainingRef.current = queueRemaining;
+  }, [queueRemaining]);
+
+  useEffect(() => {
+    return () => {
+      if (dropIntervalRef.current) {
+        window.clearInterval(dropIntervalRef.current);
+      }
+      if (autoRestartTimeoutRef.current) {
+        window.clearTimeout(autoRestartTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (queueRemaining <= 0 || dropIntervalRef.current) {
       return undefined;
     }
 
     let cancelled = false;
 
     async function releaseBall() {
+      if (queueRemainingRef.current <= 0) {
+        return;
+      }
+
+      setQueueRemaining((current) => {
+        if (current <= 0) {
+          return 0;
+        }
+        return current - 1;
+      });
+
       try {
         const data = await api.dropPlinko(token, {
           bet: parseBetInput(betInput),
@@ -74,28 +103,50 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
 
     releaseBall();
 
-    const timeoutId = window.setTimeout(() => {
-      setQueueRemaining((current) => Math.max(current - 1, 0));
+    dropIntervalRef.current = window.setInterval(() => {
+      if (queueRemainingRef.current <= 0) {
+        return;
+      }
+      releaseBall();
     }, 1000);
 
     return () => {
       cancelled = true;
-      window.clearTimeout(timeoutId);
+      if (dropIntervalRef.current && queueRemaining <= 1) {
+        window.clearInterval(dropIntervalRef.current);
+        dropIntervalRef.current = null;
+      }
     };
   }, [betInput, clientSeed, onBalanceChange, queueRemaining, rows, token]);
+
+  useEffect(() => {
+    if (queueRemaining > 0) {
+      return;
+    }
+
+    if (dropIntervalRef.current) {
+      window.clearInterval(dropIntervalRef.current);
+      dropIntervalRef.current = null;
+    }
+  }, [queueRemaining]);
 
   useEffect(() => {
     if (!autoDrop || dropping) {
       return undefined;
     }
 
-    const timeoutId = window.setTimeout(() => {
+    autoRestartTimeoutRef.current = window.setTimeout(() => {
       setFeedback("");
       setResult(null);
       setQueueRemaining(Math.max(1, Math.min(25, Number(ballCount) || 1)));
     }, 250);
 
-    return () => window.clearTimeout(timeoutId);
+    return () => {
+      if (autoRestartTimeoutRef.current) {
+        window.clearTimeout(autoRestartTimeoutRef.current);
+        autoRestartTimeoutRef.current = null;
+      }
+    };
   }, [autoDrop, ballCount, dropping]);
 
   function handleBetInputChange(value) {
@@ -120,6 +171,27 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
     setFeedback("");
     setResult(null);
     setQueueRemaining(Math.max(1, Math.min(25, Number(ballCount) || 1)));
+  }
+
+  function handleToggleAutoDrop() {
+    setAutoDrop((current) => {
+      const next = !current;
+
+      if (!next) {
+        if (autoRestartTimeoutRef.current) {
+          window.clearTimeout(autoRestartTimeoutRef.current);
+          autoRestartTimeoutRef.current = null;
+        }
+        if (dropIntervalRef.current) {
+          window.clearInterval(dropIntervalRef.current);
+          dropIntervalRef.current = null;
+        }
+        setQueueRemaining(0);
+        setFeedback("Auto drop stopped.");
+      }
+
+      return next;
+    });
   }
 
   return (
@@ -197,7 +269,7 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
 
           <button
             type="button"
-            onClick={() => setAutoDrop((current) => !current)}
+            onClick={handleToggleAutoDrop}
             className={`w-full rounded-xl p-3 font-bold transition ${
               autoDrop
                 ? "bg-orange-500 text-slate-950 hover:bg-orange-400"
@@ -213,7 +285,7 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
             disabled={dropping}
             className="w-full rounded-xl bg-green-500 p-3 font-bold text-slate-950 transition hover:bg-green-600 disabled:opacity-50"
           >
-            {dropping ? `Dropping... ${queueRemaining || activeBalls.length} left` : `Drop ${ballCount} Ball${ballCount === 1 ? "" : "s"}`}
+            {dropping ? `Dropping... ${queueRemaining || activeBalls.length} left` : `Start Drop (${ballCount})`}
           </button>
 
           <button
