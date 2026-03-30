@@ -23,6 +23,7 @@ export function initializeSocket(server) {
 
   ioInstance.on("connection", (socket) => {
     const userId = String(socket.handshake.auth?.userId || socket.id);
+    socket.join(userId);
     onlineUsers.set(socket.id, userId);
     broadcastOnlineCount();
 
@@ -41,4 +42,12 @@ export function getIo() {
 
 export function getOnlineCount() {
   return onlineUsers.size;
+}
+
+export function emitToUser(userId, event, payload) {
+  if (!ioInstance || !userId) {
+    return;
+  }
+
+  ioInstance.to(String(userId)).emit(event, payload);
 }

@@ -30,7 +30,8 @@ export const store = {
     participants: [],
     endTime: 0,
     timer: null
-  }
+  },
+  caseBattles: new Map()
 };
 
 let userSequence = 1;

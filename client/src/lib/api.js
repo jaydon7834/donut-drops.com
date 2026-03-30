@@ -214,6 +214,25 @@ export const api = {
       },
       token
     ),
+  getCaseBattles: (token) => request("/game/instant/case-battles", {}, token),
+  createCaseBattle: (token, payload) =>
+    request(
+      "/game/instant/case-battles",
+      {
+        method: "POST",
+        body: JSON.stringify(payload)
+      },
+      token
+    ),
+  joinCaseBattle: (token, battleId, payload) =>
+    request(
+      `/game/instant/case-battles/${battleId}/join`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload)
+      },
+      token
+    ),
   getChat: (token) => request("/chat", {}, token),
   sendChat: (token, payload) =>
     request(

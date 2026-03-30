@@ -1,15 +1,39 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { api } from "../lib/api.js";
 import { formatBetInput, parseBetInput } from "../lib/betting.js";
+import { createAppSocket } from "../lib/socket.js";
 import { GameLayout } from "./GameLayout.jsx";
 
 const caseRewards = [
-  { label: "Dirt", rarity: "common", image: "/images/case-dirt.png", accent: "from-amber-700/60 to-stone-300/40" },
-  { label: "Gilded", rarity: "rare", image: "/images/case-gilded.png", accent: "from-yellow-500/60 to-neutral-700/60" },
-  { label: "Netherite", rarity: "red", image: "/images/case-netherite.png", accent: "from-rose-500/65 to-red-950/70" },
-  { label: "Elytra", rarity: "legendary", image: "/images/case-elytra.png", accent: "from-violet-400/60 to-sky-200/40" }
+  {
+    label: "Dirt",
+    rarity: "common",
+    image: "/images/case-dirt.png",
+    accent: "from-amber-700/60 to-stone-300/40"
+  },
+  {
+    label: "Gilded",
+    rarity: "rare",
+    image: "/images/case-gilded.png",
+    accent: "from-yellow-500/60 to-neutral-700/60"
+  },
+  {
+    label: "Netherite",
+    rarity: "red",
+    image: "/images/case-netherite.png",
+    accent: "from-rose-500/65 to-red-950/70"
+  },
+  {
+    label: "Elytra",
+    rarity: "legendary",
+    image: "/images/case-elytra.png",
+    accent: "from-violet-400/60 to-sky-200/40"
+  }
 ];
+
+const SPIN_CARD_WIDTH = 196;
+const SPIN_REPEAT_COUNT = 8;
 
 const gameCopy = {
   blackjack: {
@@ -44,7 +68,7 @@ const gameCopy = {
   },
   "case-battles": {
     title: "Case Battles",
-    subtitle: "Open against a ghost opponent and compare scores.",
+    subtitle: "Create a battle, wait for another player, and let the higher drop take the pot.",
     accent: "bg-gradient-to-br from-rose-700/70 to-orange-300/60",
     optionLabel: "Battle"
   },
@@ -68,6 +92,13 @@ function getPayload(gameType, optionValue, clientSeed) {
   return { clientSeed };
 }
 
+function getRewardIndex(label) {
+  return Math.max(
+    0,
+    caseRewards.findIndex((reward) => reward.label === label)
+  );
+}
+
 export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
   const meta = gameCopy[gameType];
   const [bet, setBet] = useState(20);
@@ -77,7 +108,85 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
   const [result, setResult] = useState(null);
   const [feedback, setFeedback] = useState("");
   const [loading, setLoading] = useState(false);
+  const [spinSequence, setSpinSequence] = useState(0);
   const [caseSpinOffset, setCaseSpinOffset] = useState(0);
+  const [openBattles, setOpenBattles] = useState([]);
+  const [battleMessage, setBattleMessage] = useState("");
+  const [waitingBattleId, setWaitingBattleId] = useState("");
+
+  useEffect(() => {
+    setClientSeed(user.clientSeed || "donutdrop-default");
+  }, [user.clientSeed]);
+
+  useEffect(() => {
+    if (gameType !== "case-battles") {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    async function loadBattles() {
+      try {
+        const data = await api.getCaseBattles(token);
+        if (!cancelled) {
+          setOpenBattles(data.battles || []);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setBattleMessage(error.message);
+        }
+      }
+    }
+
+    loadBattles();
+
+    const socket = createAppSocket(user);
+
+    socket.on("case-battles:update", (payload) => {
+      if (!cancelled) {
+        setOpenBattles(payload?.battles || []);
+      }
+    });
+
+    socket.on("case-battle:resolved", (payload) => {
+      if (cancelled) {
+        return;
+      }
+
+      const self = payload?.players?.find((entry) => entry.id === user.id);
+      const enemy = payload?.players?.find((entry) => entry.id !== user.id);
+
+      setWaitingBattleId("");
+      setResult({
+        title: payload?.title || "Battle settled",
+        bet: payload?.bet || parseBetInput(betInput),
+        payout: self?.payout || 0,
+        multiplier:
+          payload?.bet && self?.payout ? Number((self.payout / payload.bet).toFixed(2)) : 0,
+        details: {
+          yourDrop: self?.reward?.label || "Unknown",
+          yourRarity: self?.reward?.rarity || "unknown",
+          opponentDrop: enemy?.reward?.label || "Unknown",
+          opponentRarity: enemy?.reward?.rarity || "unknown",
+          image: self?.reward?.image || "",
+          pot: `$${Number(payload?.pot || 0).toFixed(2)}`
+        }
+      });
+      onBalanceChange(payload?.balance || user.balance);
+      setBattleMessage(
+        payload?.winnerId === user.id
+          ? "Another player joined and you won the battle."
+          : payload?.winnerId
+            ? "Another player joined and took the pot."
+            : "Battle pushed. Both players got their stake back."
+      );
+    });
+
+    return () => {
+      cancelled = true;
+      socket.disconnect();
+    };
+  }, [betInput, gameType, token, user, onBalanceChange]);
 
   async function handlePlay() {
     setLoading(true);
@@ -91,11 +200,12 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
       });
 
       if (gameType === "cases") {
-        const rewardIndex = Math.max(
-          0,
-          caseRewards.findIndex((reward) => reward.label === data.game.details?.reward)
-        );
-        setCaseSpinOffset(1000 + rewardIndex * 220);
+        const rewardIndex = getRewardIndex(data.game.details?.reward);
+        const nextSpin = spinSequence + 1;
+        const targetOffset =
+          ((SPIN_REPEAT_COUNT - 2) * caseRewards.length + rewardIndex) * SPIN_CARD_WIDTH;
+        setSpinSequence(nextSpin);
+        setCaseSpinOffset(targetOffset);
       }
 
       setResult(data.game);
@@ -103,6 +213,80 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
       setFeedback(data.game.payout > data.game.bet ? "Win locked in." : "Round settled.");
     } catch (error) {
       setFeedback(error.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function refreshCaseBattles() {
+    try {
+      const data = await api.getCaseBattles(token);
+      setOpenBattles(data.battles || []);
+    } catch (error) {
+      setBattleMessage(error.message);
+    }
+  }
+
+  async function handleCreateBattle() {
+    setLoading(true);
+    setBattleMessage("");
+
+    try {
+      const data = await api.createCaseBattle(token, {
+        bet: parseBetInput(betInput)
+      });
+      setWaitingBattleId(data.battle.id);
+      onBalanceChange(data.balance);
+      setBattleMessage("Battle created. Waiting for another player to join.");
+      setOpenBattles((current) => {
+        const next = [...current.filter((battle) => battle.id !== data.battle.id), data.battle];
+        return next.sort((a, b) => b.createdAt - a.createdAt);
+      });
+    } catch (error) {
+      setBattleMessage(error.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleJoinBattle(battleId) {
+    setLoading(true);
+    setBattleMessage("");
+
+    try {
+      const data = await api.joinCaseBattle(token, battleId, {
+        clientSeed
+      });
+      const self = data.battle.players?.find((entry) => entry.id === user.id);
+      const enemy = data.battle.players?.find((entry) => entry.id !== user.id);
+
+      setWaitingBattleId("");
+      setOpenBattles((current) => current.filter((battle) => battle.id !== battleId));
+      setResult({
+        title: data.battle.title,
+        bet: data.battle.bet,
+        payout: self?.payout || 0,
+        multiplier:
+          data.battle.bet && self?.payout ? Number((self.payout / data.battle.bet).toFixed(2)) : 0,
+        details: {
+          yourDrop: self?.reward?.label || "Unknown",
+          yourRarity: self?.reward?.rarity || "unknown",
+          opponentDrop: enemy?.reward?.label || "Unknown",
+          opponentRarity: enemy?.reward?.rarity || "unknown",
+          image: self?.reward?.image || "",
+          pot: `$${Number(data.battle.pot || 0).toFixed(2)}`
+        }
+      });
+      onBalanceChange(data.balance);
+      setBattleMessage(
+        data.battle.winnerId === user.id
+          ? "You joined the battle and took the pot."
+          : data.battle.winnerId
+            ? "You joined the battle but lost the pot."
+            : "Tie battle. Both players got refunded."
+      );
+    } catch (error) {
+      setBattleMessage(error.message);
     } finally {
       setLoading(false);
     }
@@ -138,75 +322,75 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
 
           <div className="rounded-[1.8rem] bg-white/5 p-5">
             <label className="block text-sm text-white/70">
-                Bet Amount
-                <div className="mt-2 flex overflow-hidden rounded-2xl border border-white/10 bg-black/30">
-                  <input
-                    value={betInput}
-                    onChange={(event) => handleBetInputChange(event.target.value)}
-                    className="w-full bg-transparent px-4 py-3 text-white outline-none"
-                    placeholder="1m"
-                  />
-                  <div className="flex items-center gap-1 px-2">
-                    <button
-                      type="button"
-                      onClick={() => adjustBet(0.5)}
-                      className="rounded-lg bg-white/10 px-2 py-1 text-xs font-semibold text-white"
-                    >
-                      1/2
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => adjustBet(2)}
-                      className="rounded-lg bg-white/10 px-2 py-1 text-xs font-semibold text-white"
-                    >
-                      2x
-                    </button>
-                  </div>
+              Bet Amount
+              <div className="mt-2 flex overflow-hidden rounded-2xl border border-white/10 bg-black/30">
+                <input
+                  value={betInput}
+                  onChange={(event) => handleBetInputChange(event.target.value)}
+                  className="w-full bg-transparent px-4 py-3 text-white outline-none"
+                  placeholder="1m"
+                />
+                <div className="flex items-center gap-1 px-2">
+                  <button
+                    type="button"
+                    onClick={() => adjustBet(0.5)}
+                    className="rounded-lg bg-white/10 px-2 py-1 text-xs font-semibold text-white"
+                  >
+                    1/2
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => adjustBet(2)}
+                    className="rounded-lg bg-white/10 px-2 py-1 text-xs font-semibold text-white"
+                  >
+                    2x
+                  </button>
                 </div>
-                <p className="mt-2 text-xs text-white/40">Supports 10k, 1m, 1b and more.</p>
+              </div>
+              <p className="mt-2 text-xs text-white/40">Supports 10k, 1m, 1b and more.</p>
             </label>
 
             <label className="mt-4 block text-sm text-white/70">
-                Client Seed
-                <input
-                  value={clientSeed}
-                  onChange={(event) => setClientSeed(event.target.value)}
-                  className="casino-input mt-2"
-                />
+              Client Seed
+              <input
+                value={clientSeed}
+                onChange={(event) => setClientSeed(event.target.value)}
+                className="casino-input mt-2"
+              />
             </label>
 
             {gameType === "roulette" && (
               <label className="mt-4 block text-sm text-white/70">
-                  {meta.optionLabel}
-                  <select
-                    value={optionValue}
-                    onChange={(event) => setOptionValue(event.target.value)}
-                    className="casino-input mt-2"
-                  >
-                    <option value="red">Red</option>
-                    <option value="black">Black</option>
-                    <option value="green">Green</option>
-                  </select>
+                {meta.optionLabel}
+                <select
+                  value={optionValue}
+                  onChange={(event) => setOptionValue(event.target.value)}
+                  className="casino-input mt-2"
+                >
+                  <option value="red">Red</option>
+                  <option value="black">Black</option>
+                  <option value="green">Green</option>
+                </select>
               </label>
             )}
 
             {gameType === "limbo" && (
               <label className="mt-4 block text-sm text-white/70">
-                  {meta.optionLabel}
-                  <input
-                    type="range"
-                    min="1.5"
-                    max="8"
-                    step="0.1"
-                    value={optionValue}
-                    onChange={(event) => setOptionValue(Number(event.target.value))}
-                    className="mt-4 w-full accent-accent"
-                  />
-                  <p className="mt-2 text-white">{Number(optionValue).toFixed(1)}x</p>
+                {meta.optionLabel}
+                <input
+                  type="range"
+                  min="1.5"
+                  max="8"
+                  step="0.1"
+                  value={optionValue}
+                  onChange={(event) => setOptionValue(Number(event.target.value))}
+                  className="mt-4 w-full accent-accent"
+                />
+                <p className="mt-2 text-white">{Number(optionValue).toFixed(1)}x</p>
               </label>
             )}
 
-            {gameType === "cases" && (
+            {(gameType === "cases" || gameType === "case-battles") && (
               <div className="mt-4 rounded-[1.5rem] border border-white/10 bg-black/20 p-4">
                 <p className="text-sm text-white/70">Drops</p>
                 <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -230,107 +414,194 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
               </div>
             )}
 
-            <div className="mt-5 flex gap-3">
-              <button
+            {gameType !== "case-battles" ? (
+              <div className="mt-5 flex gap-3">
+                <button
                   type="button"
                   onClick={handlePlay}
                   disabled={loading}
                   className="neon-button disabled:opacity-50"
                 >
                   {loading ? "Resolving..." : `Play ${meta.title}`}
-              </button>
-              <button
+                </button>
+                <button
                   type="button"
                   onClick={onBack}
                   className="rounded-2xl border border-white/10 px-5 py-3 text-sm text-white/75 transition hover:border-white/25 hover:text-white"
                 >
                   Back To Lobby
-              </button>
-            </div>
+                </button>
+              </div>
+            ) : (
+              <div className="mt-5 space-y-3">
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={handleCreateBattle}
+                    disabled={loading || Boolean(waitingBattleId)}
+                    className="neon-button disabled:opacity-50"
+                  >
+                    {waitingBattleId ? "Waiting For Player..." : "Create Battle"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={refreshCaseBattles}
+                    className="rounded-2xl border border-white/10 px-5 py-3 text-sm text-white/75 transition hover:border-white/25 hover:text-white"
+                  >
+                    Refresh Lobby
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={onBack}
+                  className="rounded-2xl border border-white/10 px-5 py-3 text-sm text-white/75 transition hover:border-white/25 hover:text-white"
+                >
+                  Back To Lobby
+                </button>
+              </div>
+            )}
 
-            {feedback && <p className="mt-4 text-sm text-white/70">{feedback}</p>}
+            {(feedback || battleMessage) && (
+              <p className="mt-4 text-sm text-white/70">{battleMessage || feedback}</p>
+            )}
           </div>
         </div>
       }
       main={
         <div className="space-y-5">
-            {gameType === "cases" && (
-              <div className="overflow-hidden rounded-[1.8rem] border border-white/10 bg-[#0f1119] p-5">
-                <p className="text-xs uppercase tracking-[0.35em] text-white/45">Case Spinner</p>
-                <div className="relative mt-4 overflow-hidden rounded-2xl border border-white/6 bg-black/20 py-6">
-                  <div className="pointer-events-none absolute inset-y-0 left-1/2 z-10 w-[3px] -translate-x-1/2 bg-emerald-300 shadow-[0_0_18px_rgba(110,231,183,0.8)]" />
-                  <motion.div
-                    animate={{ x: -caseSpinOffset }}
-                    transition={{ duration: 2.8, ease: [0.16, 1, 0.3, 1] }}
-                    className="flex gap-4 px-[40%]"
-                  >
-                    {Array.from({ length: 7 }).flatMap((_, row) =>
-                      caseRewards.map((reward, index) => (
-                        <div
-                          key={`${reward.label}-${row}-${index}`}
-                          className={`flex w-[180px] shrink-0 flex-col items-center rounded-[1.6rem] border border-white/10 bg-gradient-to-br ${reward.accent} px-4 py-5`}
-                        >
-                          <img
-                            src={reward.image}
-                            alt={reward.label}
-                            className="h-20 w-20 object-contain drop-shadow-[0_10px_18px_rgba(0,0,0,0.35)]"
-                          />
-                          <p className="mt-3 text-[11px] font-black uppercase tracking-[0.28em] text-white/70">
-                            {reward.rarity}
-                          </p>
-                          <p className="mt-1 text-lg font-black text-white">{reward.label}</p>
-                        </div>
-                      ))
-                    )}
-                  </motion.div>
-                </div>
+          {gameType === "cases" && (
+            <div className="overflow-hidden rounded-[1.8rem] border border-white/10 bg-[#0f1119] p-5">
+              <p className="text-xs uppercase tracking-[0.35em] text-white/45">Case Spinner</p>
+              <div className="relative mt-4 overflow-hidden rounded-2xl border border-white/6 bg-black/20 py-6">
+                <div className="pointer-events-none absolute inset-y-0 left-1/2 z-10 w-[3px] -translate-x-1/2 bg-emerald-300 shadow-[0_0_18px_rgba(110,231,183,0.8)]" />
+                <motion.div
+                  key={spinSequence}
+                  initial={{ x: 0 }}
+                  animate={{ x: -caseSpinOffset }}
+                  transition={{ duration: 2.8, ease: [0.16, 1, 0.3, 1] }}
+                  className="flex gap-4 px-[40%]"
+                >
+                  {Array.from({ length: SPIN_REPEAT_COUNT }).flatMap((_, row) =>
+                    caseRewards.map((reward, index) => (
+                      <div
+                        key={`${reward.label}-${row}-${index}`}
+                        className={`flex w-[180px] shrink-0 flex-col items-center rounded-[1.6rem] border border-white/10 bg-gradient-to-br ${reward.accent} px-4 py-5`}
+                      >
+                        <img
+                          src={reward.image}
+                          alt={reward.label}
+                          className="h-20 w-20 object-contain drop-shadow-[0_10px_18px_rgba(0,0,0,0.35)]"
+                        />
+                        <p className="mt-3 text-[11px] font-black uppercase tracking-[0.28em] text-white/70">
+                          {reward.rarity}
+                        </p>
+                        <p className="mt-1 text-lg font-black text-white">{reward.label}</p>
+                      </div>
+                    ))
+                  )}
+                </motion.div>
               </div>
-            )}
+            </div>
+          )}
 
-            <motion.div
-              key={result?.title || "idle"}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="rounded-[1.8rem] border border-white/10 bg-white/5 p-6"
-            >
-              <p className="text-xs uppercase tracking-[0.35em] text-white/45">Last Round</p>
-              <h3 className="mt-3 text-3xl font-black text-white">{result?.title || "Waiting for action"}</h3>
-              <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl bg-black/20 p-4">
-                  <p className="text-sm text-white/50">Bet</p>
-                  <p className="mt-2 text-xl font-semibold text-white">
-                    ${result?.bet?.toFixed?.(2) || Number(bet).toFixed(2)}
-                  </p>
+          {gameType === "case-battles" && (
+            <div className="rounded-[1.8rem] border border-white/10 bg-white/5 p-6">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.35em] text-white/45">Battle Lobby</p>
+                  <h3 className="mt-2 text-2xl font-black text-white">Open Battles</h3>
                 </div>
-                <div className="rounded-2xl bg-black/20 p-4">
-                  <p className="text-sm text-white/50">Multiplier</p>
-                  <p className="mt-2 text-xl font-semibold text-white">
-                    {result?.multiplier?.toFixed?.(2) || "0.00"}x
-                  </p>
-                </div>
-                <div className="rounded-2xl bg-black/20 p-4">
-                  <p className="text-sm text-white/50">Payout</p>
-                  <p className="mt-2 text-xl font-semibold text-mint">
-                    ${result?.payout?.toFixed?.(2) || "0.00"}
-                  </p>
+                <div className="rounded-full border border-white/10 bg-black/25 px-4 py-2 text-xs uppercase tracking-[0.22em] text-white/60">
+                  {openBattles.length} waiting
                 </div>
               </div>
 
-              {result?.details && (
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  {Object.entries(result.details).map(([key, value]) => (
-                    <div key={key} className="rounded-2xl bg-black/20 p-4 text-sm text-white/75">
-                      <p className="text-white/45">{key}</p>
-                      {key === "image" ? (
-                        <img src={String(value)} alt={result.details?.reward || "Case reward"} className="mt-3 h-16 w-16 object-contain" />
-                      ) : (
-                        <p className="mt-2 text-lg font-semibold text-white">{String(value)}</p>
-                      )}
-                    </div>
-                  ))}
+              {waitingBattleId && (
+                <div className="mt-4 rounded-2xl border border-orange-400/20 bg-orange-400/10 px-4 py-3 text-sm text-orange-100">
+                  Your battle is live. Waiting for another player to join.
                 </div>
               )}
-            </motion.div>
+
+              <div className="mt-4 space-y-3">
+                {openBattles.length ? (
+                  openBattles.map((battle) => (
+                    <div
+                      key={battle.id}
+                      className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-black/20 px-4 py-4"
+                    >
+                      <div>
+                        <p className="text-sm font-semibold text-white">{battle.host.username}</p>
+                        <p className="mt-1 text-xs uppercase tracking-[0.18em] text-white/45">
+                          Bet ${Number(battle.bet || 0).toFixed(2)}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleJoinBattle(battle.id)}
+                        disabled={loading || battle.host.id === user.id}
+                        className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-slate-900 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        {battle.host.id === user.id ? "Your Battle" : "Join"}
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-white/10 bg-black/15 px-4 py-6 text-sm text-white/55">
+                    No battle is waiting right now. Create one and the server will hold the room until another player joins.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <motion.div
+            key={result?.title || "idle"}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-[1.8rem] border border-white/10 bg-white/5 p-6"
+          >
+            <p className="text-xs uppercase tracking-[0.35em] text-white/45">Last Round</p>
+            <h3 className="mt-3 text-3xl font-black text-white">{result?.title || "Waiting for action"}</h3>
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl bg-black/20 p-4">
+                <p className="text-sm text-white/50">Bet</p>
+                <p className="mt-2 text-xl font-semibold text-white">
+                  ${result?.bet?.toFixed?.(2) || Number(bet).toFixed(2)}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-black/20 p-4">
+                <p className="text-sm text-white/50">Multiplier</p>
+                <p className="mt-2 text-xl font-semibold text-white">
+                  {result?.multiplier?.toFixed?.(2) || "0.00"}x
+                </p>
+              </div>
+              <div className="rounded-2xl bg-black/20 p-4">
+                <p className="text-sm text-white/50">Payout</p>
+                <p className="mt-2 text-xl font-semibold text-mint">
+                  ${result?.payout?.toFixed?.(2) || "0.00"}
+                </p>
+              </div>
+            </div>
+
+            {result?.details && (
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {Object.entries(result.details).map(([key, value]) => (
+                  <div key={key} className="rounded-2xl bg-black/20 p-4 text-sm text-white/75">
+                    <p className="text-white/45">{key}</p>
+                    {key === "image" && value ? (
+                      <img
+                        src={String(value)}
+                        alt={result.details?.reward || result.details?.yourDrop || "Case reward"}
+                        className="mt-3 h-16 w-16 object-contain"
+                      />
+                    ) : (
+                      <p className="mt-2 text-lg font-semibold text-white">{String(value)}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </motion.div>
         </div>
       }
     />

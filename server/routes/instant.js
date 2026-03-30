@@ -1,10 +1,90 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
-import { persistUsers, pushRecentGame } from "../state/store.js";
+import {
+  nextGameId,
+  persistUsers,
+  pushRecentGame,
+  recordHouseStats,
+  store
+} from "../state/store.js";
+import { emitToUser, getIo } from "../socket.js";
 import { createFairContext, generateDiceResult } from "../utils/provablyFair.js";
 import { createError, ensurePositiveBet } from "../utils/helpers.js";
 
 const router = Router();
+
+const CASE_REWARDS = [
+  {
+    label: "Dirt",
+    rarity: "common",
+    multiplier: 0.6,
+    image: "/images/case-dirt.png",
+    weight: 0.62
+  },
+  {
+    label: "Gilded",
+    rarity: "rare",
+    multiplier: 1.8,
+    image: "/images/case-gilded.png",
+    weight: 0.24
+  },
+  {
+    label: "Netherite",
+    rarity: "red",
+    multiplier: 3.2,
+    image: "/images/case-netherite.png",
+    weight: 0.1
+  },
+  {
+    label: "Elytra",
+    rarity: "legendary",
+    multiplier: 5,
+    image: "/images/case-elytra.png",
+    weight: 0.04
+  }
+];
+
+function getCaseReward(rawValue) {
+  let cursor = 0;
+
+  for (const reward of CASE_REWARDS) {
+    cursor += reward.weight;
+
+    if (rawValue < cursor) {
+      return reward;
+    }
+  }
+
+  return CASE_REWARDS[CASE_REWARDS.length - 1];
+}
+
+function serializeOpenBattle(battle) {
+  return {
+    id: battle.id,
+    bet: battle.bet,
+    createdAt: battle.createdAt,
+    host: {
+      id: battle.host.id,
+      username: battle.host.username
+    }
+  };
+}
+
+function broadcastOpenBattles() {
+  const io = getIo();
+
+  if (!io) {
+    return;
+  }
+
+  const battles = Array.from(store.caseBattles.values())
+    .filter((battle) => battle.status === "waiting")
+    .map(serializeOpenBattle);
+
+  io.emit("case-battles:update", {
+    battles
+  });
+}
 
 function resolveInstantResult(gameType, rawValue, payload) {
   if (gameType === "blackjack") {
@@ -61,13 +141,7 @@ function resolveInstantResult(gameType, rawValue, payload) {
   }
 
   if (gameType === "cases") {
-    const rewards = [
-      { label: "Dirt", rarity: "common", multiplier: 0.6, image: "/images/case-dirt.png" },
-      { label: "Gilded", rarity: "rare", multiplier: 1.8, image: "/images/case-gilded.png" },
-      { label: "Netherite", rarity: "red", multiplier: 3.2, image: "/images/case-netherite.png" },
-      { label: "Elytra", rarity: "legendary", multiplier: 5, image: "/images/case-elytra.png" }
-    ];
-    const reward = rewards[Math.floor(rawValue * rewards.length)];
+    const reward = getCaseReward(rawValue);
 
     return {
       title: `${reward.rarity.toUpperCase()} DROP`,
@@ -77,18 +151,6 @@ function resolveInstantResult(gameType, rawValue, payload) {
         rarity: reward.rarity,
         image: reward.image
       }
-    };
-  }
-
-  if (gameType === "case-battles") {
-    const opponentScore = Number((1 + ((rawValue * 19) % 1) * 9).toFixed(2));
-    const yourScore = Number((1 + rawValue * 9).toFixed(2));
-    const isWin = yourScore > opponentScore;
-
-    return {
-      title: isWin ? "You Won The Battle" : "Battle Lost",
-      multiplier: isWin ? 2.3 : 0,
-      details: { yourScore, opponentScore }
     };
   }
 
@@ -107,11 +169,189 @@ function resolveInstantResult(gameType, rawValue, payload) {
   throw createError("Unsupported game type.");
 }
 
+function rollCaseBattleDrop(user, clientSeedInput) {
+  const fair = createFairContext(user, clientSeedInput);
+  const fairness = generateDiceResult(fair);
+  const reward = getCaseReward(fairness.value);
+
+  user.clientSeed = fair.clientSeed;
+  user.nonce += 1;
+
+  return {
+    reward,
+    fairness,
+    fair
+  };
+}
+
 router.use(authMiddleware);
+
+router.get("/case-battles", (req, res) => {
+  const battles = Array.from(store.caseBattles.values())
+    .filter((battle) => battle.status === "waiting")
+    .map(serializeOpenBattle);
+
+  return res.json({
+    battles
+  });
+});
+
+router.post("/case-battles", async (req, res, next) => {
+  try {
+    const bet = ensurePositiveBet(req.body.bet, req.user.balance);
+    const existingBattle = Array.from(store.caseBattles.values()).find(
+      (battle) => battle.status === "waiting" && battle.host.id === req.user.id
+    );
+
+    if (existingBattle) {
+      throw createError("You already have an open battle waiting for a player.");
+    }
+
+    req.user.balance = Number((req.user.balance - bet).toFixed(2));
+
+    const battle = {
+      id: nextGameId("case_battle"),
+      bet,
+      createdAt: Date.now(),
+      status: "waiting",
+      host: {
+        id: req.user.id,
+        username: req.user.username
+      }
+    };
+
+    store.caseBattles.set(battle.id, battle);
+    await persistUsers();
+    broadcastOpenBattles();
+
+    return res.status(201).json({
+      battle: serializeOpenBattle(battle),
+      balance: req.user.balance
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post("/case-battles/:battleId/join", async (req, res, next) => {
+  try {
+    const battle = store.caseBattles.get(String(req.params.battleId || ""));
+
+    if (!battle || battle.status !== "waiting") {
+      throw createError("That battle is no longer available.", 404);
+    }
+
+    if (battle.host.id === req.user.id) {
+      throw createError("You cannot join your own battle.");
+    }
+
+    const bet = ensurePositiveBet(battle.bet, req.user.balance);
+    const hostUser = store.users.get(battle.host.id);
+
+    if (!hostUser) {
+      store.caseBattles.delete(battle.id);
+      broadcastOpenBattles();
+      throw createError("Battle host is no longer available.", 404);
+    }
+
+    req.user.balance = Number((req.user.balance - bet).toFixed(2));
+
+    const hostDrop = rollCaseBattleDrop(hostUser, battle.host.clientSeed);
+    const joinerDrop = rollCaseBattleDrop(req.user, req.body.clientSeed);
+    const pot = Number((bet * 2).toFixed(2));
+
+    let hostPayout = 0;
+    let joinerPayout = 0;
+    let winnerId = null;
+    let title = "Case Battle Push";
+
+    if (hostDrop.reward.multiplier > joinerDrop.reward.multiplier) {
+      hostPayout = pot;
+      winnerId = hostUser.id;
+      title = `${hostUser.username} won the battle`;
+    } else if (joinerDrop.reward.multiplier > hostDrop.reward.multiplier) {
+      joinerPayout = pot;
+      winnerId = req.user.id;
+      title = `${req.user.username} won the battle`;
+    } else {
+      hostPayout = bet;
+      joinerPayout = bet;
+    }
+
+    hostUser.balance = Number((hostUser.balance + hostPayout).toFixed(2));
+    req.user.balance = Number((req.user.balance + joinerPayout).toFixed(2));
+
+    pushRecentGame({
+      _id: battle.id,
+      userId: hostUser.id,
+      gameType: "case-battles",
+      betAmount: bet,
+      profit: Number((hostPayout - bet).toFixed(2)),
+      status: hostPayout > bet ? "won" : hostPayout === bet ? "push" : "lost"
+    });
+
+    pushRecentGame({
+      _id: `${battle.id}_joiner`,
+      userId: req.user.id,
+      gameType: "case-battles",
+      betAmount: bet,
+      profit: Number((joinerPayout - bet).toFixed(2)),
+      status: joinerPayout > bet ? "won" : joinerPayout === bet ? "push" : "lost"
+    });
+
+    battle.status = "resolved";
+    store.caseBattles.delete(battle.id);
+    await persistUsers();
+    broadcastOpenBattles();
+
+    const payload = {
+      battleId: battle.id,
+      title,
+      bet,
+      pot,
+      winnerId,
+      players: [
+        {
+          id: hostUser.id,
+          username: hostUser.username,
+          payout: hostPayout,
+          reward: hostDrop.reward
+        },
+        {
+          id: req.user.id,
+          username: req.user.username,
+          payout: joinerPayout,
+          reward: joinerDrop.reward
+        }
+      ]
+    };
+
+    emitToUser(hostUser.id, "case-battle:resolved", {
+      ...payload,
+      balance: hostUser.balance
+    });
+    emitToUser(req.user.id, "case-battle:resolved", {
+      ...payload,
+      balance: req.user.balance
+    });
+
+    return res.json({
+      battle: payload,
+      balance: req.user.balance
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
 
 router.post("/play", async (req, res, next) => {
   try {
     const gameType = String(req.body.gameType || "").trim();
+
+    if (gameType === "case-battles") {
+      throw createError("Case battles now use the battle lobby.");
+    }
+
     const bet = ensurePositiveBet(req.body.bet, req.user.balance);
     const fair = createFairContext(req.user, req.body.clientSeed);
     const fairness = generateDiceResult(fair);
@@ -131,6 +371,7 @@ router.post("/play", async (req, res, next) => {
       status: payout > bet ? "won" : payout === bet ? "push" : "lost"
     });
 
+    recordHouseStats(gameType, bet, payout);
     await persistUsers();
 
     return res.status(201).json({
