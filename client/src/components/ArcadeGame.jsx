@@ -114,6 +114,11 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
   const [battleMessage, setBattleMessage] = useState("");
   const [waitingBattleId, setWaitingBattleId] = useState("");
   const [activeBattle, setActiveBattle] = useState(null);
+  const caseBattleMinimum = 5_000_000;
+  const caseBattleBet = parseBetInput(betInput);
+  const caseBattleNeedsMinimum = gameType === "case-battles" && caseBattleBet < caseBattleMinimum;
+  const caseBattleNeedsBalance = gameType === "case-battles" && caseBattleBet > Number(user?.balance || 0);
+  const caseBattleBlocked = caseBattleNeedsMinimum || caseBattleNeedsBalance;
 
   function syncWaitingBattle(battles) {
     if (gameType !== "case-battles") {
@@ -520,7 +525,7 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
                   <button
                     type="button"
                     onClick={handleCreateBattle}
-                    disabled={loading || Boolean(waitingBattleId)}
+                    disabled={loading || Boolean(waitingBattleId) || caseBattleBlocked}
                     className="neon-button disabled:opacity-50"
                   >
                     {waitingBattleId ? "Waiting For Player..." : "Create Battle"}
@@ -557,6 +562,18 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
               <p className={`mt-4 text-sm ${battleMessage ? "text-amber-100" : "text-white/70"}`}>
                 {battleMessage || feedback}
               </p>
+            )}
+            {gameType === "case-battles" && (
+              <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/70">
+                <p>Minimum battle: 5m</p>
+                <p className="mt-1">Your balance: ${Number(user?.balance || 0).toFixed(2)}</p>
+                {caseBattleNeedsMinimum && (
+                  <p className="mt-2 text-amber-200">Type at least 5m to create a battle.</p>
+                )}
+                {caseBattleNeedsBalance && (
+                  <p className="mt-2 text-rose-200">You do not have enough balance to create this battle.</p>
+                )}
+              </div>
             )}
           </div>
         </div>
