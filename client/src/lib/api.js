@@ -224,6 +224,14 @@ export const api = {
       },
       token
     ),
+  cancelCaseBattle: (token, battleId) =>
+    request(
+      `/game/instant/case-battles/${battleId}`,
+      {
+        method: "DELETE"
+      },
+      token
+    ),
   joinCaseBattle: (token, battleId, payload) =>
     request(
       `/game/instant/case-battles/${battleId}/join`,

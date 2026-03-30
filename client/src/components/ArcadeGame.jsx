@@ -113,6 +113,7 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
   const [openBattles, setOpenBattles] = useState([]);
   const [battleMessage, setBattleMessage] = useState("");
   const [waitingBattleId, setWaitingBattleId] = useState("");
+  const [activeBattle, setActiveBattle] = useState(null);
 
   useEffect(() => {
     setClientSeed(user.clientSeed || "donutdrop-default");
@@ -148,6 +149,24 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
       }
     });
 
+    socket.on("case-battle:started", (payload) => {
+      if (cancelled) {
+        return;
+      }
+
+      setActiveBattle({
+        phase: "opening",
+        battleId: payload?.battleId || "",
+        bet: payload?.bet || 0,
+        pot: payload?.pot || 0,
+        players: [
+          payload?.host || { id: "", username: "Host" },
+          payload?.opponent || { id: "", username: "Opponent" }
+        ]
+      });
+      setBattleMessage("Battle started. Opening cases...");
+    });
+
     socket.on("case-battle:resolved", (payload) => {
       if (cancelled) {
         return;
@@ -157,6 +176,14 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
       const enemy = payload?.players?.find((entry) => entry.id !== user.id);
 
       setWaitingBattleId("");
+      setActiveBattle({
+        phase: "resolved",
+        battleId: payload?.battleId || "",
+        bet: payload?.bet || 0,
+        pot: payload?.pot || 0,
+        winnerId: payload?.winnerId || "",
+        players: payload?.players || []
+      });
       setResult({
         title: payload?.title || "Battle settled",
         bet: payload?.bet || parseBetInput(betInput),
@@ -238,6 +265,13 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
         bet: parseBetInput(betInput)
       });
       setWaitingBattleId(data.battle.id);
+      setActiveBattle({
+        phase: "waiting",
+        battleId: data.battle.id,
+        bet: data.battle.bet,
+        pot: Number(data.battle.bet || 0) * 2,
+        players: [{ id: user.id, username: user.username }]
+      });
       onBalanceChange(data.balance);
       setBattleMessage("Battle created. Waiting for another player to join.");
       setOpenBattles((current) => {
@@ -259,34 +293,38 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
       const data = await api.joinCaseBattle(token, battleId, {
         clientSeed
       });
-      const self = data.battle.players?.find((entry) => entry.id === user.id);
-      const enemy = data.battle.players?.find((entry) => entry.id !== user.id);
-
-      setWaitingBattleId("");
       setOpenBattles((current) => current.filter((battle) => battle.id !== battleId));
-      setResult({
-        title: data.battle.title,
+      setActiveBattle({
+        phase: "opening",
+        battleId,
         bet: data.battle.bet,
-        payout: self?.payout || 0,
-        multiplier:
-          data.battle.bet && self?.payout ? Number((self.payout / data.battle.bet).toFixed(2)) : 0,
-        details: {
-          yourDrop: self?.reward?.label || "Unknown",
-          yourRarity: self?.reward?.rarity || "unknown",
-          opponentDrop: enemy?.reward?.label || "Unknown",
-          opponentRarity: enemy?.reward?.rarity || "unknown",
-          image: self?.reward?.image || "",
-          pot: `$${Number(data.battle.pot || 0).toFixed(2)}`
-        }
+        pot: data.battle.pot,
+        players: [data.battle.host, data.battle.opponent]
       });
       onBalanceChange(data.balance);
-      setBattleMessage(
-        data.battle.winnerId === user.id
-          ? "You joined the battle and took the pot."
-          : data.battle.winnerId
-            ? "You joined the battle but lost the pot."
-            : "Tie battle. Both players got refunded."
-      );
+      setBattleMessage("You joined the battle. Opening cases...");
+    } catch (error) {
+      setBattleMessage(error.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleCancelBattle() {
+    if (!waitingBattleId) {
+      return;
+    }
+
+    setLoading(true);
+    setBattleMessage("");
+
+    try {
+      const data = await api.cancelCaseBattle(token, waitingBattleId);
+      setWaitingBattleId("");
+      setActiveBattle(null);
+      onBalanceChange(data.balance);
+      setOpenBattles((current) => current.filter((battle) => battle.id !== waitingBattleId));
+      setBattleMessage("Battle canceled.");
     } catch (error) {
       setBattleMessage(error.message);
     } finally {
@@ -453,6 +491,16 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
                     Refresh Lobby
                   </button>
                 </div>
+                {waitingBattleId && (
+                  <button
+                    type="button"
+                    onClick={handleCancelBattle}
+                    disabled={loading}
+                    className="rounded-2xl border border-red-400/20 px-5 py-3 text-sm text-red-200 transition hover:border-red-300/40 hover:text-red-100 disabled:opacity-50"
+                  >
+                    Cancel Battle
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={onBack}
@@ -511,7 +559,78 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
           )}
 
           {gameType === "case-battles" && (
-            <div className="rounded-[1.8rem] border border-white/10 bg-white/5 p-6">
+            <div className="space-y-5">
+              {activeBattle && (
+                <div className="rounded-[1.8rem] border border-white/10 bg-white/5 p-6">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.35em] text-white/45">Battle Arena</p>
+                      <h3 className="mt-2 text-2xl font-black text-white">
+                        {activeBattle.phase === "waiting"
+                          ? "Waiting For Challenger"
+                          : activeBattle.phase === "opening"
+                            ? "Opening Cases"
+                            : "Battle Result"}
+                      </h3>
+                    </div>
+                    <div className="rounded-full border border-white/10 bg-black/25 px-4 py-2 text-xs uppercase tracking-[0.22em] text-white/60">
+                      Pot ${Number(activeBattle.pot || 0).toFixed(2)}
+                    </div>
+                  </div>
+
+                  <div className="mt-5 grid gap-4 md:grid-cols-2">
+                    {(activeBattle.players || []).map((player) => {
+                      const reward = player.reward;
+                      const isWinner = activeBattle.phase === "resolved" && activeBattle.winnerId === player.id;
+
+                      return (
+                        <div
+                          key={player.id || player.username}
+                          className={`rounded-[1.5rem] border p-5 ${
+                            isWinner
+                              ? "border-emerald-300/35 bg-emerald-400/10"
+                              : "border-white/10 bg-black/20"
+                          }`}
+                        >
+                          <p className="text-sm font-semibold text-white">{player.username}</p>
+                          <div className="mt-4 flex min-h-[180px] items-center justify-center rounded-[1.4rem] border border-white/8 bg-[#0f1119]">
+                            {activeBattle.phase === "opening" ? (
+                              <motion.div
+                                animate={{ rotate: [0, 360], scale: [0.96, 1.03, 0.96] }}
+                                transition={{ duration: 1, ease: "linear", repeat: Infinity }}
+                                className="flex h-28 w-28 items-center justify-center rounded-3xl border border-white/10 bg-white/5"
+                              >
+                                <img
+                                  src="/images/case-netherite.png"
+                                  alt="Battle case"
+                                  className="h-20 w-20 object-contain opacity-80"
+                                />
+                              </motion.div>
+                            ) : reward ? (
+                              <div className="text-center">
+                                <img
+                                  src={reward.image}
+                                  alt={reward.label}
+                                  className="mx-auto h-24 w-24 object-contain"
+                                />
+                                <p className="mt-3 text-xs font-black uppercase tracking-[0.24em] text-white/60">
+                                  {reward.rarity}
+                                </p>
+                                <p className="mt-1 text-xl font-black text-white">{reward.label}</p>
+                                <p className="mt-2 text-sm text-emerald-200">{reward.multiplier.toFixed(2)}x</p>
+                              </div>
+                            ) : (
+                              <p className="text-sm text-white/45">Waiting...</p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div className="rounded-[1.8rem] border border-white/10 bg-white/5 p-6">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-[0.35em] text-white/45">Battle Lobby</p>
@@ -556,6 +675,7 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
                     No battle is waiting right now. Create one and the server will hold the room until another player joins.
                   </div>
                 )}
+              </div>
               </div>
             </div>
           )}

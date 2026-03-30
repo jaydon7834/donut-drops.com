@@ -69,6 +69,7 @@ function serializeOpenBattle(battle) {
     id: battle.id,
     bet: battle.bet,
     createdAt: battle.createdAt,
+    status: battle.status,
     host: {
       id: battle.host.id,
       username: battle.host.username
@@ -240,6 +241,32 @@ router.post("/case-battles", async (req, res, next) => {
   }
 });
 
+router.delete("/case-battles/:battleId", async (req, res, next) => {
+  try {
+    const battle = store.caseBattles.get(String(req.params.battleId || ""));
+
+    if (!battle || battle.status !== "waiting") {
+      throw createError("That battle is no longer available.", 404);
+    }
+
+    if (battle.host.id !== req.user.id) {
+      throw createError("Only the host can cancel this battle.", 403);
+    }
+
+    req.user.balance = Number((req.user.balance + battle.bet).toFixed(2));
+    store.caseBattles.delete(battle.id);
+    await persistUsers();
+    broadcastOpenBattles();
+
+    return res.json({
+      balance: req.user.balance,
+      success: true
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 router.post("/case-battles/:battleId/join", async (req, res, next) => {
   try {
     const battle = store.caseBattles.get(String(req.params.battleId || ""));
@@ -306,10 +333,21 @@ router.post("/case-battles/:battleId/join", async (req, res, next) => {
       status: joinerPayout > bet ? "won" : joinerPayout === bet ? "push" : "lost"
     });
 
-    battle.status = "resolved";
+    battle.status = "started";
     store.caseBattles.delete(battle.id);
     await persistUsers();
     broadcastOpenBattles();
+
+    const startedPayload = {
+      battleId: battle.id,
+      bet,
+      pot,
+      host: battle.host,
+      opponent: {
+        id: req.user.id,
+        username: req.user.username
+      }
+    };
 
     const payload = {
       battleId: battle.id,
@@ -333,18 +371,24 @@ router.post("/case-battles/:battleId/join", async (req, res, next) => {
       ]
     };
 
-    emitToUser(hostUser.id, "case-battle:resolved", {
-      ...payload,
-      balance: hostUser.balance
-    });
-    emitToUser(req.user.id, "case-battle:resolved", {
-      ...payload,
-      balance: req.user.balance
-    });
+    emitToUser(hostUser.id, "case-battle:started", startedPayload);
+    emitToUser(req.user.id, "case-battle:started", startedPayload);
+
+    setTimeout(() => {
+      emitToUser(hostUser.id, "case-battle:resolved", {
+        ...payload,
+        balance: hostUser.balance
+      });
+      emitToUser(req.user.id, "case-battle:resolved", {
+        ...payload,
+        balance: req.user.balance
+      });
+    }, 1400);
 
     return res.json({
-      battle: payload,
-      balance: req.user.balance
+      battle: startedPayload,
+      balance: req.user.balance,
+      status: "started"
     });
   } catch (error) {
     return next(error);
