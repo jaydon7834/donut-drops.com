@@ -227,8 +227,8 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
   }
 
   return (
-    <div className="flex w-full min-w-0 flex-col gap-6 p-4 xl:flex-row xl:items-stretch xl:p-6">
-      <div className="w-full shrink-0 rounded-2xl bg-[#0f172a] p-5 text-white xl:w-[190px]">
+    <div className="flex w-full min-w-0 flex-col gap-4 p-4 xl:flex-row xl:items-stretch xl:p-4">
+      <div className="w-full shrink-0 rounded-2xl bg-[#0f172a] p-4 text-white xl:w-[150px]">
         <div className="space-y-4">
           <div>
             <p className="text-sm text-gray-400">Bet Amount</p>
@@ -355,6 +355,7 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
         </div>
       </div>
 
+<<<<<<< HEAD
       <div className="relative min-w-0 flex-1 overflow-hidden rounded-2xl bg-[#0b0f1a] p-4 xl:p-5">
         <div className="mb-4 grid gap-3 text-white sm:grid-cols-3">
           <div className="rounded-2xl border border-cyan-400/10 bg-cyan-400/5 p-4">
@@ -369,6 +370,33 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
             <p className="text-xs uppercase tracking-[0.24em] text-white/45">Latest Payout</p>
             <p className="mt-2 text-2xl font-black text-white">{result ? `$${lastPayout.toFixed(2)}` : "--"}</p>
+=======
+      <div className="relative min-w-0 flex-1 overflow-hidden rounded-2xl bg-[#0b0f1a] p-2 xl:p-3">
+        <div className="flex h-full min-h-[340px] w-full items-center justify-center xl:min-h-[400px]">
+          <div className="relative flex w-full justify-center">
+          <div className="mt-2 flex origin-top scale-[0.44] flex-col items-center sm:scale-[0.52] xl:scale-[0.6] 2xl:scale-[0.68]">
+            {Array.from({ length: rows }).map((_, row) => (
+              <div key={row} className="flex justify-center">
+                {Array.from({ length: row + 1 }).map((__, index) => (
+                  <div
+                    key={`${row}-${index}`}
+                    className="m-1 h-2 w-2 rounded-full bg-gray-400 shadow-[0_0_16px_rgba(148,163,184,0.35)] xl:m-1.5 xl:h-2.5 xl:w-2.5"
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+
+          {activeBalls.map((ball) => (
+            <motion.div
+              key={ball.id}
+              initial={{ x: 0, y: 0 }}
+              animate={ball.frames}
+              transition={{ duration: 1.5, ease: "easeInOut" }}
+              className="absolute left-1/2 top-2.5 h-3 w-3 -translate-x-1/2 rounded-full bg-green-400 shadow-[0_0_24px_rgba(74,222,128,0.8)] xl:top-3 xl:h-3.5 xl:w-3.5"
+            />
+          ))}
+>>>>>>> 9c4e097 (Make mines and plinko significantly smaller)
           </div>
         </div>
 

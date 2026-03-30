@@ -37,7 +37,7 @@ function Tile({ state, onClick, disabled, shake }) {
       animate={shake ? { x: [0, -2, 2, -2, 2, 0] } : { rotateY: state !== "hidden" ? 180 : 0 }}
       transition={{ duration: 0.35 }}
       onClick={disabled ? undefined : onClick}
-      className={`h-12 w-12 rounded-xl cursor-pointer flex items-center justify-center text-sm font-black select-none transition-all duration-200 sm:h-14 sm:w-14 xl:h-16 xl:w-16 2xl:h-20 2xl:w-20
+      className={`h-9 w-9 rounded-lg cursor-pointer flex items-center justify-center text-[10px] font-black select-none transition-all duration-200 sm:h-10 sm:w-10 xl:h-12 xl:w-12 2xl:h-14 2xl:w-14
         ${state === "hidden" ? "bg-[#1e293b] text-white/80 hover:bg-[#334155]" : ""}
         ${state === "safe" ? "bg-green-500 shadow-[0_0_15px_rgba(34,197,94,0.8)] text-white" : ""}
         ${state === "mine" ? "bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.8)] text-white" : ""}
@@ -216,24 +216,24 @@ export function MinesGame({ token, user, onBalanceChange }) {
   }
 
   return (
-    <div className="flex w-full min-w-0 flex-col items-start gap-6 px-2 py-4 sm:px-4 xl:flex-row xl:items-stretch xl:px-6 xl:py-6">
-      <div className="w-full shrink-0 rounded-[1.8rem] bg-[#131625] p-5 text-white xl:w-[190px]">
+    <div className="flex w-full min-w-0 flex-col items-start gap-4 px-2 py-4 sm:px-4 xl:flex-row xl:items-stretch xl:px-3 xl:py-4">
+      <div className="w-full shrink-0 rounded-[1.6rem] bg-[#131625] p-4 text-white xl:w-[150px]">
         <div className="flex items-start justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.28em] text-indigo-200/65">Mines Bet</p>
-            <h2 className="mt-3 text-3xl font-black text-white">Place your round</h2>
+            <h2 className="mt-3 text-[1.7rem] font-black leading-tight text-white">Place your round</h2>
           </div>
           <div className="rounded-xl bg-white/5 px-3 py-2 text-white/45">⌁</div>
         </div>
 
-        <div className="mt-6 space-y-4">
-          <div className="rounded-[1.5rem] border border-white/10 p-4">
+        <div className="mt-5 space-y-3">
+          <div className="rounded-[1.35rem] border border-white/10 p-3">
             <p className="text-sm text-gray-400">Bet Amount</p>
             <div className="mt-2 flex overflow-hidden rounded-xl bg-[#0d111c]">
               <input
                 value={betInput}
                 onChange={(event) => handleBetInputChange(event.target.value)}
-                className="w-full bg-transparent p-3 text-white outline-none"
+                className="w-full bg-transparent p-2.5 text-white outline-none"
                 placeholder="1m"
               />
               <div className="flex items-center gap-1 pr-2">
@@ -245,14 +245,14 @@ export function MinesGame({ token, user, onBalanceChange }) {
                 </button>
               </div>
             </div>
-            <p className="mt-3 text-sm text-white/35">Supports 10k, 1m, 1b and more.</p>
+            <p className="mt-2 text-xs text-white/35">Supports 10k, 1m, 1b and more.</p>
           </div>
 
-          <div className="rounded-[1.5rem] border border-white/10 p-4">
+          <div className="rounded-[1.35rem] border border-white/10 p-3">
             <p className="text-sm text-gray-400">Mines</p>
             <div className="mt-2 flex items-center justify-between">
-              <p className="text-xl font-bold text-white">Number of Mines</p>
-              <span className="text-xl font-bold text-white">{minesCount}</span>
+              <p className="text-base font-bold text-white">Number of Mines</p>
+              <span className="text-base font-bold text-white">{minesCount}</span>
             </div>
             <input
               type="range"
@@ -286,22 +286,26 @@ export function MinesGame({ token, user, onBalanceChange }) {
             </div>
           </div>
 
-          <div className="rounded-[1.5rem] border border-white/10 p-4">
+          <div className="rounded-[1.35rem] border border-white/10 p-3">
             <p className="text-sm text-gray-400">Client Seed</p>
             <input
               value={clientSeed}
               onChange={(event) => setClientSeed(event.target.value)}
+<<<<<<< HEAD
               className="mt-3 w-full rounded-[1rem] bg-[#0d111c] p-4 text-white outline-none"
               disabled={Boolean(activeGame)}
+=======
+              className="mt-3 w-full rounded-[1rem] bg-[#0d111c] p-3 text-white outline-none"
+>>>>>>> 9c4e097 (Make mines and plinko significantly smaller)
             />
           </div>
 
-          <div className="pt-24">
+          <div className="pt-10">
             <button
               type="button"
               onClick={handleStart}
               disabled={loading || Boolean(activeGame)}
-              className="w-full rounded-xl bg-emerald-500 px-4 py-4 text-lg font-bold text-slate-950 transition hover:bg-emerald-400 disabled:opacity-50"
+              className="w-full rounded-xl bg-emerald-500 px-4 py-3 text-base font-bold text-slate-950 transition hover:bg-emerald-400 disabled:opacity-50"
             >
               {loading && !activeGame ? "Starting..." : "Place Bet"}
             </button>
@@ -311,7 +315,7 @@ export function MinesGame({ token, user, onBalanceChange }) {
                 type="button"
                 onClick={handleCashout}
                 disabled={loading}
-                className="mt-3 w-full rounded-xl bg-white/10 px-4 py-4 text-base font-bold text-white transition hover:bg-white/15 disabled:opacity-50"
+                className="mt-3 w-full rounded-xl bg-white/10 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/15 disabled:opacity-50"
               >
                 Cash Out
               </button>
@@ -320,20 +324,20 @@ export function MinesGame({ token, user, onBalanceChange }) {
         </div>
       </div>
 
-      <div className="min-w-0 flex-1 rounded-[1.8rem] bg-[#131625] p-4 shadow-[0_0_40px_rgba(0,0,0,0.2)] xl:min-h-[560px] xl:p-5">
+      <div className="min-w-0 flex-1 rounded-[1.6rem] bg-[#131625] p-3 shadow-[0_0_40px_rgba(0,0,0,0.2)] xl:min-h-[420px] xl:p-3">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.28em] text-indigo-200/65">Mines Board</p>
-            <p className="mt-2 text-lg text-white/70">Start a round to unlock the grid.</p>
+            <p className="mt-2 text-sm text-white/70">Start a round to unlock the grid.</p>
           </div>
           <div className="rounded-full border border-yellow-300/20 bg-yellow-300/10 px-4 py-2 text-sm font-bold uppercase tracking-[0.18em] text-yellow-100">
             {minesCount} Mines
           </div>
         </div>
 
-        <div className="mt-6 flex min-h-[360px] w-full items-center justify-center overflow-hidden rounded-2xl bg-[#0f172a] p-3 shadow-[0_0_40px_rgba(0,0,0,0.8)] xl:min-h-[440px] xl:p-4">
+        <div className="mt-4 flex min-h-[260px] w-full items-center justify-center overflow-hidden rounded-2xl bg-[#0f172a] p-2 shadow-[0_0_40px_rgba(0,0,0,0.8)] xl:min-h-[300px] xl:p-2.5">
           <div className="flex w-full justify-center">
-            <div className="grid shrink-0 grid-cols-5 gap-2 sm:gap-2.5">
+            <div className="grid shrink-0 grid-cols-5 gap-1 sm:gap-1.5">
               {tiles.map((tile) => {
                 const isRevealed = revealedTiles.includes(tile);
                 const isMine = minePositions.includes(tile);
