@@ -4,7 +4,7 @@ import { findUserByEmail, findUserByUsername, nextUserId, persistUsers, store } 
 import { signSession } from "../middleware/auth.js";
 
 const router = Router();
-const SIGN_IN_BALANCE = 999_000_000_000;
+const SIGN_IN_BALANCE = 1000;
 
 router.post("/register", async (req, res, next) => {
   try {
