@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 
-const MIN_BET = 1;
+const MIN_BET = 1_000;
 const MAX_BET = 1_000_000_000;
 
 export function sanitizeUser(user) {
@@ -8,6 +8,7 @@ export function sanitizeUser(user) {
     id: user.id,
     username: user.username,
     email: user.email,
+    createdAt: user.createdAt || null,
     balance: user.balance,
     stats: {
       winStreak: user.stats?.winStreak || 0,
@@ -16,7 +17,10 @@ export function sanitizeUser(user) {
     },
     minecraftUsername: user.minecraftUsername || "",
     clientSeed: user.clientSeed,
-    nonce: user.nonce
+    nonce: user.nonce,
+    redeemedPromoHashes: Array.isArray(user.redeemedPromoHashes)
+      ? user.redeemedPromoHashes
+      : []
   };
 }
 

@@ -23,6 +23,7 @@ router.post("/register", async (req, res, next) => {
       id: nextUserId(),
       username,
       email: "",
+      createdAt: new Date().toISOString(),
       passwordHash: await hashPassword(password),
       balance: SIGN_IN_BALANCE,
       stats: {
@@ -59,6 +60,10 @@ router.post("/login", async (req, res, next) => {
 
     if (!user || !(await comparePassword(password, user.passwordHash))) {
       throw createError("Invalid username or password.", 401);
+    }
+
+    if (!user.createdAt) {
+      user.createdAt = new Date().toISOString();
     }
 
     const token = signSession(user.id);

@@ -5,18 +5,36 @@ import { formatBetInput, parseBetInput } from "../lib/betting.js";
 
 const PREVIEW_TEMPLATES = {
   low: {
-    8: [4, 2, 1.4, 1.1, 0.9, 1.1, 1.4, 2, 4],
-    12: [5.6, 2.8, 1.9, 1.3, 1.1, 1, 0.8, 1, 1.1, 1.3, 1.9, 2.8, 5.6],
-    16: [9, 4.5, 2.4, 1.7, 1.3, 1.1, 1, 0.9, 0.7, 0.9, 1, 1.1, 1.3, 1.7, 2.4, 4.5, 9]
+    8: [5.6, 2.1, 1.1, 1, 0.5, 1, 1.1, 2.1, 5.6],
+    9: [5.6, 2, 1.6, 1, 0.7, 0.4, 0.7, 1, 1.6, 2, 5.6],
+    10: [8.9, 3, 1.4, 1.1, 1, 0.5, 1, 1.1, 1.4, 3, 8.9],
+    11: [8.4, 3, 1.9, 1.3, 1, 0.7, 0.7, 1, 1.3, 1.9, 3, 8.4],
+    12: [8.4, 3, 1.9, 1.3, 1, 0.7, 0.4, 0.7, 1, 1.3, 1.9, 3, 8.4],
+    13: [9, 4, 2, 1.4, 1.1, 0.8, 0.4, 0.4, 0.8, 1.1, 1.4, 2, 4, 9],
+    14: [9, 4, 2.2, 1.4, 1.2, 1, 0.7, 0.4, 0.7, 1, 1.2, 1.4, 2.2, 4, 9],
+    15: [10, 5, 2.5, 1.6, 1.3, 1.1, 0.8, 0.4, 0.8, 1.1, 1.3, 1.6, 2.5, 5, 10],
+    16: [10, 5, 2.6, 1.7, 1.3, 1.1, 1, 0.7, 0.4, 0.7, 1, 1.1, 1.3, 1.7, 2.6, 5, 10]
   },
   medium: {
-    8: [8, 3, 1.5, 0.6, 0.4, 0.6, 1.5, 3, 8],
+    8: [13, 3, 1.3, 0.7, 0.4, 0.7, 1.3, 3, 13],
+    9: [16, 5, 2, 1.1, 0.5, 0.3, 0.5, 1.1, 2, 5, 16],
+    10: [20, 6, 2.6, 1.4, 0.6, 0.3, 0.6, 1.4, 2.6, 6, 20],
+    11: [24, 8, 3.5, 1.7, 0.9, 0.4, 0.4, 0.9, 1.7, 3.5, 8, 24],
     12: [12, 8.28, 5.04, 2.67, 1.11, 0.29, 0.07, 0.29, 1.11, 2.67, 5.04, 8.28, 12],
+    13: [16, 9, 5, 2.5, 1.3, 0.5, 0.09, 0.09, 0.5, 1.3, 2.5, 5, 9, 16],
+    14: [24, 13, 6.5, 3.5, 1.8, 0.7, 0.2, 0.2, 0.7, 1.8, 3.5, 6.5, 13, 24],
+    15: [30, 16, 7.6, 3.9, 2, 0.9, 0.3, 0.15, 0.3, 0.9, 2, 3.9, 7.6, 16, 30],
     16: [24, 13, 6.2, 3.2, 1.8, 1, 0.5, 0.3, 0.2, 0.3, 0.5, 1, 1.8, 3.2, 6.2, 13, 24]
   },
   high: {
-    8: [40, 8, 3, 0.5, 0.2, 0.5, 3, 8, 40],
+    8: [29, 4, 1.5, 0.3, 0.2, 0.3, 1.5, 4, 29],
+    9: [43, 7, 2, 0.6, 0.2, 0.1, 0.2, 0.6, 2, 7, 43],
+    10: [76, 10, 3, 0.9, 0.3, 0.1, 0.3, 0.9, 3, 10, 76],
+    11: [120, 14, 5.2, 1.4, 0.4, 0.15, 0.15, 0.4, 1.4, 5.2, 14, 120],
     12: [33, 11, 4, 2, 1.2, 0.5, 0.2, 0.5, 1.2, 2, 4, 11, 33],
+    13: [63, 22, 6.5, 2.4, 1.1, 0.4, 0.12, 0.12, 0.4, 1.1, 2.4, 6.5, 22, 63],
+    14: [120, 36, 10, 3.7, 1.3, 0.4, 0.13, 0.13, 0.4, 1.3, 3.7, 10, 36, 120],
+    15: [300, 54, 15, 4.8, 1.6, 0.5, 0.14, 0.05, 0.14, 0.5, 1.6, 4.8, 15, 54, 300],
     16: [1000, 130, 26, 9, 4, 2, 0.5, 0.2, 0.08, 0.2, 0.5, 2, 4, 9, 26, 130, 1000]
   }
 };
@@ -55,30 +73,16 @@ function resampleTemplate(template, rows) {
 
 function buildPreviewMultipliers(rows, risk) {
   const templates = PREVIEW_TEMPLATES[risk] || PREVIEW_TEMPLATES.medium;
-  const keys = Object.keys(templates).map(Number).sort((a, b) => a - b);
 
   if (templates[rows]) {
     return templates[rows];
   }
 
-  let lower = keys[0];
-  let upper = keys[keys.length - 1];
-
-  for (let index = 0; index < keys.length - 1; index += 1) {
-    if (rows > keys[index] && rows < keys[index + 1]) {
-      lower = keys[index];
-      upper = keys[index + 1];
-      break;
-    }
-  }
-
-  const ratio = (rows - lower) / (upper - lower);
-  const lowerTemplate = resampleTemplate(templates[lower], rows);
-  const upperTemplate = resampleTemplate(templates[upper], rows);
-
-  return lowerTemplate.map((value, index) =>
-    roundTo(value + (upperTemplate[index] - value) * ratio, 2)
+  const keys = Object.keys(templates).map(Number).sort((a, b) => a - b);
+  const nearest = keys.reduce((best, current) =>
+    Math.abs(current - rows) < Math.abs(best - rows) ? current : best
   );
+  return resampleTemplate(templates[nearest], rows);
 }
 
 function buildKeyframes(path, rows) {
@@ -101,8 +105,8 @@ function formatMultiplier(multiplier) {
 }
 
 export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
-  const [betAmount, setBetAmount] = useState(20);
-  const [betInput, setBetInput] = useState("20");
+  const [betAmount, setBetAmount] = useState(1000);
+  const [betInput, setBetInput] = useState("1k");
   const [rows, setRows] = useState(12);
   const [risk, setRisk] = useState("medium");
   const [ballCount, setBallCount] = useState(1);
@@ -244,7 +248,7 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
   }
 
   function adjustBet(multiplierValue) {
-    const nextBet = Math.max(1, Math.round(parseBetInput(betInput || betAmount) * multiplierValue));
+    const nextBet = Math.max(1000, Math.round(parseBetInput(betInput || betAmount) * multiplierValue));
     setBetAmount(nextBet);
     setBetInput(formatBetInput(nextBet));
   }

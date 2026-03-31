@@ -61,6 +61,11 @@ function formatRemainingTime(milliseconds) {
   return `${minutes}m ${seconds}s`;
 }
 
+function resolveCreatedAt(user) {
+  const createdAt = Date.parse(user?.createdAt || "");
+  return Number.isFinite(createdAt) ? createdAt : Date.now();
+}
+
 function formatMoney(value) {
   return `$${Number(value || 0).toFixed(2)}`;
 }
@@ -146,6 +151,9 @@ export function Dashboard() {
   const [tipForm, setTipForm] = useState({ username: "", amount: "100" });
   const [tipMessage, setTipMessage] = useState("");
   const [tipping, setTipping] = useState(false);
+  const [promoCodeInput, setPromoCodeInput] = useState("");
+  const [promoMessage, setPromoMessage] = useState("");
+  const [redeemingPromo, setRedeemingPromo] = useState(false);
   const [trackerOpen, setTrackerOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -372,7 +380,7 @@ export function Dashboard() {
       try {
         const data = await api.getChat(token);
         if (!cancelled) {
-          setChatMessages(data.messages || []);
+          setChatMessages((data.messages || []).slice(-30));
           setChatTimeoutUntil(data.timeoutUntil || 0);
           setChatError("");
         }
@@ -404,10 +412,6 @@ export function Dashboard() {
         const data = await api.getPlayers(token);
         if (!cancelled) {
           setPlayers(data.players || []);
-          setTipForm((current) => ({
-            ...current,
-            username: current.username || data.players?.[0]?.username || ""
-          }));
         }
       } catch {
         if (!cancelled) {
@@ -465,7 +469,7 @@ export function Dashboard() {
 
     try {
       const data = await api.sendChat(token, { text: chatInput });
-      setChatMessages(data.messages || []);
+      setChatMessages((data.messages || []).slice(-30));
       setChatTimeoutUntil(data.timeoutUntil || 0);
       setChatInput("");
       setChatError("");
@@ -547,12 +551,35 @@ export function Dashboard() {
   const availableRakeback = Math.max(Math.floor(totalWagered * 0.02) - totalRakebackClaimed, 0);
   const lastRakebackClaimAt = rakebackClaims.length ? Number(rakebackClaims[rakebackClaims.length - 1]?.claimedAt || 0) : 0;
   const rakebackCooldownRemaining = Math.max(0, 60 * 60 * 1000 - (bonusNow - lastRakebackClaimAt));
+  const accountCreatedAt = resolveCreatedAt(user);
+  const accountAgeMs = Math.max(0, bonusNow - accountCreatedAt);
 
   function creditBalance(amount) {
     setUser((current) => ({
       ...current,
       balance: Number(current.balance || 0) + Number(amount || 0)
     }));
+  }
+
+  async function handleRedeemPromo() {
+    if (!promoCodeInput.trim()) {
+      setPromoMessage("Enter a promo code first.");
+      return;
+    }
+
+    setRedeemingPromo(true);
+    setPromoMessage("");
+
+    try {
+      const data = await api.redeemPromoCode(token, { code: promoCodeInput });
+      setUser(data.user);
+      setPromoCodeInput("");
+      setPromoMessage(`${data.message} +${formatCompactMoney(data.amount)}`);
+    } catch (error) {
+      setPromoMessage(error.message);
+    } finally {
+      setRedeemingPromo(false);
+    }
   }
 
   function handleClaimBonus(key) {
@@ -563,7 +590,8 @@ export function Dashboard() {
 
     const existing = bonusClaims[key];
     const lastClaimedAt = Number(existing?.lastClaimedAt || 0);
-    if (bonusNow - lastClaimedAt < bonus.cooldownMs) {
+    const accountAgeRemaining = Math.max(0, bonus.cooldownMs - accountAgeMs);
+    if (accountAgeRemaining > 0 || bonusNow - lastClaimedAt < bonus.cooldownMs) {
       return;
     }
 
@@ -746,14 +774,22 @@ export function Dashboard() {
 
                   <div className="ml-auto flex overflow-hidden rounded-2xl bg-white/5">
                     <input
+                      value={promoCodeInput}
+                      onChange={(event) => setPromoCodeInput(event.target.value)}
                       className="bg-transparent px-4 py-3 text-sm text-white outline-none"
                       placeholder="Promo code"
                     />
-                    <button type="button" className="bg-white/10 px-4 py-3 text-sm font-semibold text-white">
-                      Claim
+                    <button
+                      type="button"
+                      onClick={handleRedeemPromo}
+                      disabled={redeemingPromo}
+                      className="bg-white/10 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
+                    >
+                      {redeemingPromo ? "Claiming..." : "Claim"}
                     </button>
                   </div>
                 </div>
+                {promoMessage && <p className="text-sm text-white/65">{promoMessage}</p>}
 
                 {walletTab === "deposit" ? (
                   <>
@@ -818,27 +854,34 @@ export function Dashboard() {
                           <div>
                             <p className="text-2xl font-black text-white">DonutSMP</p>
                             <p className="mt-2 text-sm text-white/70">
-                              Withdrawals route through your linked Minecraft account and the in-game bot flow.
+                              Withdrawals route through your linked Minecraft account once the DonutSMP bot is online.
                             </p>
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    <div className="rounded-[1.6rem] border border-white/6 bg-[#171824] p-6">
-                      <p className="text-lg font-semibold text-white">Withdrawals</p>
-                      <p className="mt-3 text-white/60">
-                        Join Discord for withdrawal support and live status updates while the DonutSMP bot flow is active.
-                      </p>
-                      <a
-                        href="https://discord.gg/nr3edCRG"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mt-5 inline-flex rounded-xl border border-indigo-400/35 bg-indigo-500/10 px-4 py-3 font-semibold text-indigo-200 transition hover:bg-indigo-500/20"
-                      >
-                        Join Discord
-                      </a>
-                    </div>
+                      <div className="rounded-[1.6rem] border border-white/6 bg-[#171824] p-6">
+                        <p className="text-lg font-semibold text-white">Withdrawals</p>
+                        <div className="mt-4 rounded-2xl border border-amber-300/15 bg-amber-500/10 px-4 py-4">
+                          <p className="text-xs uppercase tracking-[0.25em] text-amber-100/60">Minimum Withdraw</p>
+                          <p className="mt-2 text-3xl font-black text-white">10m</p>
+                          <p className="mt-2 text-sm text-white/65">
+                            Withdraw requests below 10m are not accepted through the DonutSMP flow.
+                          </p>
+                        </div>
+                        <p className="mt-4 text-white/60">
+                          Join Discord for withdrawal support, queue updates, and live status while the DonutSMP bot flow is active.
+                        </p>
+                        <a
+                          href="https://discord.gg/nr3edCRG"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-5 inline-flex rounded-xl border border-indigo-400/35 bg-indigo-500/10 px-4 py-3 font-semibold text-indigo-200 transition hover:bg-indigo-500/20"
+                        >
+                          Join Discord
+                        </a>
+                      </div>
                   </div>
                 )}
               </div>
@@ -1152,7 +1195,8 @@ export function Dashboard() {
             {Object.entries(BONUS_CONFIG).map(([key, bonus]) => {
               const lastClaimedAt = Number(bonusClaims[key]?.lastClaimedAt || 0);
               const remaining = Math.max(0, bonus.cooldownMs - (bonusNow - lastClaimedAt));
-              const available = remaining === 0;
+              const accountAgeRemaining = Math.max(0, bonus.cooldownMs - accountAgeMs);
+              const available = remaining === 0 && accountAgeRemaining === 0;
 
               return (
                 <div key={bonus.label} className="rounded-[1.8rem] border border-white/6 bg-[#171824] p-6">
@@ -1160,7 +1204,11 @@ export function Dashboard() {
                   <p className="mt-4 text-4xl font-black text-white">{formatCompactMoney(bonus.amount)}</p>
                   <p className="mt-4 min-h-[52px] text-sm leading-6 text-white/60">{bonus.meta}</p>
                   <div className="mt-4 rounded-xl bg-black/20 px-4 py-3 text-sm text-white/55">
-                    {available ? "Available now" : `Available in ${formatRemainingTime(remaining)}`}
+                    {accountAgeRemaining > 0
+                      ? `Requires ${formatRemainingTime(accountAgeRemaining)} more account age`
+                      : available
+                      ? "Available now"
+                      : `Available in ${formatRemainingTime(remaining)}`}
                   </div>
                   <button
                     type="button"
@@ -1530,10 +1578,12 @@ export function Dashboard() {
               </button>
               <button
                 type="button"
+                onClick={handleRedeemPromo}
                 className="mt-3 w-full rounded-xl bg-white/5 px-4 py-4 text-sm font-semibold text-white"
               >
                 Redeem Code
               </button>
+              {promoMessage && <p className="mt-3 text-sm text-white/60">{promoMessage}</p>}
             </div>
 
             <div className="rounded-[1.8rem] border border-white/6 bg-[#171824] p-6">
@@ -1992,7 +2042,7 @@ export function Dashboard() {
         )}
       </main>
 
-      <aside className="glass-panel hidden w-[240px] shrink-0 rounded-[2rem] p-4 xl:ml-6 xl:block">
+      <aside className="glass-panel hidden h-[calc(100vh-5rem)] w-[240px] shrink-0 rounded-[2rem] p-4 xl:ml-6 xl:sticky xl:top-6 xl:block">
         <div className="flex items-center justify-between rounded-2xl bg-white/5 px-4 py-3">
           <p className="font-semibold text-white">Chat</p>
           <p className="text-sm text-white/55">
@@ -2051,21 +2101,12 @@ export function Dashboard() {
         <div className="mt-4 rounded-2xl bg-white/5 p-4">
           <p className="text-sm font-semibold text-white">Tip a player</p>
           <div className="mt-3 space-y-2">
-            <select
+            <input
               value={tipForm.username}
               onChange={(event) => setTipForm((current) => ({ ...current, username: event.target.value }))}
               className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none"
-            >
-              {players.length === 0 ? (
-                <option value="">No players available</option>
-              ) : (
-                players.map((player) => (
-                  <option key={player.id} value={player.username}>
-                    {player.username}
-                  </option>
-                ))
-              )}
-            </select>
+              placeholder={players.length ? `Try ${players[0].username}` : "Player username"}
+            />
             <input
               value={tipForm.amount}
               onChange={(event) => setTipForm((current) => ({ ...current, amount: event.target.value }))}
@@ -2084,7 +2125,7 @@ export function Dashboard() {
           </div>
         </div>
 
-        <div className="mt-4 space-y-3">
+        <div className="mt-4 flex h-[360px] flex-col gap-3 overflow-y-auto pr-1">
           <div className="rounded-2xl border border-indigo-400/40 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-200">
             Join our Discord!
           </div>

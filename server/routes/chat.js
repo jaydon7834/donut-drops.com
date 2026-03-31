@@ -61,6 +61,9 @@ router.post("/", (req, res, next) => {
     };
 
     store.chatMessages.push(message);
+    if (store.chatMessages.length % 3 === 0) {
+      store.chatMessages.shift();
+    }
     store.chatMessages = store.chatMessages.slice(-60);
 
     const io = getIo();

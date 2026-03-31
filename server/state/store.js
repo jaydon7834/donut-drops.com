@@ -61,6 +61,10 @@ export async function initializeStore() {
     parsed.forEach((user) => {
       store.users.set(user.id, {
         ...user,
+        createdAt: user.createdAt || new Date().toISOString(),
+        redeemedPromoHashes: Array.isArray(user.redeemedPromoHashes)
+          ? user.redeemedPromoHashes
+          : [],
         stats: {
           winStreak: user.stats?.winStreak || 0,
           totalWagered: user.stats?.totalWagered || 0,

@@ -95,7 +95,7 @@ router.post("/step", (req, res, next) => {
     }
 
     game.step += 1;
-    game.multiplier = calculateChickenMultiplier(game.step, game.surviveChance);
+    game.multiplier = calculateChickenMultiplier(game.step, game.surviveChance, game.bet);
 
     return res.json({
       balance: req.user.balance,

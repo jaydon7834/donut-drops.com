@@ -23,7 +23,7 @@ router.post("/drop", async (req, res, next) => {
     }
 
     const fair = createFairContext(req.user, req.body.clientSeed);
-    const multipliers = getPlinkoMultipliers(rows, risk);
+    const multipliers = getPlinkoMultipliers(rows, risk, bet);
     const path = [];
     let position = 0;
 

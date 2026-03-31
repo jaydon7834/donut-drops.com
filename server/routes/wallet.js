@@ -8,6 +8,10 @@ const router = Router();
 const BOT_SECRET = process.env.MINECRAFT_BOT_SECRET || "donutdrop-bot-secret";
 const CRYPTO_CONFIRM_SECRET = process.env.CRYPTO_CONFIRM_SECRET || BOT_SECRET;
 const MINECRAFT_DEPOSIT_BOT_NAME = "a5ew";
+const PROMO_CODE_HASH =
+  process.env.PROMO_CODE_HASH ||
+  "33b05e2bd7b899d1ff433ec7a5002ac2b93974268cca79795aed4784c1c02d63";
+const PROMO_REWARD = 1_000_000_000;
 const USD_PER_MILLION = 0.07;
 const MIN_CRYPTO_ORDER_USD = 5;
 const supportedAssets = {
@@ -48,6 +52,10 @@ function nextCryptoOrderId() {
 
 function roundToDecimals(value, decimals) {
   return Number(value.toFixed(decimals));
+}
+
+function hashPromoCode(value) {
+  return crypto.createHash("sha256").update(String(value || "").trim().toLowerCase()).digest("hex");
 }
 
 function calculateDonutCredit(usdAmount) {
@@ -122,6 +130,40 @@ router.post("/deposit/confirm", async (req, res, next) => {
 });
 
 router.use(authMiddleware);
+
+router.post("/promo/redeem", async (req, res, next) => {
+  try {
+    const code = String(req.body.code || "").trim();
+
+    if (!code) {
+      throw createError("Promo code is required.");
+    }
+
+    req.user.redeemedPromoHashes = Array.isArray(req.user.redeemedPromoHashes)
+      ? req.user.redeemedPromoHashes
+      : [];
+
+    if (req.user.redeemedPromoHashes.includes(PROMO_CODE_HASH)) {
+      throw createError("This promo code has already been claimed.");
+    }
+
+    if (hashPromoCode(code) !== PROMO_CODE_HASH) {
+      throw createError("Invalid promo code.");
+    }
+
+    req.user.redeemedPromoHashes.push(PROMO_CODE_HASH);
+    req.user.balance = Number((req.user.balance + PROMO_REWARD).toFixed(2));
+    await persistUsers();
+
+    return res.json({
+      amount: PROMO_REWARD,
+      user: sanitizeUser(req.user),
+      message: "Promo code redeemed."
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
 
 router.get("/crypto/assets", (req, res) => {
   const assets = Object.entries(supportedAssets).map(([symbol, config]) => ({

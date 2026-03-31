@@ -20,7 +20,7 @@ router.post("/roll", async (req, res, next) => {
 
     const fair = createFairContext(req.user, req.body.clientSeed);
     const { hash } = hashToFloat(fair.serverSeed, fair.clientSeed, fair.nonce);
-    const rolledMultiplier = calculateLimboResultFromHash(hash);
+    const rolledMultiplier = calculateLimboResultFromHash(hash, bet);
 
     const win = rolledMultiplier >= target;
     const payout = win ? Number((bet * target).toFixed(2)) : 0;

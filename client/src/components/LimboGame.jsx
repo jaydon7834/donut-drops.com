@@ -4,8 +4,8 @@ import { api } from "../lib/api.js";
 import { formatBetInput, parseBetInput } from "../lib/betting.js";
 
 export function LimboGame({ token, user, onBalanceChange, onBack }) {
-  const [betAmount, setBetAmount] = useState(20);
-  const [betInput, setBetInput] = useState("20");
+  const [betAmount, setBetAmount] = useState(1000);
+  const [betInput, setBetInput] = useState("1k");
   const [target, setTarget] = useState(2);
   const [targetInput, setTargetInput] = useState("2.00");
   const [clientSeed, setClientSeed] = useState(user.clientSeed || "donutdrop-default");
@@ -32,7 +32,7 @@ export function LimboGame({ token, user, onBalanceChange, onBack }) {
   }
 
   function adjustBet(multiplierValue) {
-    const nextBet = Math.max(1, Math.round(parseBetInput(betInput || betAmount) * multiplierValue));
+    const nextBet = Math.max(1000, Math.round(parseBetInput(betInput || betAmount) * multiplierValue));
     setBetAmount(nextBet);
     setBetInput(formatBetInput(nextBet));
   }
@@ -106,7 +106,7 @@ export function LimboGame({ token, user, onBalanceChange, onBack }) {
                 value={betInput}
                 onChange={(event) => handleBetInputChange(event.target.value)}
                 className="w-full bg-transparent p-3 text-white outline-none"
-                placeholder="1m"
+                placeholder="1k"
               />
               <div className="flex items-center gap-1 pr-2">
                 <button type="button" onClick={() => adjustBet(0.5)} className="rounded-lg bg-white/10 px-2 py-1 text-xs font-semibold text-white">
@@ -124,7 +124,7 @@ export function LimboGame({ token, user, onBalanceChange, onBack }) {
             <input
               value={targetInput}
               onChange={(event) => handleTargetChange(event.target.value)}
-              className="mt-2 w-full p-3 bg-[#1e293b] rounded-xl text-white outline-none"
+              className="mt-2 w-full rounded-xl bg-[#1e293b] p-3 text-white outline-none"
             />
           </div>
 
@@ -147,7 +147,7 @@ export function LimboGame({ token, user, onBalanceChange, onBack }) {
             <input
               value={clientSeed}
               onChange={(event) => setClientSeed(event.target.value)}
-              className="mt-2 w-full p-3 bg-[#1e293b] rounded-xl text-white outline-none"
+              className="mt-2 w-full rounded-xl bg-[#1e293b] p-3 text-white outline-none"
             />
           </div>
 
@@ -155,7 +155,7 @@ export function LimboGame({ token, user, onBalanceChange, onBack }) {
             type="button"
             onClick={playLimbo}
             disabled={rolling}
-            className="w-full bg-green-500 hover:bg-green-600 p-3 rounded-xl font-bold text-slate-950 disabled:opacity-50"
+            className="w-full rounded-xl bg-green-500 p-3 font-bold text-slate-950 transition hover:bg-green-600 disabled:opacity-50"
           >
             {rolling ? "Rolling..." : "Place Bet"}
           </button>
@@ -180,7 +180,7 @@ export function LimboGame({ token, user, onBalanceChange, onBack }) {
         }`}
       >
         <div className="flex h-full w-full flex-col items-center justify-center overflow-hidden">
-          <div className="text-gray-400 mb-4">ROLLED MULTIPLIER</div>
+          <div className="mb-4 text-gray-400">ROLLED MULTIPLIER</div>
 
           <motion.div
             key={multiplier ?? "idle"}
@@ -211,9 +211,17 @@ export function LimboGame({ token, user, onBalanceChange, onBack }) {
             {multiplier ? `${multiplier}x` : "--"}
           </motion.div>
 
-          <div className="mt-6 text-xl">
-            {result === "win" && <span className="text-green-400">YOU WON 💰</span>}
-            {result === "lose" && <span className="text-red-400">YOU LOST 💀</span>}
+          <div className="mt-6 grid gap-3 text-center">
+            <div className="rounded-2xl bg-white/5 px-5 py-4 text-sm text-white/70">
+              Need at least <span className="font-semibold text-white">{target.toFixed(2)}x</span> to win.
+            </div>
+            <div className="rounded-2xl bg-white/5 px-5 py-4 text-sm text-white/70">
+              Payout on win: <span className="font-semibold text-white">${(parseBetInput(betInput) * target).toFixed(2)}</span>
+            </div>
+            <div className="text-xl">
+              {result === "win" && <span className="text-green-400">YOU WON</span>}
+              {result === "lose" && <span className="text-red-400">YOU LOST</span>}
+            </div>
           </div>
 
           {feedback && <p className="mt-5 text-sm text-white/65">{feedback}</p>}

@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
+import { applyHouseEdge } from "../utils/gameMath.js";
 import { nextGameId, persistUsers, pushRecentGame, store } from "../state/store.js";
 import { createError, ensurePositiveBet } from "../utils/helpers.js";
 
@@ -205,7 +206,7 @@ router.post("/stand", async (req, res, next) => {
 
     if (dealerValue > 21 || playerValue > dealerValue) {
       result = "win";
-      payout = game.bet * 2;
+      payout = game.bet * applyHouseEdge(2, 2, game.bet);
     } else if (playerValue === dealerValue) {
       result = "draw";
       payout = game.bet;

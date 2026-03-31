@@ -51,6 +51,15 @@ export const api = {
     ),
   getDepositSession: (token, sessionId) => request(`/wallet/deposit/session/${sessionId}`, {}, token),
   getCryptoAssets: (token) => request("/wallet/crypto/assets", {}, token),
+  redeemPromoCode: (token, payload) =>
+    request(
+      "/wallet/promo/redeem",
+      {
+        method: "POST",
+        body: JSON.stringify(payload)
+      },
+      token
+    ),
   createCryptoOrder: (token, payload) =>
     request(
       "/wallet/crypto/order",

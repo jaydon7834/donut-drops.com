@@ -23,7 +23,7 @@ router.post("/roll", async (req, res, next) => {
     const fair = createFairContext(req.user, clientSeed);
     const result = generateDiceResult(fair);
     const isWin = over ? result.roll > target : result.roll < target;
-    const multiplier = calculateDiceMultiplier(target, over);
+    const multiplier = calculateDiceMultiplier(target, over, bet);
     const payout = isWin ? Number((bet * multiplier).toFixed(2)) : 0;
     const gameId = nextGameId("dice");
 

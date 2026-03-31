@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
 import { nextGameId, persistUsers, pushRecentGame, store } from "../state/store.js";
+import { applyHouseEdge } from "../utils/gameMath.js";
 import { createFairContext, hashToFloat } from "../utils/provablyFair.js";
 import { createError, ensurePositiveBet } from "../utils/helpers.js";
 
@@ -50,7 +51,9 @@ router.post("/spin", async (req, res, next) => {
 
       if (selectedColor === color) {
         win = true;
-        payout = selectedColor === "green" ? bet * 14 : bet * 2;
+        payout = selectedColor === "green"
+          ? bet * applyHouseEdge(14, 2, bet)
+          : bet * applyHouseEdge(2, 2, bet);
       }
     } else if (type === "number") {
       const selectedNumber = Number(req.body.value);
@@ -61,7 +64,7 @@ router.post("/spin", async (req, res, next) => {
 
       if (selectedNumber === number) {
         win = true;
-        payout = bet * 36;
+        payout = bet * applyHouseEdge(36, 2, bet);
       }
     } else {
       throw createError("Unsupported roulette bet type.");

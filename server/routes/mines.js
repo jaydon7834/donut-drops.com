@@ -139,7 +139,8 @@ router.post("/click", (req, res, next) => {
 
     game.multiplier = calculateMinesMultiplier(
       game.minePositions.length,
-      game.revealedTiles.length
+      game.revealedTiles.length,
+      game.bet
     );
     const payoutPreview = Number((game.bet * game.multiplier).toFixed(2));
 

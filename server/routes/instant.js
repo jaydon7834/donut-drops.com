@@ -8,6 +8,7 @@ import {
   store
 } from "../state/store.js";
 import { emitToUser, getIo } from "../socket.js";
+import { applyHouseEdge } from "../utils/gameMath.js";
 import { createFairContext, generateDiceResult } from "../utils/provablyFair.js";
 import { createError, ensurePositiveBet } from "../utils/helpers.js";
 
@@ -44,6 +45,7 @@ const CASE_REWARDS = [
     weight: 0.04
   }
 ];
+const CASE_EDGE_FACTOR = 0.56;
 
 function getCaseReward(rawValue) {
   let cursor = 0;
@@ -105,7 +107,7 @@ function resolveInstantResult(gameType, rawValue, payload) {
 
     return {
       title: isPush ? "Push" : isWin ? "Player Wins" : "Dealer Wins",
-      multiplier: isPush ? 1 : isWin ? 2 : 0,
+      multiplier: isPush ? 1 : isWin ? applyHouseEdge(2, 2, payload.bet) : 0,
       details: { player, dealer }
     };
   }
@@ -115,7 +117,7 @@ function resolveInstantResult(gameType, rawValue, payload) {
     const selection = payload.selection || "red";
     const color = pocket === 0 ? "green" : pocket % 2 === 0 ? "black" : "red";
     const isWin = selection === color;
-    const multiplier = color === "green" ? 14 : 2;
+    const multiplier = applyHouseEdge(color === "green" ? 14 : 2, 2, payload.bet);
 
     return {
       title: `${color.toUpperCase()} ${pocket}`,
@@ -131,13 +133,15 @@ function resolveInstantResult(gameType, rawValue, payload) {
 
     return {
       title: isWin ? "Target Cleared" : "Target Missed",
-      multiplier: isWin ? targetMultiplier : 0,
+      multiplier: isWin ? applyHouseEdge(targetMultiplier, 2, payload.bet) : 0,
       details: { rolledMultiplier, targetMultiplier }
     };
   }
 
   if (gameType === "plinko") {
-    const buckets = [0.2, 0.5, 0.8, 1, 1.4, 2, 4, 2, 1.4, 1, 0.8, 0.5, 0.2];
+    const buckets = [0.2, 0.5, 0.8, 1, 1.4, 2, 4, 2, 1.4, 1, 0.8, 0.5, 0.2].map((value) =>
+      applyHouseEdge(value, 2, payload.bet)
+    );
     const slot = Math.floor(rawValue * buckets.length);
     const multiplier = buckets[slot];
 
@@ -153,7 +157,7 @@ function resolveInstantResult(gameType, rawValue, payload) {
 
     return {
       title: `${reward.rarity.toUpperCase()} DROP`,
-      multiplier: reward.multiplier,
+      multiplier: Number((reward.multiplier * CASE_EDGE_FACTOR).toFixed(2)),
       details: {
         reward: reward.label,
         rarity: reward.rarity,
@@ -170,7 +174,7 @@ function resolveInstantResult(gameType, rawValue, payload) {
 
     return {
       title: isWin ? "Chicken Escaped" : "Chicken Flattened",
-      multiplier: isWin ? cashedMultiplier : 0,
+      multiplier: isWin ? applyHouseEdge(cashedMultiplier, 2, payload.bet) : 0,
       details: { steps }
     };
   }
@@ -298,6 +302,7 @@ router.post("/case-battles/:battleId/join", async (req, res, next) => {
     const hostDrop = rollCaseBattleDrop(hostUser, battle.host.clientSeed);
     const joinerDrop = rollCaseBattleDrop(req.user, req.body.clientSeed);
     const pot = Number((bet * 2).toFixed(2));
+    const winnerPayout = Number((pot * CASE_EDGE_FACTOR).toFixed(2));
 
     let hostPayout = 0;
     let joinerPayout = 0;
@@ -305,11 +310,11 @@ router.post("/case-battles/:battleId/join", async (req, res, next) => {
     let title = "Case Battle Push";
 
     if (hostDrop.reward.multiplier > joinerDrop.reward.multiplier) {
-      hostPayout = pot;
+      hostPayout = winnerPayout;
       winnerId = hostUser.id;
       title = `${hostUser.username} won the battle`;
     } else if (joinerDrop.reward.multiplier > hostDrop.reward.multiplier) {
-      joinerPayout = pot;
+      joinerPayout = winnerPayout;
       winnerId = req.user.id;
       title = `${req.user.username} won the battle`;
     } else {
