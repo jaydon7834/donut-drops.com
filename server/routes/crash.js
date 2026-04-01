@@ -19,6 +19,7 @@ const POST_CRASH_MS = 4_500;
 const TICK_MS = 150;
 const MAX_CRASH_POINT = 1_000;
 const GROWTH_RATE = 0.18;
+const MIN_AUTO_CASHOUT = 1.01;
 const CRASH_BOT_NAMES = [
   "cam",
   "arxhive",
@@ -32,22 +33,7 @@ const CRASH_BOT_NAMES = [
   "skellicuh",
   "casino800m"
 ];
-const CRASH_BOT_BETS = [
-  10,
-  20,
-  35,
-  50,
-  75,
-  100,
-  150,
-  200,
-  250,
-  500,
-  1_000,
-  2_500,
-  5_000,
-  10_000
-];
+const CRASH_BOT_BETS = [10, 20, 35, 50, 75, 100, 150, 200, 250, 500, 1_000, 2_500, 5_000, 10_000];
 
 function getCrashStore() {
   return store.crash;
@@ -61,15 +47,29 @@ function pickCrashBotBet() {
   return CRASH_BOT_BETS[Math.floor(Math.random() * CRASH_BOT_BETS.length)];
 }
 
-function getCrashBotCashoutTarget(crashPoint) {
-  const roll = Math.random();
-
-  if (roll < 0.22) {
+function sanitizeAutoCashout(value) {
+  if (value === null || value === undefined || value === "") {
     return null;
   }
 
-  const headroom = Math.max(1.05, crashPoint * (0.65 + Math.random() * 0.22));
-  return Number(Math.max(1.05, Math.min(headroom, crashPoint - 0.02)).toFixed(2));
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed) || parsed < MIN_AUTO_CASHOUT) {
+    throw createError(`Auto cashout must be at least ${MIN_AUTO_CASHOUT.toFixed(2)}x.`);
+  }
+
+  return Number(parsed.toFixed(2));
+}
+
+function getCrashBotCashoutTarget(crashPoint) {
+  const roll = Math.random();
+
+  if (roll < 0.24) {
+    return null;
+  }
+
+  const target = crashPoint * (0.62 + Math.random() * 0.24);
+  return Number(Math.max(MIN_AUTO_CASHOUT, Math.min(target, crashPoint - 0.02)).toFixed(2));
 }
 
 function createCrashBots(roundId, crashPoint) {
@@ -84,12 +84,12 @@ function createCrashBots(roundId, crashPoint) {
       userId: `crash_bot_${roundId}_${index + 1}`,
       username,
       bet,
+      autoCashout: getCrashBotCashoutTarget(crashPoint),
       payout: 0,
       cashedOut: false,
       cashoutMultiplier: 0,
       resolved: false,
-      isBot: true,
-      targetCashoutMultiplier: getCrashBotCashoutTarget(crashPoint)
+      isBot: true
     };
   });
 }
@@ -121,9 +121,11 @@ function getCrashPoint(roundNumber) {
 
 function serializePlayer(player, userId) {
   return {
+    entryId: player.entryId,
     userId: player.userId,
     username: player.username,
     bet: player.bet,
+    autoCashout: player.autoCashout || null,
     status: player.cashedOut ? "cashed" : player.resolved ? "lost" : "active",
     payout: player.payout || 0,
     cashoutMultiplier: player.cashoutMultiplier || 0,
@@ -146,12 +148,12 @@ function serializeCrashRound(round, userId) {
       players: [],
       playerCount: 0,
       totalBet: 0,
-      activeBet: null
+      activeBets: []
     };
   }
 
   const players = Array.from(round.players.values()).map((player) => serializePlayer(player, userId));
-  const activeBet = userId ? players.find((player) => player.userId === userId) || null : null;
+  const activeBets = userId ? players.filter((player) => player.userId === userId) : [];
 
   return {
     roundId: round.roundId,
@@ -164,8 +166,10 @@ function serializeCrashRound(round, userId) {
     history: round.history.slice(-120),
     players,
     playerCount: players.length,
-    totalBet: Number(Array.from(round.players.values()).reduce((sum, player) => sum + player.bet, 0).toFixed(2)),
-    activeBet
+    totalBet: Number(
+      Array.from(round.players.values()).reduce((sum, player) => sum + Number(player.bet || 0), 0).toFixed(2)
+    ),
+    activeBets
   };
 }
 
@@ -176,6 +180,32 @@ function emitCrashState() {
   }
 
   io.emit("crash:state", serializeCrashRound(getCrashStore().currentRound));
+}
+
+function settlePlayerWin(player, multiplier) {
+  const safeMultiplier = Number(multiplier.toFixed(2));
+  player.cashedOut = true;
+  player.cashoutMultiplier = safeMultiplier;
+  player.payout = Number((player.bet * safeMultiplier).toFixed(2));
+
+  if (player.isBot) {
+    return;
+  }
+
+  const user = store.users.get(player.userId);
+  if (!user) {
+    return;
+  }
+
+  user.balance = Number((user.balance + player.payout).toFixed(2));
+  pushRecentGame({
+    _id: player.entryId,
+    userId: player.userId,
+    gameType: "crash",
+    betAmount: player.bet,
+    profit: Number((player.payout - player.bet).toFixed(2)),
+    status: "won"
+  });
 }
 
 async function settleCrashRound(round) {
@@ -252,6 +282,23 @@ async function crashCurrentRound() {
   }, POST_CRASH_MS);
 }
 
+function processAutoCashouts(round) {
+  let changed = false;
+
+  for (const player of round.players.values()) {
+    if (player.cashedOut || player.resolved || !player.autoCashout) {
+      continue;
+    }
+
+    if (round.multiplier >= player.autoCashout && player.autoCashout < round.crashPoint) {
+      settlePlayerWin(player, player.autoCashout);
+      changed = true;
+    }
+  }
+
+  return changed;
+}
+
 async function startCrashRound() {
   const crashState = getCrashStore();
 
@@ -287,7 +334,7 @@ async function startCrashRound() {
   };
 
   createCrashBots(roundId, fair.crashPoint).forEach((bot) => {
-    crashState.currentRound.players.set(bot.userId, bot);
+    crashState.currentRound.players.set(bot.entryId, bot);
   });
 
   emitCrashState();
@@ -314,20 +361,11 @@ async function startCrashRound() {
       activeRound.history.push(activeRound.multiplier);
       activeRound.history = activeRound.history.slice(-160);
 
-      for (const player of activeRound.players.values()) {
-        if (!player.isBot || player.cashedOut || player.resolved) {
-          continue;
-        }
-
-        if (
-          player.targetCashoutMultiplier &&
-          activeRound.multiplier >= player.targetCashoutMultiplier &&
-          player.targetCashoutMultiplier < activeRound.crashPoint
-        ) {
-          player.cashedOut = true;
-          player.cashoutMultiplier = player.targetCashoutMultiplier;
-          player.payout = Number((player.bet * player.cashoutMultiplier).toFixed(2));
-        }
+      const autoChanged = processAutoCashouts(activeRound);
+      if (autoChanged) {
+        persistUsers().catch((error) => {
+          console.error("Failed to persist auto cashout state", error);
+        });
       }
 
       emitCrashState();
@@ -368,23 +406,22 @@ router.post("/bet", async (req, res, next) => {
       throw createError("Betting is closed for this crash round.", 400);
     }
 
-    if (round.players.has(req.user.id)) {
-      throw createError("You already joined this crash round.", 409);
-    }
-
     const bet = ensurePositiveBet(req.body.bet, req.user.balance);
+    const autoCashout = sanitizeAutoCashout(req.body.autoCashout);
     const entryId = nextGameId("crash");
 
     req.user.balance = Number((req.user.balance - bet).toFixed(2));
-    round.players.set(req.user.id, {
+    round.players.set(entryId, {
       entryId,
       userId: req.user.id,
       username: req.user.username,
       bet,
+      autoCashout,
       payout: 0,
       cashedOut: false,
       cashoutMultiplier: 0,
-      resolved: false
+      resolved: false,
+      isBot: false
     });
 
     await persistUsers();
@@ -407,40 +444,32 @@ router.post("/cashout", async (req, res, next) => {
       throw createError("Crash is not live right now.", 400);
     }
 
-    const player = round.players.get(req.user.id);
+    const entryId = String(req.body.entryId || "");
+    const player = round.players.get(entryId);
 
-    if (!player) {
-      throw createError("You are not in this crash round.", 404);
+    if (!player || player.userId !== req.user.id) {
+      throw createError("That crash bet is not yours.", 404);
     }
 
     if (player.cashedOut) {
-      throw createError("You already cashed out.", 409);
+      throw createError("You already cashed out this bet.", 409);
+    }
+
+    if (player.resolved) {
+      throw createError("This crash bet has already ended.", 409);
     }
 
     const multiplier = Math.min(getCurrentMultiplier(round), round.crashPoint);
-    const payout = Number((player.bet * multiplier).toFixed(2));
-
-    player.cashedOut = true;
-    player.cashoutMultiplier = multiplier;
-    player.payout = payout;
-    req.user.balance = Number((req.user.balance + payout).toFixed(2));
-
-    pushRecentGame({
-      _id: player.entryId,
-      userId: req.user.id,
-      gameType: "crash",
-      betAmount: player.bet,
-      profit: Number((payout - player.bet).toFixed(2)),
-      status: "won"
-    });
+    settlePlayerWin(player, multiplier);
 
     await persistUsers();
     emitCrashState();
 
     return res.json({
       balance: req.user.balance,
-      payout,
-      multiplier,
+      payout: player.payout,
+      multiplier: player.cashoutMultiplier,
+      entryId: player.entryId,
       round: serializeCrashRound(round, req.user.id)
     });
   } catch (error) {

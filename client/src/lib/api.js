@@ -206,11 +206,12 @@ export const api = {
       },
       token
     ),
-  cashoutCrash: (token) =>
+  cashoutCrash: (token, payload) =>
     request(
       "/game/crash/cashout",
       {
-        method: "POST"
+        method: "POST",
+        body: JSON.stringify(payload)
       },
       token
     ),

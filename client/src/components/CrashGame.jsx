@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { api } from "../lib/api.js";
 import { createAppSocket } from "../lib/socket.js";
@@ -24,26 +24,84 @@ function formatMoney(value) {
   return `$${amount.toFixed(2)}`;
 }
 
-function buildCrashPath(history) {
-  const points = history?.length ? history : [1];
+function buildCrashPoints(history) {
+  const points = Array.isArray(history) && history.length ? history : [1];
   const maxValue = Math.max(...points, 1.1);
 
-  return points
-    .map((value, index) => {
-      const x = (index / Math.max(points.length - 1, 1)) * 100;
-      const normalized = Math.log(value) / Math.log(maxValue);
-      const y = 88 - normalized * 72;
-      return `${index === 0 ? "M" : "L"} ${x} ${Math.max(12, y)}`;
-    })
-    .join(" ");
+  return points.map((value, index) => {
+    const x = (index / Math.max(points.length - 1, 1)) * 100;
+    const normalized = Math.log(Math.max(value, 1)) / Math.log(maxValue);
+    const y = 90 - normalized * 78;
+    return { x, y: Math.max(10, y) };
+  });
 }
 
-export function CrashGame({ token, user, onBalanceChange, onBack }) {
-  const [betInput, setBetInput] = useState("20");
+function buildLinePath(points) {
+  if (!points.length) {
+    return "";
+  }
+
+  if (points.length === 1) {
+    return `M ${points[0].x} ${points[0].y}`;
+  }
+
+  let path = `M ${points[0].x} ${points[0].y}`;
+
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const current = points[index];
+    const next = points[index + 1];
+    const controlX = (current.x + next.x) / 2;
+    path += ` C ${controlX} ${current.y}, ${controlX} ${next.y}, ${next.x} ${next.y}`;
+  }
+
+  return path;
+}
+
+function buildAreaPath(points, linePath) {
+  if (!points.length || !linePath) {
+    return "";
+  }
+
+  const first = points[0];
+  const last = points[points.length - 1];
+  return `${linePath} L ${last.x} 100 L ${first.x} 100 Z`;
+}
+
+function formatCountdown(milliseconds) {
+  return `${Math.max(0, Math.ceil(milliseconds / 1000))}s`;
+}
+
+function getStatusTone(status) {
+  if (status === "crashed") {
+    return "rose";
+  }
+
+  if (status === "running") {
+    return "emerald";
+  }
+
+  return "sky";
+}
+
+function createBetSlip() {
+  return {
+    id: `slip_${Math.random().toString(36).slice(2, 9)}`,
+    amount: "20",
+    autoCashout: ""
+  };
+}
+
+export function CrashGame({ token, user, onBalanceChange }) {
   const [round, setRound] = useState(null);
   const [history, setHistory] = useState([]);
   const [feedback, setFeedback] = useState("");
   const [loading, setLoading] = useState("");
+  const [displayMultiplier, setDisplayMultiplier] = useState(1);
+  const [impactFlash, setImpactFlash] = useState(false);
+  const [betSlips, setBetSlips] = useState([createBetSlip()]);
+  const previousStatusRef = useRef("");
+  const animationFrameRef = useRef(0);
+  const displayMultiplierRef = useRef(1);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,6 +112,9 @@ export function CrashGame({ token, user, onBalanceChange, onBack }) {
         if (!cancelled) {
           setRound(data.round);
           setHistory(data.history || []);
+          const initialMultiplier = Number(data.round?.multiplier || 1);
+          displayMultiplierRef.current = initialMultiplier;
+          setDisplayMultiplier(initialMultiplier);
         }
       } catch (error) {
         if (!cancelled) {
@@ -73,54 +134,126 @@ export function CrashGame({ token, user, onBalanceChange, onBack }) {
 
       setRound(payload);
 
-      const self = payload?.activeBet;
+      const myEntries = payload?.activeBets || [];
+      const activeEntries = myEntries.filter((entry) => entry.status === "active");
+      const cashedEntries = myEntries.filter((entry) => entry.status === "cashed");
 
-      if (payload?.status === "crashed" && self?.status === "active") {
+      if (payload?.status === "crashed" && activeEntries.length > 0) {
         triggerGameEffect("loss");
       }
 
-      if (payload?.status === "crashed" && self?.status === "cashed") {
-        triggerGameEffect(self.payout >= self.bet * 3 ? "big-win" : "win");
+      if (payload?.status === "crashed" && cashedEntries.length > 0) {
+        const biggestPayout = Math.max(...cashedEntries.map((entry) => Number(entry.payout || 0)), 0);
+        triggerGameEffect(biggestPayout >= 3 * Math.max(...cashedEntries.map((entry) => Number(entry.bet || 0)), 1) ? "big-win" : "win");
       }
     });
 
     return () => {
       cancelled = true;
+      cancelAnimationFrame(animationFrameRef.current);
       socket.disconnect();
     };
   }, [token, user]);
 
-  const currentMultiplier = Number(round?.multiplier || 1).toFixed(2);
-  const graphPath = useMemo(() => buildCrashPath(round?.history || [1]), [round?.history]);
-  const countdownSeconds = Math.max(
-    0,
-    Math.ceil(((round?.bettingClosesAt || 0) - Date.now()) / 1000)
-  );
-  const activeBet = round?.activeBet;
-  const canJoin = round?.status === "countdown" && !activeBet;
-  const canCashout = round?.status === "running" && activeBet?.status === "active";
+  useEffect(() => {
+    const nextValue = Number(round?.status === "crashed" ? round?.crashPoint || 1 : round?.multiplier || 1);
+
+    cancelAnimationFrame(animationFrameRef.current);
+
+    const startValue = displayMultiplierRef.current;
+    const startedAt = performance.now();
+    const duration = round?.status === "running" ? 170 : 360;
+
+    function tick(now) {
+      const progress = Math.min((now - startedAt) / duration, 1);
+      const eased = 1 - (1 - progress) ** 3;
+      const value = startValue + (nextValue - startValue) * eased;
+
+      displayMultiplierRef.current = value;
+      setDisplayMultiplier(value);
+
+      if (progress < 1) {
+        animationFrameRef.current = requestAnimationFrame(tick);
+      }
+    }
+
+    animationFrameRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      cancelAnimationFrame(animationFrameRef.current);
+    };
+  }, [round?.multiplier, round?.crashPoint, round?.status]);
+
+  useEffect(() => {
+    if (previousStatusRef.current !== "crashed" && round?.status === "crashed") {
+      setImpactFlash(true);
+      window.setTimeout(() => setImpactFlash(false), 360);
+    }
+
+    previousStatusRef.current = round?.status || "";
+  }, [round?.status]);
+
+  const currentMultiplier = `${displayMultiplier.toFixed(2)}x`;
+  const chartPoints = useMemo(() => buildCrashPoints(round?.history || [1]), [round?.history]);
+  const linePath = useMemo(() => buildLinePath(chartPoints), [chartPoints]);
+  const areaPath = useMemo(() => buildAreaPath(chartPoints, linePath), [chartPoints, linePath]);
+  const activeBets = round?.activeBets || [];
+  const liveEntries = activeBets.filter((entry) => entry.status === "active");
+  const cashedEntries = activeBets.filter((entry) => entry.status === "cashed");
   const players = round?.players || [];
+  const countdownLabel = formatCountdown((round?.bettingClosesAt || 0) - Date.now());
+  const statusTone = getStatusTone(round?.status);
+  const totalPlayerExposure = activeBets.reduce((sum, entry) => sum + Number(entry.bet || 0), 0);
+  const projectedCashout = liveEntries.reduce((sum, entry) => sum + Number(entry.bet || 0) * Number(round?.multiplier || 1), 0);
+  const topPlayers = [...players].sort((left, right) => Number(right.bet || 0) - Number(left.bet || 0));
+  const particleDots = useMemo(
+    () =>
+      Array.from({ length: 36 }, (_, index) => ({
+        id: index,
+        left: `${(index * 19) % 100}%`,
+        top: `${(index * 29) % 100}%`,
+        size: 2 + (index % 3),
+        duration: 10 + (index % 7) * 1.8,
+        delay: (index % 5) * 0.6
+      })),
+    []
+  );
 
-  function handleBetInputChange(value) {
-    setBetInput(value);
+  function updateBetSlip(id, key, value) {
+    setBetSlips((current) =>
+      current.map((slip) => (slip.id === id ? { ...slip, [key]: value } : slip))
+    );
   }
 
-  function adjustBet(multiplier) {
-    const nextBet = Math.max(1, Math.round(parseBetInput(betInput || 0) * multiplier));
-    setBetInput(formatBetInput(nextBet));
+  function addBetSlip() {
+    setBetSlips((current) => [...current, createBetSlip()]);
   }
 
-  async function handleJoin() {
+  function removeBetSlip(id) {
+    setBetSlips((current) => (current.length === 1 ? current : current.filter((slip) => slip.id !== id)));
+  }
+
+  async function handlePlaceAllBets() {
     setLoading("join");
     setFeedback("");
 
     try {
-      const data = await api.placeCrashBet(token, {
-        bet: parseBetInput(betInput)
-      });
-      setRound(data.round);
-      onBalanceChange(data.balance);
-      setFeedback("You joined the live crash round.");
+      let latestBalance = user?.balance || 0;
+      let latestRound = round;
+
+      for (const slip of betSlips) {
+        const data = await api.placeCrashBet(token, {
+          bet: parseBetInput(slip.amount),
+          autoCashout: slip.autoCashout ? Number(slip.autoCashout) : null
+        });
+        latestBalance = data.balance;
+        latestRound = data.round;
+      }
+
+      setRound(latestRound);
+      onBalanceChange(latestBalance);
+      setFeedback(`Placed ${betSlips.length} crash ${betSlips.length === 1 ? "bet" : "bets"} into the live round.`);
+      setBetSlips([createBetSlip()]);
     } catch (error) {
       setFeedback(error.message);
     } finally {
@@ -128,15 +261,15 @@ export function CrashGame({ token, user, onBalanceChange, onBack }) {
     }
   }
 
-  async function handleCashout() {
-    setLoading("cashout");
+  async function handleCashout(entryId) {
+    setLoading(entryId);
     setFeedback("");
 
     try {
-      const data = await api.cashoutCrash(token);
+      const data = await api.cashoutCrash(token, { entryId });
       setRound(data.round);
       onBalanceChange(data.balance);
-      triggerGameEffect(data.payout >= parseBetInput(betInput) * 3 ? "big-win" : "win");
+      triggerGameEffect(data.payout >= 3 * Number(activeBets.find((entry) => entry.entryId === entryId)?.bet || 1) ? "big-win" : "win");
       setFeedback(`Cashed out at ${data.multiplier.toFixed(2)}x for ${formatMoney(data.payout)}.`);
     } catch (error) {
       setFeedback(error.message);
@@ -149,129 +282,287 @@ export function CrashGame({ token, user, onBalanceChange, onBack }) {
     <div className="space-y-4 text-white">
       <div>
         <p className="text-xs uppercase tracking-[0.3em] text-indigo-200/65">Crash Bet</p>
-        <h2 className="mt-3 text-3xl font-black text-white">Ride the curve</h2>
+        <h2 className="mt-3 text-3xl font-black text-white">Time the escape</h2>
+        <p className="mt-3 text-sm leading-6 text-white/60">
+          Stack multiple slips before launch, set auto cashouts, or ride them manually once the room goes live.
+        </p>
       </div>
 
-      <div>
-        <p className="text-sm text-gray-400">Bet Amount</p>
-        <div className="mt-2 flex overflow-hidden rounded-lg bg-[#1e293b]">
-          <input
-            value={betInput}
-            onChange={(event) => handleBetInputChange(event.target.value)}
-            className="w-full bg-transparent p-3 text-white outline-none"
-            placeholder="1m"
-          />
-          <div className="flex items-center gap-1 pr-2">
-            <button type="button" onClick={() => adjustBet(0.5)} className="rounded-lg bg-white/10 px-2 py-1 text-xs font-semibold text-white">
-              1/2
-            </button>
-            <button type="button" onClick={() => adjustBet(2)} className="rounded-lg bg-white/10 px-2 py-1 text-xs font-semibold text-white">
-              2x
-            </button>
+      <div className="space-y-3">
+        {betSlips.map((slip, index) => (
+          <div key={slip.id} className="rounded-2xl border border-white/10 bg-[#171b2a] p-3">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs font-bold uppercase tracking-[0.24em] text-white/45">Bet {index + 1}</p>
+              {betSlips.length > 1 ? (
+                <button type="button" onClick={() => removeBetSlip(slip.id)} className="text-xs font-semibold text-rose-200/80">
+                  Remove
+                </button>
+              ) : null}
+            </div>
+
+            <div className="mt-3 space-y-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.18em] text-white/45">Amount</p>
+                <div className="mt-2 flex overflow-hidden rounded-xl border border-white/10 bg-[#1e293b]">
+                  <input
+                    value={slip.amount}
+                    onChange={(event) => updateBetSlip(slip.id, "amount", event.target.value)}
+                    className="w-full bg-transparent p-3 text-white outline-none"
+                    placeholder="1m"
+                  />
+                  <div className="flex items-center gap-1 pr-2">
+                    <button type="button" onClick={() => updateBetSlip(slip.id, "amount", formatBetInput(Math.max(1, Math.round(parseBetInput(slip.amount || 0) * 0.5))))} className="rounded-lg bg-white/10 px-2 py-1 text-xs font-semibold text-white">
+                      1/2
+                    </button>
+                    <button type="button" onClick={() => updateBetSlip(slip.id, "amount", formatBetInput(Math.max(1, Math.round(parseBetInput(slip.amount || 0) * 2))))} className="rounded-lg bg-white/10 px-2 py-1 text-xs font-semibold text-white">
+                      2x
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs uppercase tracking-[0.18em] text-white/45">Auto Cashout</p>
+                <input
+                  value={slip.autoCashout}
+                  onChange={(event) => updateBetSlip(slip.id, "autoCashout", event.target.value)}
+                  className="mt-2 w-full rounded-xl border border-white/10 bg-[#1e293b] p-3 text-white outline-none"
+                  placeholder="2.00"
+                />
+              </div>
+            </div>
           </div>
-        </div>
+        ))}
       </div>
 
-      <div className="rounded-2xl bg-[#171b2a] p-4">
+      <button
+        type="button"
+        onClick={addBetSlip}
+        className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/10"
+      >
+        + Add Bet
+      </button>
+
+      <div className="rounded-2xl border border-white/8 bg-[#171b2a] p-4">
         <div className="flex items-center justify-between">
           <p className="text-white/65">Round</p>
           <span className="font-bold text-white">{round?.roundId || "Loading"}</span>
         </div>
         <div className="mt-3 flex items-center justify-between">
           <p className="text-white/65">Status</p>
-          <span className="font-bold text-white capitalize">{round?.status || "idle"}</span>
+          <span className={`font-bold capitalize ${statusTone === "emerald" ? "text-emerald-300" : statusTone === "rose" ? "text-rose-300" : "text-sky-300"}`}>
+            {round?.status || "idle"}
+          </span>
         </div>
         <div className="mt-3 flex items-center justify-between">
-          <p className="text-white/65">Players</p>
-          <span className="font-bold text-white">{round?.playerCount || 0}</span>
+          <p className="text-white/65">Your Exposure</p>
+          <span className="font-bold text-white">{formatMoney(totalPlayerExposure)}</span>
         </div>
         <div className="mt-3 flex items-center justify-between">
-          <p className="text-white/65">Pot</p>
+          <p className="text-white/65">Room Pot</p>
           <span className="font-bold text-white">{formatMoney(round?.totalBet || 0)}</span>
         </div>
       </div>
 
-      {canJoin ? (
+      {round?.status === "countdown" ? (
         <button
           type="button"
-          onClick={handleJoin}
+          onClick={handlePlaceAllBets}
           disabled={loading !== ""}
-          className="w-full rounded-xl bg-sky-500 px-4 py-4 text-lg font-bold text-slate-950 transition hover:bg-sky-400 disabled:opacity-50"
+          className="w-full rounded-xl bg-gradient-to-r from-sky-400 to-cyan-300 px-4 py-4 text-lg font-black text-slate-950 transition hover:scale-[1.01] disabled:opacity-50"
         >
-          {loading === "join" ? "Joining..." : countdownSeconds > 0 ? `Join Round (${countdownSeconds}s)` : "Join Round"}
+          {loading === "join" ? "Joining..." : `Place All Bets ${countdownLabel}`}
         </button>
-      ) : (
-        <button
-          type="button"
-          onClick={handleCashout}
-          disabled={!canCashout || loading !== ""}
-          className="w-full rounded-xl bg-emerald-500 px-4 py-4 text-lg font-bold text-slate-950 transition hover:bg-emerald-400 disabled:opacity-50"
-        >
-          {loading === "cashout" ? "Cashing Out..." : activeBet?.status === "cashed" ? `Cashed ${activeBet.cashoutMultiplier.toFixed(2)}x` : "Cash Out"}
-        </button>
-      )}
+      ) : null}
 
-      {feedback && <p className="text-sm text-white/70">{feedback}</p>}
+      {liveEntries.length > 0 ? (
+        <div className="space-y-3">
+          {liveEntries.map((entry) => (
+            <button
+              key={entry.entryId}
+              type="button"
+              onClick={() => handleCashout(entry.entryId)}
+              disabled={loading !== "" && loading !== entry.entryId}
+              className="w-full rounded-xl bg-gradient-to-r from-emerald-400 to-lime-300 px-4 py-4 text-left text-slate-950 transition hover:scale-[1.01] disabled:opacity-50"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-semibold">Cash Out</span>
+                <span className="text-lg font-black">
+                  {loading === entry.entryId ? "..." : `${Number(round?.multiplier || 1).toFixed(2)}x`}
+                </span>
+              </div>
+              <div className="mt-1 flex items-center justify-between gap-3 text-xs font-semibold uppercase tracking-[0.18em]">
+                <span>{formatMoney(entry.bet)}</span>
+                <span>{entry.autoCashout ? `Auto ${Number(entry.autoCashout).toFixed(2)}x` : "Manual"}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {feedback ? <p className="text-sm text-white/70">{feedback}</p> : null}
     </div>
   );
 
   const main = (
     <div className="space-y-5">
-      <div className="rounded-[1.8rem] border border-white/10 bg-[#0b0f1a] p-6">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-white/45">Live Round</p>
-            <h3 className={`mt-3 text-5xl font-black ${round?.status === "crashed" ? "text-rose-300" : "text-emerald-300"}`}>
-              {round?.status === "crashed" ? `💥 ${Number(round?.crashPoint || 1).toFixed(2)}x` : `${currentMultiplier}x`}
-            </h3>
-          </div>
-          {activeBet ? (
-            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-right">
-              <p className="text-xs uppercase tracking-[0.24em] text-white/45">Your Bet</p>
-              <p className="mt-2 text-2xl font-black text-white">{formatMoney(activeBet.bet)}</p>
-              <p className="mt-1 text-sm text-white/65">
-                {activeBet.status === "cashed"
-                  ? `Locked at ${Number(activeBet.cashoutMultiplier || 0).toFixed(2)}x`
-                  : activeBet.status === "active"
-                    ? "Still riding"
-                    : "Missed the cashout"}
-              </p>
-            </div>
-          ) : null}
+      <motion.div
+        animate={round?.status === "crashed" ? { x: [0, -6, 6, -4, 4, 0] } : { x: 0 }}
+        transition={{ duration: 0.34 }}
+        className={`relative overflow-hidden rounded-[2rem] border p-6 ${
+          round?.status === "crashed"
+            ? "border-rose-400/30 bg-[radial-gradient(circle_at_top,rgba(251,113,133,0.18),rgba(8,12,20,0.96)_45%)]"
+            : "border-emerald-400/15 bg-[radial-gradient(circle_at_top,rgba(34,197,94,0.16),rgba(8,12,20,0.96)_45%)]"
+        }`}
+      >
+        <div className="pointer-events-none absolute inset-0 opacity-90">
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:56px_56px]" />
+          <div className={`absolute inset-0 transition ${impactFlash ? "bg-rose-500/12" : ""}`} />
+          {particleDots.map((dot) => (
+            <motion.span
+              key={dot.id}
+              className="absolute rounded-full bg-emerald-300/40"
+              style={{ left: dot.left, top: dot.top, width: dot.size, height: dot.size }}
+              animate={{ y: [0, -26, -52], opacity: [0.18, 0.45, 0] }}
+              transition={{ duration: dot.duration, delay: dot.delay, repeat: Infinity, ease: "linear" }}
+            />
+          ))}
         </div>
 
-        <div className="mt-6 rounded-[1.8rem] border border-white/10 bg-[linear-gradient(180deg,#0d1630,#0c1220)] p-4">
-          <svg viewBox="0 0 100 100" className="h-72 w-full" preserveAspectRatio="none">
+        <div className="relative z-10 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.32em] text-white/45">Live Multiplier</p>
+            <motion.h3
+              key={`${round?.status}-${Math.floor(displayMultiplier * 100)}`}
+              initial={{ scale: 0.97, opacity: 0.8 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className={`mt-3 text-6xl font-black sm:text-7xl ${round?.status === "crashed" ? "text-rose-300" : "text-emerald-300"}`}
+              style={{
+                textShadow:
+                  round?.status === "crashed"
+                    ? "0 0 24px rgba(251,113,133,0.55)"
+                    : "0 0 24px rgba(0,255,136,0.45)"
+              }}
+            >
+              {round?.status === "crashed" ? `💥 ${Number(round?.crashPoint || 1).toFixed(2)}x` : currentMultiplier}
+            </motion.h3>
+            <p className="mt-3 text-sm text-white/60">
+              {round?.status === "countdown"
+                ? `Launching in ${countdownLabel}`
+                : round?.status === "running"
+                  ? "The round is live right now."
+                  : "Round ended. Watching the real landing point."}
+            </p>
+          </div>
+
+          <div className="grid min-w-[220px] grid-cols-2 gap-3">
+            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+              <p className="text-[11px] uppercase tracking-[0.22em] text-white/45">Room Pot</p>
+              <p className="mt-2 text-2xl font-black text-white">{formatMoney(round?.totalBet || 0)}</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+              <p className="text-[11px] uppercase tracking-[0.22em] text-white/45">Joined</p>
+              <p className="mt-2 text-2xl font-black text-white">{round?.playerCount || 0}</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+              <p className="text-[11px] uppercase tracking-[0.22em] text-white/45">Your Bets</p>
+              <p className="mt-2 text-2xl font-black text-white">{activeBets.length}</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+              <p className="text-[11px] uppercase tracking-[0.22em] text-white/45">Live Exit</p>
+              <p className="mt-2 text-2xl font-black text-white">{formatMoney(projectedCashout)}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative z-10 mt-6 rounded-[1.8rem] border border-white/10 bg-[linear-gradient(180deg,rgba(8,15,26,0.82),rgba(8,12,20,0.96))] p-4">
+          <svg viewBox="0 0 100 100" className="h-[24rem] w-full" preserveAspectRatio="none">
             <defs>
               <linearGradient id="crashGraphFill" x1="0%" x2="0%" y1="0%" y2="100%">
-                <stop offset="0%" stopColor="rgba(34,197,94,0.30)" />
-                <stop offset="100%" stopColor="rgba(34,197,94,0)" />
+                <stop offset="0%" stopColor="rgba(0,255,136,0.28)" />
+                <stop offset="100%" stopColor="rgba(0,255,136,0)" />
+              </linearGradient>
+              <linearGradient id="crashGraphStroke" x1="0%" x2="100%" y1="0%" y2="0%">
+                <stop offset="0%" stopColor={round?.status === "crashed" ? "#fb7185" : "#fde047"} />
+                <stop offset="100%" stopColor={round?.status === "crashed" ? "#fb7185" : "#00ff88"} />
               </linearGradient>
             </defs>
-            <path d={`${graphPath} L 100 100 L 0 100 Z`} fill="url(#crashGraphFill)" />
-            <path
-              d={graphPath}
-              fill="none"
-              stroke={round?.status === "crashed" ? "#fb7185" : "#00ff88"}
-              strokeWidth="2.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
+
+            {Array.from({ length: 5 }, (_, index) => (
+              <line
+                key={`h-${index}`}
+                x1="0"
+                x2="100"
+                y1={15 + index * 18}
+                y2={15 + index * 18}
+                stroke="rgba(255,255,255,0.06)"
+                strokeWidth="0.4"
+              />
+            ))}
+            {Array.from({ length: 6 }, (_, index) => (
+              <line
+                key={`v-${index}`}
+                x1={8 + index * 17}
+                x2={8 + index * 17}
+                y1="8"
+                y2="100"
+                stroke="rgba(255,255,255,0.04)"
+                strokeWidth="0.4"
+              />
+            ))}
+
+            {areaPath ? <path d={areaPath} fill="url(#crashGraphFill)" /> : null}
+            {linePath ? (
+              <path
+                d={linePath}
+                fill="none"
+                stroke="url(#crashGraphStroke)"
+                strokeWidth="2.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            ) : null}
+
+            {chartPoints.length ? (
+              <>
+                <circle
+                  cx={chartPoints[chartPoints.length - 1].x}
+                  cy={chartPoints[chartPoints.length - 1].y}
+                  r="1.7"
+                  fill={round?.status === "crashed" ? "#fb7185" : "#ffffff"}
+                />
+                <circle
+                  cx={chartPoints[chartPoints.length - 1].x}
+                  cy={chartPoints[chartPoints.length - 1].y}
+                  r="3.2"
+                  fill="transparent"
+                  stroke={round?.status === "crashed" ? "rgba(251,113,133,0.45)" : "rgba(0,255,136,0.32)"}
+                  strokeWidth="0.8"
+                />
+              </>
+            ) : null}
           </svg>
         </div>
-      </div>
+
+        {cashedEntries.length > 0 ? (
+          <div className="relative z-10 mt-4 grid gap-3 sm:grid-cols-2">
+            {cashedEntries.map((entry) => (
+              <div key={entry.entryId} className="rounded-2xl border border-emerald-400/20 bg-emerald-400/8 px-4 py-3">
+                <p className="text-[11px] uppercase tracking-[0.22em] text-emerald-200/70">Locked Win</p>
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <span className="text-sm font-semibold text-white">{formatMoney(entry.bet)}</span>
+                  <span className="text-xl font-black text-emerald-300">{Number(entry.cashoutMultiplier || 0).toFixed(2)}x</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </motion.div>
     </div>
   );
 
   const rightPanel = (
     <div className="space-y-4 text-white">
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-        <p className="text-xs uppercase tracking-[0.24em] text-white/45">Round Notes</p>
-        <p className="mt-3 text-sm leading-6 text-white/70">
-          Cashing out locks your payout, but the shared round keeps running until everyone sees where it really crashes.
-        </p>
-      </div>
-
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
         <div className="flex items-center justify-between gap-3">
           <p className="text-xs uppercase tracking-[0.24em] text-white/45">Joined Players</p>
@@ -279,31 +570,51 @@ export function CrashGame({ token, user, onBalanceChange, onBack }) {
             {players.length} in round
           </span>
         </div>
+
         <div className="mt-3 space-y-2">
-          {players.length === 0 ? (
+          {topPlayers.length === 0 ? (
             <p className="text-sm text-white/55">No one has joined this round yet.</p>
           ) : (
-            players.map((player) => (
-              <div key={player.userId} className="rounded-2xl bg-black/20 px-4 py-3">
+            topPlayers.map((player) => (
+              <div key={player.entryId} className="rounded-2xl bg-black/20 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
-                    <p className="font-semibold text-white">{player.username}</p>
+                    <p className={`font-semibold ${player.isYou ? "text-emerald-200" : "text-white"}`}>{player.username}</p>
                     {player.isBot ? (
                       <span className="rounded-full bg-sky-400/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-sky-200">
                         Bot
                       </span>
                     ) : null}
+                    {player.isYou ? (
+                      <span className="rounded-full bg-emerald-400/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-200">
+                        You
+                      </span>
+                    ) : null}
                   </div>
-                  <span className={`text-xs font-bold uppercase tracking-[0.18em] ${
-                    player.status === "cashed" ? "text-emerald-300" : player.status === "lost" ? "text-rose-300" : "text-sky-300"
-                  }`}>
+                  <span
+                    className={`text-xs font-bold uppercase tracking-[0.18em] ${
+                      player.status === "cashed"
+                        ? "text-emerald-300"
+                        : player.status === "lost"
+                          ? "text-rose-300"
+                          : "text-sky-300"
+                    }`}
+                  >
                     {player.status}
                   </span>
                 </div>
-                <p className="mt-2 text-sm text-white/65">
-                  Bet {formatMoney(player.bet)}
-                  {player.status === "cashed" ? ` • ${Number(player.cashoutMultiplier || 0).toFixed(2)}x` : ""}
-                </p>
+                <div className="mt-2 flex items-center justify-between gap-3 text-sm">
+                  <span className="text-white/65">{formatMoney(player.bet)}</span>
+                  <span className="font-semibold text-white">
+                    {player.status === "cashed"
+                      ? `${Number(player.cashoutMultiplier || 0).toFixed(2)}x`
+                      : player.autoCashout
+                        ? `Auto ${Number(player.autoCashout).toFixed(2)}x`
+                        : player.status === "lost"
+                          ? "Busted"
+                          : "Live"}
+                  </span>
+                </div>
               </div>
             ))
           )}
@@ -319,7 +630,9 @@ export function CrashGame({ token, user, onBalanceChange, onBack }) {
             history.map((entry) => (
               <div key={entry.roundId} className="flex items-center justify-between rounded-2xl bg-black/20 px-4 py-3 text-sm">
                 <span className="text-white/65">{entry.roundId}</span>
-                <span className="font-black text-white">{Number(entry.crashPoint || 1).toFixed(2)}x</span>
+                <span className={`font-black ${Number(entry.crashPoint || 1) >= 2 ? "text-emerald-300" : "text-rose-300"}`}>
+                  {Number(entry.crashPoint || 1).toFixed(2)}x
+                </span>
               </div>
             ))
           )}
@@ -331,9 +644,9 @@ export function CrashGame({ token, user, onBalanceChange, onBack }) {
   return (
     <GameLayout
       eyebrow="Crash"
-      title="Stake-style live crash"
-      subtitle="Join the shared round, cash out before the line breaks, and still watch the live curve finish to the real crash point."
-      accent="from-yellow-500/20 via-transparent to-sky-500/20"
+      title="Live multiplayer crash"
+      subtitle="Shared rounds, multiple slips, auto cashout targets, and manual exits while the line keeps running to the real crash point."
+      accent="from-yellow-500/20 via-orange-500/10 to-sky-500/20"
       controls={controls}
       main={main}
       rightPanel={rightPanel}
