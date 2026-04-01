@@ -448,9 +448,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
             ? "Bet Live"
             : queuedBets.length > 0
               ? "Already Queued"
-              : round?.status === "countdown"
-                ? "Join This Round"
-                : "Join Next Round"}
+              : "Join Next Round"}
       </button>
 
       {queuedBets.length > 0 ? (

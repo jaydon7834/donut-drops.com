@@ -506,17 +506,14 @@ router.post("/bet", async (req, res, next) => {
 
     let joinedRoundId = round.roundId;
     let roundResponse = round;
-    let queuedForNextRound = false;
+    let queuedForNextRound = true;
 
-    if (round.status === "countdown") {
-      round.players.set(entryId, entry);
-    } else if (round.status === "crashed") {
+    if (round.status === "crashed") {
       crashState.pendingEntries.push(entry);
       await persistUsers();
       await startCrashRound();
       roundResponse = getCrashStore().currentRound;
       joinedRoundId = roundResponse?.roundId || round.roundId;
-      queuedForNextRound = true;
 
       return res.status(201).json({
         balance: req.user.balance,
@@ -526,7 +523,6 @@ router.post("/bet", async (req, res, next) => {
       });
     } else {
       crashState.pendingEntries.push(entry);
-      queuedForNextRound = true;
     }
 
     await persistUsers();
