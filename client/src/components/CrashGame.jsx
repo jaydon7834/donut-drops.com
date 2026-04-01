@@ -680,11 +680,6 @@ export function CrashGame({ token, user, onBalanceChange }) {
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <p className={`font-semibold ${player.isYou ? "text-emerald-200" : "text-white"}`}>{player.username}</p>
-                    {player.isBot ? (
-                      <span className="rounded-full bg-sky-400/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-sky-200">
-                        Bot
-                      </span>
-                    ) : null}
                     {player.isYou ? (
                       <span className="rounded-full bg-emerald-400/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-200">
                         You

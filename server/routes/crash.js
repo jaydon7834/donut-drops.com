@@ -31,7 +31,29 @@ const CRASH_BOT_NAMES = [
   "wer",
   "jvcob",
   "skellicuh",
-  "casino800m"
+  "casino800m",
+  "trxppd",
+  "vxrtex",
+  "zqntix",
+  "drayven2",
+  "kairoth",
+  "luhfaded",
+  "mavriq",
+  "nexori",
+  "qzyl",
+  "ryvven",
+  "slumpzr",
+  "tazic",
+  "ultrixx",
+  "vyral",
+  "wexlerr",
+  "xenq",
+  "yurrsko",
+  "zayro",
+  "clutchpup",
+  "dextro1",
+  "envyzz",
+  "f1areup"
 ];
 const CRASH_BOT_BETS = [10, 20, 35, 50, 75, 100, 150, 200, 250, 500, 1_000, 2_500, 5_000, 10_000];
 
