@@ -50,8 +50,8 @@ function buildKeyframes(path, rows) {
 }
 
 export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
-  const [betAmount, setBetAmount] = useState(20);
-  const [betInput, setBetInput] = useState("20");
+  const [betAmount, setBetAmount] = useState(0);
+  const [betInput, setBetInput] = useState("");
   const [rows, setRows] = useState(12);
   const [risk, setRisk] = useState("medium");
   const [ballCount, setBallCount] = useState(1);

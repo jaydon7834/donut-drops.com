@@ -12,8 +12,8 @@ function previewChickenMultiplier(step, surviveChance) {
 }
 
 export function ChickenGame({ token, onBalanceChange, onBack }) {
-  const [betAmount, setBetAmount] = useState(10);
-  const [betInput, setBetInput] = useState("10");
+  const [betAmount, setBetAmount] = useState(0);
+  const [betInput, setBetInput] = useState("");
   const [risk, setRisk] = useState("medium");
   const [game, setGame] = useState(null);
   const [feedback, setFeedback] = useState("");

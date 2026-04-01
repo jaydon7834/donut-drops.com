@@ -30,8 +30,8 @@ function AnimatedRoll({ roll, outcome }) {
 }
 
 export function DiceGame({ token, user, onBalanceChange }) {
-  const [betAmount, setBetAmount] = useState(20);
-  const [betInput, setBetInput] = useState("20");
+  const [betAmount, setBetAmount] = useState(0);
+  const [betInput, setBetInput] = useState("");
   const [target, setTarget] = useState(55);
   const [condition, setCondition] = useState("under");
   const [clientSeed, setClientSeed] = useState(user.clientSeed || "donutdrop-default");

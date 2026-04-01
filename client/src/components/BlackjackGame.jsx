@@ -27,8 +27,8 @@ function Card({ card }) {
 }
 
 export function BlackjackGame({ token, onBalanceChange, onBack }) {
-  const [betAmount, setBetAmount] = useState(20);
-  const [betInput, setBetInput] = useState("20");
+  const [betAmount, setBetAmount] = useState(0);
+  const [betInput, setBetInput] = useState("");
   const [game, setGame] = useState(null);
   const [feedback, setFeedback] = useState("");
   const [loading, setLoading] = useState(false);

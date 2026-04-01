@@ -57,8 +57,8 @@ function playLossSound() {
 }
 
 export function LimboGame({ token, user, onBalanceChange, onBack }) {
-  const [betAmount, setBetAmount] = useState(20);
-  const [betInput, setBetInput] = useState("20");
+  const [betAmount, setBetAmount] = useState(0);
+  const [betInput, setBetInput] = useState("");
   const [target, setTarget] = useState(2);
   const [targetInput, setTargetInput] = useState("2.00");
   const [clientSeed, setClientSeed] = useState(user.clientSeed || "donutdrop-default");

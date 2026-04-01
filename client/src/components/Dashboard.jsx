@@ -443,6 +443,10 @@ export function Dashboard() {
           return [...current, eventMessage].slice(-60);
         });
       }
+
+      if (payload?.type === "tip" && payload.message?.id) {
+        setChatMessages((current) => [...current, payload.message].slice(-60));
+      }
     });
 
     return () => {

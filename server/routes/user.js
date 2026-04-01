@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
+import { emitToUser } from "../socket.js";
 import { findUserByUsername, getRecentGamesForUser, persistUsers, store } from "../state/store.js";
 import { createError, sanitizeUser } from "../utils/helpers.js";
 
@@ -85,6 +86,16 @@ router.post("/tip", async (req, res, next) => {
     req.user.balance = Number((req.user.balance - amount).toFixed(2));
     recipient.balance = Number((recipient.balance + amount).toFixed(2));
     await persistUsers();
+
+    emitToUser(recipient.id, "chat:message", {
+      type: "tip",
+      message: {
+        id: `tip_${Date.now()}`,
+        username: "system",
+        text: `✨${req.user.username} has just tipped you $${Number(amount.toFixed(2)).toLocaleString()}.`,
+        createdAt: new Date().toISOString()
+      }
+    });
 
     return res.json({
       user: sanitizeUser(req.user),

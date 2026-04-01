@@ -102,8 +102,8 @@ function getRewardIndex(label) {
 
 export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
   const meta = gameCopy[gameType];
-  const [bet, setBet] = useState(gameType === "case-battles" ? 5_000_000 : 20);
-  const [betInput, setBetInput] = useState(gameType === "case-battles" ? "5m" : "20");
+  const [bet, setBet] = useState(0);
+  const [betInput, setBetInput] = useState("");
   const [optionValue, setOptionValue] = useState(gameType === "roulette" ? "red" : 2);
   const [clientSeed, setClientSeed] = useState(user.clientSeed || "donutdrop-default");
   const [result, setResult] = useState(null);
