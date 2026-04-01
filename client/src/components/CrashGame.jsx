@@ -67,6 +67,16 @@ function buildAreaPath(points, linePath) {
   return `${linePath} L ${last.x} 100 L ${first.x} 100 Z`;
 }
 
+function getRocketPlacement(points) {
+  const fallback = { x: 18, y: 84 };
+  const point = points.length ? points[points.length - 1] : fallback;
+
+  return {
+    left: `${Math.min(86, Math.max(12, point.x))}%`,
+    top: `${Math.min(86, Math.max(10, point.y))}%`
+  };
+}
+
 function getStatusTone(status) {
   if (status === "crashed") {
     return "rose";
@@ -203,7 +213,10 @@ export function CrashGame({ token, user, onBalanceChange }) {
   const totalPlayerExposure = activeBets.reduce((sum, entry) => sum + Number(entry.bet || 0), 0);
   const totalQueuedExposure = queuedBets.reduce((sum, entry) => sum + Number(entry.bet || 0), 0);
   const projectedCashout = liveEntries.reduce((sum, entry) => sum + Number(entry.bet || 0) * Number(round?.multiplier || 1), 0);
-  const topPlayers = [...players].sort((left, right) => Number(right.bet || 0) - Number(left.bet || 0));
+  const topPlayers = [...players]
+    .sort((left, right) => Number(right.bet || 0) - Number(left.bet || 0))
+    .slice(0, 20);
+  const rocketPlacement = getRocketPlacement(chartPoints);
   const particleDots = useMemo(
     () =>
       Array.from({ length: 36 }, (_, index) => ({
@@ -286,7 +299,6 @@ export function CrashGame({ token, user, onBalanceChange }) {
         </p>
         <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
           <p>Minimum bet: <span className="font-bold text-white">1k</span></p>
-          <p className="mt-1">Crash edge: <span className="font-bold text-white">20%</span></p>
         </div>
       </div>
 
@@ -522,73 +534,113 @@ export function CrashGame({ token, user, onBalanceChange }) {
           </div>
         </div>
 
-        <div className="relative z-10 mt-6 rounded-[1.8rem] border border-white/10 bg-[linear-gradient(180deg,rgba(8,15,26,0.82),rgba(8,12,20,0.96))] p-4">
-          <svg viewBox="0 0 100 100" className="h-[24rem] w-full" preserveAspectRatio="none">
+        <div className="relative z-10 mt-6 h-[24rem] overflow-hidden rounded-[1.8rem] border border-white/10 bg-[linear-gradient(180deg,rgba(8,15,26,0.82),rgba(8,12,20,0.98))]">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.12),transparent_35%),linear-gradient(180deg,rgba(255,255,255,0.02),transparent)]" />
+          <div className="absolute inset-0">
+            {Array.from({ length: 28 }, (_, index) => (
+              <motion.span
+                key={`star-${index}`}
+                className="absolute rounded-full bg-white/70"
+                style={{
+                  left: `${(index * 13) % 100}%`,
+                  top: `${(index * 17) % 100}%`,
+                  width: 1 + (index % 2),
+                  height: 1 + (index % 2)
+                }}
+                animate={{ y: [0, 120], opacity: [0.2, 0.85, 0.1] }}
+                transition={{
+                  duration: 2.6 + (index % 5) * 0.4,
+                  repeat: Infinity,
+                  ease: "linear",
+                  delay: index * 0.08
+                }}
+              />
+            ))}
+          </div>
+
+          <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full" preserveAspectRatio="none">
             <defs>
-              <linearGradient id="crashGraphFill" x1="0%" x2="0%" y1="0%" y2="100%">
-                <stop offset="0%" stopColor="rgba(0,255,136,0.28)" />
+              <linearGradient id="rocketTrailFill" x1="0%" x2="0%" y1="0%" y2="100%">
+                <stop offset="0%" stopColor="rgba(250,204,21,0.22)" />
                 <stop offset="100%" stopColor="rgba(0,255,136,0)" />
               </linearGradient>
-              <linearGradient id="crashGraphStroke" x1="0%" x2="100%" y1="0%" y2="0%">
-                <stop offset="0%" stopColor={round?.status === "crashed" ? "#fb7185" : "#fde047"} />
-                <stop offset="100%" stopColor={round?.status === "crashed" ? "#fb7185" : "#00ff88"} />
+              <linearGradient id="rocketTrailStroke" x1="0%" x2="100%" y1="0%" y2="0%">
+                <stop offset="0%" stopColor="rgba(250,204,21,0.35)" />
+                <stop offset="100%" stopColor="rgba(0,255,136,0.7)" />
               </linearGradient>
             </defs>
-
-            {Array.from({ length: 5 }, (_, index) => (
-              <line
-                key={`h-${index}`}
-                x1="0"
-                x2="100"
-                y1={15 + index * 18}
-                y2={15 + index * 18}
-                stroke="rgba(255,255,255,0.06)"
-                strokeWidth="0.4"
-              />
-            ))}
-            {Array.from({ length: 6 }, (_, index) => (
-              <line
-                key={`v-${index}`}
-                x1={8 + index * 17}
-                x2={8 + index * 17}
-                y1="8"
-                y2="100"
-                stroke="rgba(255,255,255,0.04)"
-                strokeWidth="0.4"
-              />
-            ))}
-
-            {areaPath ? <path d={areaPath} fill="url(#crashGraphFill)" /> : null}
+            {areaPath ? <path d={areaPath} fill="url(#rocketTrailFill)" /> : null}
             {linePath ? (
               <path
                 d={linePath}
                 fill="none"
-                stroke="url(#crashGraphStroke)"
-                strokeWidth="2.8"
+                stroke="url(#rocketTrailStroke)"
+                strokeWidth="1.4"
+                strokeDasharray="4 4"
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                opacity="0.6"
               />
             ) : null}
-
-            {chartPoints.length ? (
-              <>
-                <circle
-                  cx={chartPoints[chartPoints.length - 1].x}
-                  cy={chartPoints[chartPoints.length - 1].y}
-                  r="1.7"
-                  fill={round?.status === "crashed" ? "#fb7185" : "#ffffff"}
-                />
-                <circle
-                  cx={chartPoints[chartPoints.length - 1].x}
-                  cy={chartPoints[chartPoints.length - 1].y}
-                  r="3.2"
-                  fill="transparent"
-                  stroke={round?.status === "crashed" ? "rgba(251,113,133,0.45)" : "rgba(0,255,136,0.32)"}
-                  strokeWidth="0.8"
-                />
-              </>
-            ) : null}
           </svg>
+
+          <motion.div
+            className="absolute"
+            animate={round?.status === "crashed" ? { scale: [1, 1.18, 0.92, 1], rotate: [0, -6, 8, 0] } : { scale: 1, rotate: 0 }}
+            transition={{ duration: 0.4 }}
+            style={{
+              left: rocketPlacement.left,
+              top: rocketPlacement.top,
+              transform: "translate(-50%, -50%)"
+            }}
+          >
+            {round?.status === "crashed" ? (
+              <div className="relative flex h-24 w-24 items-center justify-center">
+                {Array.from({ length: 10 }, (_, index) => (
+                  <motion.span
+                    key={`burst-${index}`}
+                    className="absolute rounded-full"
+                    style={{
+                      width: 10 + (index % 3) * 6,
+                      height: 10 + (index % 3) * 6,
+                      background: index % 2 === 0 ? "rgba(251,113,133,0.8)" : "rgba(250,204,21,0.75)"
+                    }}
+                    animate={{
+                      x: [0, Math.cos((index / 10) * Math.PI * 2) * 42],
+                      y: [0, Math.sin((index / 10) * Math.PI * 2) * 34],
+                      opacity: [0.9, 0]
+                    }}
+                    transition={{ duration: 0.55, repeat: Infinity, repeatDelay: 1.2 }}
+                  />
+                ))}
+                <span className="text-4xl">💥</span>
+              </div>
+            ) : (
+              <div className="relative flex h-24 w-20 items-center justify-center">
+                <motion.div
+                  className="absolute bottom-1 h-12 w-8 rounded-full bg-[radial-gradient(circle,rgba(250,204,21,0.95),rgba(249,115,22,0.7),transparent_72%)] blur-[1px]"
+                  animate={{
+                    scaleY: [0.9, 1.35, 0.95],
+                    scaleX: [0.85, 1.05, 0.9],
+                    opacity: [0.7, 1, 0.72]
+                  }}
+                  transition={{ duration: 0.24, repeat: Infinity, ease: "easeInOut" }}
+                />
+                <motion.div
+                  className="absolute bottom-0 h-16 w-12 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.9),rgba(56,189,248,0.35),transparent_72%)]"
+                  animate={{ opacity: [0.25, 0.45, 0.28] }}
+                  transition={{ duration: 0.4, repeat: Infinity }}
+                />
+                <motion.div
+                  className="relative text-5xl drop-shadow-[0_0_18px_rgba(56,189,248,0.45)]"
+                  animate={{ y: [0, -2, 0], rotate: [-1, 1, -1] }}
+                  transition={{ duration: 0.4, repeat: Infinity, ease: "easeInOut" }}
+                >
+                  🚀
+                </motion.div>
+              </div>
+            )}
+          </motion.div>
         </div>
 
         {cashedEntries.length > 0 ? (

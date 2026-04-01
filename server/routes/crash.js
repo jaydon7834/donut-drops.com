@@ -14,10 +14,11 @@ import { createError, ensurePositiveBet } from "../utils/helpers.js";
 const router = Router();
 
 const CRASH_HOUSE_EDGE = 0.8;
+const COUNTDOWN_MS = 5_000;
 const POST_CRASH_MS = 4_500;
-const TICK_MS = 150;
+const TICK_MS = 100;
 const MAX_CRASH_POINT = 1_000;
-const GROWTH_RATE = 0.18;
+const GROWTH_RATE = 0.115;
 const MIN_AUTO_CASHOUT = 1.01;
 const CRASH_BOT_NAMES = [
   "cam",
@@ -141,6 +142,7 @@ function serializeCrashRound(round, userId) {
       roundId: "",
       status: "idle",
       multiplier: 1,
+      bettingClosesAt: 0,
       startedAt: 0,
       crashedAt: 0,
       crashPoint: null,
@@ -178,6 +180,7 @@ function serializeCrashRound(round, userId) {
     roundId: round.roundId,
     status: round.status,
     multiplier: round.multiplier,
+    bettingClosesAt: round.bettingClosesAt,
     startedAt: round.startedAt,
     crashedAt: round.crashedAt,
     crashPoint: round.status === "crashed" ? round.crashPoint : null,
@@ -338,11 +341,13 @@ async function startCrashRound() {
   crashState.roundNumber += 1;
   const fair = getCrashPoint(crashState.roundNumber);
   const roundId = nextGameId("crashround");
+  const bettingClosesAt = Date.now() + COUNTDOWN_MS;
 
   crashState.currentRound = {
     roundId,
-    status: "running",
-    startedAt: Date.now(),
+    status: "countdown",
+    startedAt: 0,
+    bettingClosesAt,
     crashedAt: 0,
     multiplier: 1,
     crashPoint: fair.crashPoint,
@@ -370,31 +375,45 @@ async function startCrashRound() {
 
   emitCrashState();
 
-  crashState.tickInterval = setInterval(() => {
+  crashState.nextRoundTimer = setTimeout(() => {
     const activeRound = crashState.currentRound;
-    if (!activeRound || activeRound.roundId !== roundId || activeRound.status !== "running") {
+    if (!activeRound || activeRound.roundId !== roundId) {
       return;
     }
 
-    activeRound.multiplier = getCurrentMultiplier(activeRound);
-    activeRound.history.push(activeRound.multiplier);
-    activeRound.history = activeRound.history.slice(-160);
-
-    const autoChanged = processAutoCashouts(activeRound);
-    if (autoChanged) {
-      persistUsers().catch((error) => {
-        console.error("Failed to persist auto cashout state", error);
-      });
-    }
-
+    activeRound.status = "running";
+    activeRound.startedAt = Date.now();
+    activeRound.bettingClosesAt = activeRound.startedAt;
+    activeRound.multiplier = 1;
+    activeRound.history = [1];
     emitCrashState();
 
-    if (activeRound.multiplier >= activeRound.crashPoint) {
-      crashCurrentRound().catch((error) => {
-        console.error("Failed to settle crash round", error);
-      });
-    }
-  }, TICK_MS);
+    crashState.tickInterval = setInterval(() => {
+      const runningRound = crashState.currentRound;
+      if (!runningRound || runningRound.roundId !== roundId || runningRound.status !== "running") {
+        return;
+      }
+
+      runningRound.multiplier = getCurrentMultiplier(runningRound);
+      runningRound.history.push(runningRound.multiplier);
+      runningRound.history = runningRound.history.slice(-160);
+
+      const autoChanged = processAutoCashouts(runningRound);
+      if (autoChanged) {
+        persistUsers().catch((error) => {
+          console.error("Failed to persist auto cashout state", error);
+        });
+      }
+
+      emitCrashState();
+
+      if (runningRound.multiplier >= runningRound.crashPoint) {
+        crashCurrentRound().catch((error) => {
+          console.error("Failed to settle crash round", error);
+        });
+      }
+    }, TICK_MS);
+  }, COUNTDOWN_MS);
 }
 
 function requireCrashRound() {
@@ -426,7 +445,7 @@ router.post("/bet", async (req, res, next) => {
     const entryId = nextGameId("crash");
 
     req.user.balance = Number((req.user.balance - bet).toFixed(2));
-    crashState.pendingEntries.push({
+    const entry = {
       entryId,
       userId: req.user.id,
       username: req.user.username,
@@ -437,7 +456,13 @@ router.post("/bet", async (req, res, next) => {
       cashoutMultiplier: 0,
       resolved: false,
       isBot: false
-    });
+    };
+
+    if (round.status === "countdown") {
+      round.players.set(entryId, entry);
+    } else {
+      crashState.pendingEntries.push(entry);
+    }
 
     await persistUsers();
     emitCrashState();
