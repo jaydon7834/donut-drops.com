@@ -55,10 +55,12 @@ const THEMES = {
 
 const gameCards = [
   { id: "blackjack", label: "Blackjack", accent: "from-orange-700 via-orange-500 to-amber-300", players: 6, image: "/images/blackjack-card.svg" },
-  { id: "mines", label: "Mines", accent: "from-emerald-900 via-emerald-500 to-lime-300", players: 8, image: "/images/mines-card.svg" },
+  { id: "mines", label: "Mines", accent: "from-emerald-900 via-emerald-500 to-lime-300", players: 8, image: "/images/mines-dashboard.png" },
   { id: "roulette", label: "Roulette", accent: "from-fuchsia-900 via-pink-500 to-amber-300", players: 7, image: "/images/roulette-card.svg" },
-  { id: "limbo", label: "Limbo", accent: "from-amber-800 via-orange-500 to-yellow-300", players: 6, image: "/images/limbo-card.svg" },
-  { id: "plinko", label: "Plinko", accent: "from-cyan-900 via-cyan-500 to-sky-300", players: 3, image: "/images/plinko-card.svg" }
+  { id: "limbo", label: "Limbo", accent: "from-amber-800 via-orange-500 to-yellow-300", players: 6, image: "/images/limbo-dashboard.png" },
+  { id: "plinko", label: "Plinko", accent: "from-cyan-900 via-cyan-500 to-sky-300", players: 3, image: "/images/plinko-dashboard.png" },
+  { id: "cases", label: "Cases", accent: "from-fuchsia-700 via-pink-500 to-amber-300", players: 5, image: "/images/cases-dashboard.png" },
+  { id: "case-battles", label: "Case Battles", accent: "from-sky-800 via-blue-500 to-indigo-300", players: 4, image: "/images/case-battles-dashboard.png" }
 ];
 
 const sideGames = ["Cases", "Case Battles", "Blackjack", "Mines", "Plinko", "Limbo", "Dice", "Roulette", "Chicken"];
