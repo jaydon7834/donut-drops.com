@@ -274,12 +274,9 @@ export function MinesGame({ token, user, onBalanceChange }) {
     }
 
     setLoading(true);
-<<<<<<< Updated upstream
     setSparkTile(null);
     setMineShake(null);
-=======
     setRevealingTile(true);
->>>>>>> Stashed changes
 
     try {
       await new Promise((resolve) => {
@@ -388,10 +385,6 @@ export function MinesGame({ token, user, onBalanceChange }) {
           <div className="rounded-[1.5rem] border border-white/10 p-4">
             <p className="text-sm text-gray-400">Mines</p>
             <div className="mt-2 flex items-center justify-between">
-<<<<<<< Updated upstream
-              <p className="text-xl font-bold text-white">Number of Mines</p>
-              <span className="text-xl font-bold text-white">{minesCount}</span>
-=======
               <p className="text-base font-bold text-white">Number of Mines</p>
               <span className="text-base font-bold text-white">{minesCount}</span>
             </div>
@@ -412,7 +405,6 @@ export function MinesGame({ token, user, onBalanceChange }) {
               >
                 {cashingOut ? "Cashing Out..." : revealingTile ? "Revealing..." : "Cash Out"}
               </button>
->>>>>>> Stashed changes
             </div>
             <input
               type="range"
@@ -456,27 +448,6 @@ export function MinesGame({ token, user, onBalanceChange }) {
             />
           </div>
 
-          <div className="pt-24">
-            <button
-              type="button"
-              onClick={handleStart}
-              disabled={loading || Boolean(activeGame)}
-              className="w-full rounded-xl bg-emerald-500 px-4 py-4 text-lg font-bold text-slate-950 transition hover:bg-emerald-400 disabled:opacity-50"
-            >
-              {loading && !activeGame ? "Starting..." : "Place Bet"}
-            </button>
-
-            {Boolean(activeGame) && (
-              <button
-                type="button"
-                onClick={handleCashout}
-                disabled={loading}
-                className="mt-3 w-full rounded-xl bg-white/10 px-4 py-4 text-base font-bold text-white transition hover:bg-white/15 disabled:opacity-50"
-              >
-                Cash Out
-              </button>
-            )}
-          </div>
         </div>
       </div>
 
