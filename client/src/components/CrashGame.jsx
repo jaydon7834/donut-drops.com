@@ -24,56 +24,22 @@ function formatMoney(value) {
   return `$${amount.toFixed(2)}`;
 }
 
-function buildCrashPoints(history) {
-  const points = Array.isArray(history) && history.length ? history : [1];
-  const maxValue = Math.max(...points, 1.1);
-
-  return points.map((value, index) => {
-    const x = (index / Math.max(points.length - 1, 1)) * 100;
-    const normalized = Math.log(Math.max(value, 1)) / Math.log(maxValue);
-    const y = 90 - normalized * 78;
-    return { x, y: Math.max(10, y) };
-  });
-}
-
-function buildLinePath(points) {
-  if (!points.length) {
-    return "";
+function getRocketPlacement(multiplier, status) {
+  if (status === "countdown") {
+    return { left: "50%", top: "58%" };
   }
 
-  if (points.length === 1) {
-    return `M ${points[0].x} ${points[0].y}`;
+  if (status === "crashed") {
+    return { left: "50%", top: "18%" };
   }
 
-  let path = `M ${points[0].x} ${points[0].y}`;
-
-  for (let index = 0; index < points.length - 1; index += 1) {
-    const current = points[index];
-    const next = points[index + 1];
-    const controlX = (current.x + next.x) / 2;
-    path += ` C ${controlX} ${current.y}, ${controlX} ${next.y}, ${next.x} ${next.y}`;
-  }
-
-  return path;
-}
-
-function buildAreaPath(points, linePath) {
-  if (!points.length || !linePath) {
-    return "";
-  }
-
-  const first = points[0];
-  const last = points[points.length - 1];
-  return `${linePath} L ${last.x} 100 L ${first.x} 100 Z`;
-}
-
-function getRocketPlacement(points) {
-  const fallback = { x: 18, y: 84 };
-  const point = points.length ? points[points.length - 1] : fallback;
+  const normalized = Math.log(Math.max(Number(multiplier || 1), 1)) / Math.log(40);
+  const progress = Math.max(0, Math.min(1, normalized));
+  const top = 82 - progress * 62;
 
   return {
-    left: `${Math.min(86, Math.max(12, point.x))}%`,
-    top: `${Math.min(86, Math.max(10, point.y))}%`
+    left: "50%",
+    top: `${top}%`
   };
 }
 
@@ -273,9 +239,6 @@ export function CrashGame({ token, user, onBalanceChange }) {
   }, [round?.status]);
 
   const currentMultiplier = `${displayMultiplier.toFixed(2)}x`;
-  const chartPoints = useMemo(() => buildCrashPoints(round?.history || [1]), [round?.history]);
-  const linePath = useMemo(() => buildLinePath(chartPoints), [chartPoints]);
-  const areaPath = useMemo(() => buildAreaPath(chartPoints, linePath), [chartPoints, linePath]);
   const activeBets = round?.activeBets || [];
   const queuedBets = round?.queuedBets || [];
   const liveEntries = activeBets.filter((entry) => entry.status === "active");
@@ -290,10 +253,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
   const topPlayers = [...players]
     .sort((left, right) => Number(right.bet || 0) - Number(left.bet || 0))
     .slice(0, 20);
-  const rocketPlacement =
-    round?.status === "countdown"
-      ? { left: "50%", top: "58%" }
-      : getRocketPlacement(chartPoints);
+  const rocketPlacement = getRocketPlacement(round?.multiplier, round?.status);
   const skyStage = getSkyStage(Number(round?.multiplier || 1), round?.status);
   const particleDots = useMemo(
     () =>
@@ -738,32 +698,6 @@ export function CrashGame({ token, user, onBalanceChange }) {
             <p className="text-[11px] uppercase tracking-[0.24em] text-white/45">{skyStage.label}</p>
             <p className="mt-2 text-sm font-semibold text-white/75">{skyStage.subtitle}</p>
           </div>
-
-          <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full" preserveAspectRatio="none">
-            <defs>
-              <linearGradient id="rocketTrailFill" x1="0%" x2="0%" y1="0%" y2="100%">
-                <stop offset="0%" stopColor="rgba(250,204,21,0.22)" />
-                <stop offset="100%" stopColor="rgba(0,255,136,0)" />
-              </linearGradient>
-              <linearGradient id="rocketTrailStroke" x1="0%" x2="100%" y1="0%" y2="0%">
-                <stop offset="0%" stopColor="rgba(250,204,21,0.35)" />
-                <stop offset="100%" stopColor="rgba(0,255,136,0.7)" />
-              </linearGradient>
-            </defs>
-            {areaPath ? <path d={areaPath} fill="url(#rocketTrailFill)" /> : null}
-            {linePath ? (
-              <path
-                d={linePath}
-                fill="none"
-                stroke="url(#rocketTrailStroke)"
-                strokeWidth="1.4"
-                strokeDasharray="4 4"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                opacity="0.6"
-              />
-            ) : null}
-          </svg>
 
           <motion.div
             className="absolute"
