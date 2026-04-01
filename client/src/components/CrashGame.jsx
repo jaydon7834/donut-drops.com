@@ -147,9 +147,7 @@ function getStatusTone(status) {
 
 function createBetSlip() {
   return {
-    id: `slip_${Math.random().toString(36).slice(2, 9)}`,
     amount: "1k",
-    cashoutMode: "manual",
     autoCashout: ""
   };
 }
@@ -161,7 +159,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
   const [loading, setLoading] = useState("");
   const [displayMultiplier, setDisplayMultiplier] = useState(1);
   const [impactFlash, setImpactFlash] = useState(false);
-  const [betSlips, setBetSlips] = useState([createBetSlip()]);
+  const [betSlip, setBetSlip] = useState(createBetSlip());
   const previousStatusRef = useRef("");
   const animationFrameRef = useRef(0);
   const displayMultiplierRef = useRef(1);
@@ -286,41 +284,24 @@ export function CrashGame({ token, user, onBalanceChange }) {
     []
   );
 
-  function updateBetSlip(id, key, value) {
-    setBetSlips((current) =>
-      current.map((slip) => (slip.id === id ? { ...slip, [key]: value } : slip))
-    );
+  function updateBetSlip(key, value) {
+    setBetSlip((current) => ({ ...current, [key]: value }));
   }
 
-  function addBetSlip() {
-    setBetSlips((current) => [...current, createBetSlip()]);
-  }
-
-  function removeBetSlip(id) {
-    setBetSlips((current) => (current.length === 1 ? current : current.filter((slip) => slip.id !== id)));
-  }
-
-  async function handlePlaceAllBets() {
+  async function handlePlaceBet() {
     setLoading("join");
     setFeedback("");
 
     try {
-      let latestBalance = user?.balance || 0;
-      let latestRound = round;
+      const data = await api.placeCrashBet(token, {
+        bet: parseBetInput(betSlip.amount),
+        autoCashout: betSlip.autoCashout ? Number(betSlip.autoCashout) : null
+      });
 
-      for (const slip of betSlips) {
-        const data = await api.placeCrashBet(token, {
-          bet: parseBetInput(slip.amount),
-          autoCashout: slip.cashoutMode === "auto" && slip.autoCashout ? Number(slip.autoCashout) : null
-        });
-        latestBalance = data.balance;
-        latestRound = data.round;
-      }
-
-      setRound(latestRound);
-      onBalanceChange(latestBalance);
-      setFeedback(`Queued ${betSlips.length} crash ${betSlips.length === 1 ? "bet" : "bets"} for the next round.`);
-      setBetSlips([createBetSlip()]);
+      setRound(data.round);
+      onBalanceChange(data.balance);
+      setFeedback(`Queued your crash bet for the ${round?.status === "countdown" ? "current" : "next"} round.`);
+      setBetSlip(createBetSlip());
     } catch (error) {
       setFeedback(error.message);
     } finally {
@@ -358,94 +339,59 @@ export function CrashGame({ token, user, onBalanceChange }) {
         </div>
       </div>
 
-      <div className="space-y-3">
-        {betSlips.map((slip, index) => (
-          <div key={slip.id} className="rounded-2xl border border-white/10 bg-[#171b2a] p-3">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-xs font-bold uppercase tracking-[0.24em] text-white/45">Bet {index + 1}</p>
-              {betSlips.length > 1 ? (
-                <button type="button" onClick={() => removeBetSlip(slip.id)} className="text-xs font-semibold text-rose-200/80">
-                  Remove
+      <div className="rounded-2xl border border-white/10 bg-[#171b2a] p-3">
+        <p className="text-xs font-bold uppercase tracking-[0.24em] text-white/45">Bet</p>
+
+        <div className="mt-3 space-y-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.18em] text-white/45">Amount</p>
+            <div className="mt-2 flex overflow-hidden rounded-xl border border-white/10 bg-[#1e293b]">
+              <input
+                value={betSlip.amount}
+                onChange={(event) => updateBetSlip("amount", event.target.value)}
+                className="w-full bg-transparent p-3 text-white outline-none"
+                placeholder="1k"
+              />
+              <div className="flex items-center gap-1 pr-2">
+                <button type="button" onClick={() => updateBetSlip("amount", formatBetInput(Math.max(1, Math.round(parseBetInput(betSlip.amount || 0) * 0.5))))} className="rounded-lg bg-white/10 px-2 py-1 text-xs font-semibold text-white">
+                  1/2
                 </button>
-              ) : null}
-            </div>
-
-            <div className="mt-3 space-y-3">
-              <div>
-                <p className="text-xs uppercase tracking-[0.18em] text-white/45">Amount</p>
-                <div className="mt-2 flex overflow-hidden rounded-xl border border-white/10 bg-[#1e293b]">
-                  <input
-                    value={slip.amount}
-                    onChange={(event) => updateBetSlip(slip.id, "amount", event.target.value)}
-                    className="w-full bg-transparent p-3 text-white outline-none"
-                    placeholder="1k"
-                  />
-                  <div className="flex items-center gap-1 pr-2">
-                    <button type="button" onClick={() => updateBetSlip(slip.id, "amount", formatBetInput(Math.max(1, Math.round(parseBetInput(slip.amount || 0) * 0.5))))} className="rounded-lg bg-white/10 px-2 py-1 text-xs font-semibold text-white">
-                      1/2
-                    </button>
-                    <button type="button" onClick={() => updateBetSlip(slip.id, "amount", formatBetInput(Math.max(1, Math.round(parseBetInput(slip.amount || 0) * 2))))} className="rounded-lg bg-white/10 px-2 py-1 text-xs font-semibold text-white">
-                      2x
-                    </button>
-                  </div>
-                </div>
+                <button type="button" onClick={() => updateBetSlip("amount", formatBetInput(Math.max(1, Math.round(parseBetInput(betSlip.amount || 0) * 2))))} className="rounded-lg bg-white/10 px-2 py-1 text-xs font-semibold text-white">
+                  2x
+                </button>
               </div>
-
-              <div>
-                <p className="text-xs uppercase tracking-[0.18em] text-white/45">Cashout Mode</p>
-                <div className="mt-2 grid grid-cols-2 gap-2 rounded-xl border border-white/10 bg-[#1e293b] p-1">
-                  <button
-                    type="button"
-                    onClick={() => updateBetSlip(slip.id, "cashoutMode", "manual")}
-                    className={`rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-[0.14em] transition ${
-                      slip.cashoutMode === "manual"
-                        ? "bg-emerald-400 text-slate-950"
-                        : "bg-transparent text-white/65 hover:bg-white/5"
-                    }`}
-                  >
-                    Manual
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => updateBetSlip(slip.id, "cashoutMode", "auto")}
-                    className={`rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-[0.14em] transition ${
-                      slip.cashoutMode === "auto"
-                        ? "bg-sky-400 text-slate-950"
-                        : "bg-transparent text-white/65 hover:bg-white/5"
-                    }`}
-                  >
-                    Auto Cashout
-                  </button>
-                </div>
-              </div>
-
-              {slip.cashoutMode === "auto" ? (
-                <div>
-                  <p className="text-xs uppercase tracking-[0.18em] text-white/45">Auto Cashout At</p>
-                  <input
-                    value={slip.autoCashout}
-                    onChange={(event) => updateBetSlip(slip.id, "autoCashout", event.target.value)}
-                    className="mt-2 w-full rounded-xl border border-white/10 bg-[#1e293b] p-3 text-white outline-none"
-                    placeholder="2.00"
-                  />
-                </div>
-              ) : (
-                <div className="rounded-xl border border-emerald-400/15 bg-emerald-400/8 px-3 py-3 text-sm text-emerald-100/85">
-                  This slip will use the manual cashout button once the round is live.
-                </div>
-              )}
             </div>
           </div>
-        ))}
-      </div>
 
-      <button
-        type="button"
-        onClick={addBetSlip}
-        className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/10"
-      >
-        + Add Bet
-      </button>
+          <div>
+            <p className="text-xs uppercase tracking-[0.18em] text-white/45">Auto Cashout</p>
+            <input
+              value={betSlip.autoCashout}
+              onChange={(event) => updateBetSlip("autoCashout", event.target.value)}
+              className="mt-2 w-full rounded-xl border border-white/10 bg-[#1e293b] p-3 text-white outline-none"
+              placeholder="2.00"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              const liveEntry = liveEntries[0];
+              if (liveEntry) {
+                handleCashout(liveEntry.entryId);
+              }
+            }}
+            disabled={!liveEntries[0] || (loading !== "" && loading !== liveEntries[0]?.entryId)}
+            className="w-full rounded-xl bg-gradient-to-r from-emerald-400 to-lime-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {liveEntries[0]
+              ? loading === liveEntries[0].entryId
+                ? "Cashing Out..."
+                : `Cash Out ${Number(round?.multiplier || 1).toFixed(2)}x`
+              : "Cash Out"}
+          </button>
+        </div>
+      </div>
 
       <div className="rounded-2xl border border-white/8 bg-[#171b2a] p-4">
         <div className="flex items-center justify-between">
@@ -474,50 +420,31 @@ export function CrashGame({ token, user, onBalanceChange }) {
 
       <button
         type="button"
-        onClick={handlePlaceAllBets}
-        disabled={loading !== ""}
+        onClick={handlePlaceBet}
+        disabled={loading !== "" || liveEntries.length > 0 || queuedBets.length > 0}
         className="w-full rounded-xl bg-gradient-to-r from-sky-400 to-cyan-300 px-4 py-4 text-lg font-black text-slate-950 transition hover:scale-[1.01] disabled:opacity-50"
       >
-        {loading === "join" ? "Joining..." : round?.status === "countdown" ? "Join This Round" : "Join Next Round"}
+        {loading === "join"
+          ? "Joining..."
+          : liveEntries.length > 0
+            ? "Bet Live"
+            : queuedBets.length > 0
+              ? "Already Queued"
+              : round?.status === "countdown"
+                ? "Join This Round"
+                : "Join Next Round"}
       </button>
-
-      {liveEntries.length > 0 ? (
-        <div className="space-y-3">
-          {liveEntries.map((entry) => (
-            <button
-              key={entry.entryId}
-              type="button"
-              onClick={() => handleCashout(entry.entryId)}
-              disabled={loading !== "" && loading !== entry.entryId}
-              className="w-full rounded-xl bg-gradient-to-r from-emerald-400 to-lime-300 px-4 py-4 text-left text-slate-950 transition hover:scale-[1.01] disabled:opacity-50"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-sm font-semibold">Cash Out</span>
-                <span className="text-lg font-black">
-                  {loading === entry.entryId ? "..." : `${Number(round?.multiplier || 1).toFixed(2)}x`}
-                </span>
-              </div>
-              <div className="mt-1 flex items-center justify-between gap-3 text-xs font-semibold uppercase tracking-[0.18em]">
-                <span>{formatMoney(entry.bet)}</span>
-                <span>{entry.autoCashout ? `Auto ${Number(entry.autoCashout).toFixed(2)}x` : "Manual"}</span>
-              </div>
-            </button>
-          ))}
-        </div>
-      ) : null}
 
       {queuedBets.length > 0 ? (
         <div className="rounded-2xl border border-sky-400/15 bg-sky-400/8 p-4">
           <p className="text-xs uppercase tracking-[0.22em] text-sky-100/70">Queued For Next Round</p>
           <div className="mt-3 space-y-2">
-            {queuedBets.map((entry) => (
-              <div key={entry.entryId} className="flex items-center justify-between gap-3 rounded-xl bg-black/20 px-3 py-2 text-sm">
-                <span className="font-semibold text-white">{formatMoney(entry.bet)}</span>
-                <span className="text-sky-100/80">
-                  {entry.autoCashout ? `Auto ${Number(entry.autoCashout).toFixed(2)}x` : "Manual"}
-                </span>
-              </div>
-            ))}
+            <div className="flex items-center justify-between gap-3 rounded-xl bg-black/20 px-3 py-2 text-sm">
+              <span className="font-semibold text-white">{formatMoney(queuedBets[0]?.bet)}</span>
+              <span className="text-sky-100/80">
+                {queuedBets[0]?.autoCashout ? `Auto ${Number(queuedBets[0].autoCashout).toFixed(2)}x` : "Manual"}
+              </span>
+            </div>
           </div>
         </div>
       ) : null}
