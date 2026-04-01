@@ -543,7 +543,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
             </p>
           </div>
 
-          <div className="grid min-w-[220px] grid-cols-2 gap-3 xl:min-w-[280px]">
+          <div className="flex flex-wrap gap-3">
             <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
               <p className="text-[11px] uppercase tracking-[0.22em] text-white/45">Room Pot</p>
               <p className="mt-2 text-2xl font-black text-white">{formatCrashValue(round?.totalBet || 0)}</p>
@@ -551,14 +551,6 @@ export function CrashGame({ token, user, onBalanceChange }) {
             <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
               <p className="text-[11px] uppercase tracking-[0.22em] text-white/45">Joined</p>
               <p className="mt-2 text-2xl font-black text-white">{round?.playerCount || 0}</p>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
-              <p className="text-[11px] uppercase tracking-[0.22em] text-white/45">Your Bets</p>
-              <p className="mt-2 text-2xl font-black text-white">{activeBets.length}</p>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
-              <p className="text-[11px] uppercase tracking-[0.22em] text-white/45">Live Exit</p>
-              <p className="mt-2 text-2xl font-black text-white">{formatCrashValue(projectedCashout)}</p>
             </div>
           </div>
         </div>
@@ -591,7 +583,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
         </div>
 
         <div
-          className="relative z-10 mt-6 h-[30rem] overflow-hidden rounded-[1.8rem] border border-white/10 xl:h-[38rem]"
+          className="relative z-10 mt-6 h-[34rem] overflow-hidden rounded-[1.8rem] border border-white/10 xl:h-[44rem]"
           style={{ background: skyStage.background }}
         >
           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),transparent)]" />
@@ -599,8 +591,8 @@ export function CrashGame({ token, user, onBalanceChange }) {
           {round?.status === "countdown" ? (
             <>
               <div className="absolute inset-x-0 bottom-0 h-24 bg-[linear-gradient(180deg,rgba(20,83,45,0),rgba(20,83,45,0.55)_40%,rgba(21,28,36,0.95)_100%)]" />
-              <div className="absolute bottom-8 left-10 text-5xl opacity-90">🏙️</div>
-              <div className="absolute bottom-10 right-14 text-4xl opacity-80">🗼</div>
+              <div className="absolute bottom-8 left-10 text-6xl opacity-90">🏙️</div>
+              <div className="absolute bottom-10 right-14 text-5xl opacity-80">🗼</div>
               <motion.div
                 className="absolute left-[18%] top-[24%] text-3xl opacity-80"
                 animate={{ x: [0, 32, 64], y: [0, -4, 0] }}
@@ -654,7 +646,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
                 <img
                   src="/images/crash-alien-1.png"
                   alt="Alien"
-                  className="h-24 w-24 rounded-2xl object-contain drop-shadow-[0_0_18px_rgba(163,230,53,0.25)]"
+                  className="h-28 w-28 rounded-2xl object-contain drop-shadow-[0_0_18px_rgba(163,230,53,0.25)]"
                 />
               </motion.div>
               <motion.div
@@ -665,7 +657,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
                 <img
                   src="/images/crash-alien-2.png"
                   alt="Alien"
-                  className="h-24 w-24 rounded-2xl object-contain drop-shadow-[0_0_18px_rgba(163,230,53,0.22)]"
+                  className="h-28 w-28 rounded-2xl object-contain drop-shadow-[0_0_18px_rgba(163,230,53,0.22)]"
                 />
               </motion.div>
               <motion.div
@@ -728,7 +720,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
             }}
           >
             {round?.status === "crashed" ? (
-              <div className="relative flex h-24 w-24 items-center justify-center">
+              <div className="relative flex h-40 w-40 items-center justify-center">
                 {Array.from({ length: 10 }, (_, index) => (
                   <motion.span
                     key={`burst-${index}`}
@@ -746,17 +738,17 @@ export function CrashGame({ token, user, onBalanceChange }) {
                     transition={{ duration: 0.55, repeat: Infinity, repeatDelay: 1.2 }}
                   />
                 ))}
-                <span className="text-4xl">💥</span>
+                <span className="text-6xl">💥</span>
               </div>
             ) : (
-              <div className="relative flex h-24 w-20 items-center justify-center">
+              <div className="relative flex h-44 w-40 items-center justify-center">
                 {round?.status === "countdown" ? (
-                  <div className="absolute -top-20 left-1/2 -translate-x-1/2 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-6 py-3 text-xl font-black tracking-[0.18em] text-cyan-100 shadow-[0_0_30px_rgba(56,189,248,0.18)]">
+                  <div className="absolute -top-24 left-1/2 -translate-x-1/2 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-8 py-4 text-2xl font-black tracking-[0.18em] text-cyan-100 shadow-[0_0_30px_rgba(56,189,248,0.18)]">
                     {countdownText}
                   </div>
                 ) : null}
                 <motion.div
-                  className="absolute bottom-1 h-12 w-8 rounded-full bg-[radial-gradient(circle,rgba(250,204,21,0.95),rgba(249,115,22,0.7),transparent_72%)] blur-[1px]"
+                  className="absolute bottom-2 h-24 w-16 rounded-full bg-[radial-gradient(circle,rgba(250,204,21,0.95),rgba(249,115,22,0.7),transparent_72%)] blur-[1px]"
                   animate={{
                     scaleY: round?.status === "countdown" ? [0.25, 0.4, 0.25] : [0.9, 1.6, 0.95],
                     scaleX: round?.status === "countdown" ? [0.25, 0.32, 0.25] : [0.85, 1.08, 0.9],
@@ -765,7 +757,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
                   transition={{ duration: 0.24, repeat: Infinity, ease: "easeInOut" }}
                 />
                 <motion.div
-                  className="absolute bottom-0 h-16 w-12 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.9),rgba(56,189,248,0.35),transparent_72%)]"
+                  className="absolute bottom-0 h-24 w-20 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.9),rgba(56,189,248,0.35),transparent_72%)]"
                   animate={{ opacity: round?.status === "countdown" ? [0.08, 0.18, 0.08] : [0.25, 0.45, 0.28] }}
                   transition={{ duration: 0.4, repeat: Infinity }}
                 />
@@ -777,7 +769,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
                   <img
                     src="/images/crash-rocket.png"
                     alt="Rocket"
-                    className="h-24 w-24 object-contain xl:h-28 xl:w-28"
+                    className="h-36 w-36 object-contain xl:h-44 xl:w-44"
                   />
                 </motion.div>
               </div>
@@ -888,9 +880,9 @@ export function CrashGame({ token, user, onBalanceChange }) {
       controls={controls}
       main={main}
       rightPanel={rightPanel}
-      controlsClassName="w-full shrink-0 rounded-[1.4rem] bg-white/5 p-4 backdrop-blur xl:w-[280px]"
+      controlsClassName="w-full shrink-0 rounded-[1.4rem] bg-white/5 p-4 backdrop-blur xl:w-[230px]"
       mainClassName="min-w-0 flex-1 overflow-visible rounded-[1.4rem] bg-white/5 p-4 backdrop-blur xl:p-6"
-      rightPanelClassName="w-full shrink-0 rounded-[1.4rem] bg-white/5 p-4 backdrop-blur xl:w-[260px]"
+      rightPanelClassName="w-full shrink-0 rounded-[1.4rem] bg-white/5 p-4 backdrop-blur xl:w-[210px]"
     />
   );
 }
