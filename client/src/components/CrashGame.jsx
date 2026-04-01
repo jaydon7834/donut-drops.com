@@ -669,18 +669,26 @@ export function CrashGame({ token, user, onBalanceChange }) {
           {round?.status === "running" && Number(round?.multiplier || 1) >= 10 ? (
             <>
               <motion.div
-                className="absolute left-[12%] top-[18%] text-3xl opacity-75"
+                className="absolute left-[10%] top-[16%] opacity-80"
                 animate={{ y: [0, -4, 0], x: [0, 4, 0] }}
                 transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
               >
-                👽
+                <img
+                  src="/images/crash-alien-1.png"
+                  alt="Alien"
+                  className="h-24 w-24 rounded-2xl object-contain drop-shadow-[0_0_18px_rgba(163,230,53,0.25)]"
+                />
               </motion.div>
               <motion.div
-                className="absolute right-[14%] top-[24%] text-4xl opacity-70"
+                className="absolute right-[10%] top-[22%] opacity-75"
                 animate={{ y: [0, 5, 0], x: [0, -6, 0] }}
                 transition={{ duration: 3.4, repeat: Infinity, ease: "easeInOut" }}
               >
-                👾
+                <img
+                  src="/images/crash-alien-2.png"
+                  alt="Alien"
+                  className="h-24 w-24 rounded-2xl object-contain drop-shadow-[0_0_18px_rgba(163,230,53,0.22)]"
+                />
               </motion.div>
               <motion.div
                 className="absolute left-[24%] bottom-[20%] text-3xl opacity-65"
@@ -810,11 +818,15 @@ export function CrashGame({ token, user, onBalanceChange }) {
                   transition={{ duration: 0.4, repeat: Infinity }}
                 />
                 <motion.div
-                  className="relative text-5xl drop-shadow-[0_0_18px_rgba(56,189,248,0.45)]"
+                  className="relative drop-shadow-[0_0_18px_rgba(56,189,248,0.45)]"
                   animate={round?.status === "countdown" ? { y: [0, 0, 0], rotate: [0, 0, 0] } : { y: [0, -2, 0], rotate: [-1, 1, -1] }}
                   transition={{ duration: 0.4, repeat: Infinity, ease: "easeInOut" }}
                 >
-                  🚀
+                  <img
+                    src="/images/crash-rocket.png"
+                    alt="Rocket"
+                    className="h-20 w-20 object-contain"
+                  />
                 </motion.div>
               </div>
             )}
