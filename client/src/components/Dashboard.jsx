@@ -12,6 +12,7 @@ import { CrashGame } from "./CrashGame.jsx";
 import { ArcadeGame } from "./ArcadeGame.jsx";
 import { FairnessCard } from "./FairnessCard.jsx";
 import { GameCard } from "./GameCard.jsx";
+import { ThemeEffects } from "./ThemeEffects.jsx";
 import { WalletDisplay } from "./WalletDisplay.jsx";
 import { api } from "../lib/api.js";
 import { parseBetInput } from "../lib/betting.js";
@@ -21,6 +22,8 @@ const topNavItems = ["Fairness", "Affiliate", "Bonus", "Leaderboard", "Profile",
 const THEME_STORAGE_KEY = "donutdrop-theme";
 const GLOW_STORAGE_KEY = "donutdrop-glow";
 const DARK_STORAGE_KEY = "donutdrop-dark";
+const SOUND_STORAGE_KEY = "donutdrop-sound";
+const EFFECTS_STORAGE_KEY = "donutdrop-effects";
 const LEVEL_REWARD_STORAGE_KEY = "donutdrop-level-reward";
 const THEMES = {
   green: {
@@ -251,6 +254,20 @@ export function Dashboard() {
 
     return window.localStorage.getItem(DARK_STORAGE_KEY) === "light";
   });
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    if (typeof window === "undefined") {
+      return true;
+    }
+
+    return window.localStorage.getItem(SOUND_STORAGE_KEY) !== "off";
+  });
+  const [effectsEnabled, setEffectsEnabled] = useState(() => {
+    if (typeof window === "undefined") {
+      return true;
+    }
+
+    return window.localStorage.getItem(EFFECTS_STORAGE_KEY) !== "off";
+  });
   const availableCryptoAssets = cryptoAssets.length ? cryptoAssets : FALLBACK_CRYPTO_ASSETS;
   const selectedCryptoAsset =
     availableCryptoAssets.find((asset) => asset.symbol === selectedCrypto) || availableCryptoAssets[0];
@@ -291,6 +308,38 @@ export function Dashboard() {
     document.body.classList.toggle("light", lightMode);
     window.localStorage.setItem(DARK_STORAGE_KEY, lightMode ? "light" : "dark");
   }, [lightMode]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.localStorage.setItem(SOUND_STORAGE_KEY, soundEnabled ? "on" : "off");
+    window.dispatchEvent(
+      new CustomEvent("donutdrop:settings", {
+        detail: {
+          soundEnabled,
+          effectsEnabled
+        }
+      })
+    );
+  }, [soundEnabled, effectsEnabled]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.localStorage.setItem(EFFECTS_STORAGE_KEY, effectsEnabled ? "on" : "off");
+    window.dispatchEvent(
+      new CustomEvent("donutdrop:settings", {
+        detail: {
+          soundEnabled,
+          effectsEnabled
+        }
+      })
+    );
+  }, [effectsEnabled, soundEnabled]);
 
   useEffect(() => {
     setClientSeed(user?.clientSeed || "");
@@ -2032,6 +2081,7 @@ export function Dashboard() {
 
   return (
     <div className="relative flex min-h-[88vh] w-full gap-4 xl:gap-5">
+      <ThemeEffects accentColor={currentTheme.accent} />
       {renderWalletModal()}
 
       {trackerOpen && (
@@ -2242,6 +2292,20 @@ export function Dashboard() {
                 className="glow rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/10"
               >
                 {lightMode ? "🌙 Dark" : "☀ Light"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSoundEnabled((current) => !current)}
+                className="glow rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/10"
+              >
+                {soundEnabled ? "🔊 Sounds" : "🔇 Sounds"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setEffectsEnabled((current) => !current)}
+                className="glow rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/10"
+              >
+                {effectsEnabled ? "✨ Effects" : "🚫 Effects"}
               </button>
               <button
                 type="button"

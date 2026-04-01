@@ -20,6 +20,9 @@ export function ThemeEffects({ accentColor }) {
   const burstsRef = useRef([]);
   const frameRef = useRef(null);
   const pointerRef = useRef({ x: 0, y: 0 });
+  const soundEnabledRef = useRef(true);
+  const effectsEnabledRef = useRef(true);
+  const explosionImageRef = useRef(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -30,6 +33,17 @@ export function ThemeEffects({ accentColor }) {
 
     const context = canvas.getContext("2d");
     const rgb = hexToRgb(accentColor);
+    const explosionImage = new Image();
+    explosionImage.src = "/images/explosion-effect.png";
+    explosionImageRef.current = explosionImage;
+
+    try {
+      soundEnabledRef.current = window.localStorage.getItem("donutdrop-sound") !== "off";
+      effectsEnabledRef.current = window.localStorage.getItem("donutdrop-effects") !== "off";
+    } catch {
+      soundEnabledRef.current = true;
+      effectsEnabledRef.current = true;
+    }
 
     function resize() {
       canvas.width = window.innerWidth;
@@ -47,6 +61,10 @@ export function ThemeEffects({ accentColor }) {
     }
 
     function spawnBurst(type = "win") {
+      if (!effectsEnabledRef.current) {
+        return;
+      }
+
       const burstColor =
         type === "loss"
           ? { r: 255, g: 59, b: 59 }
@@ -61,10 +79,64 @@ export function ThemeEffects({ accentColor }) {
           dx: (Math.random() - 0.5) * (type === "big-win" ? 5 : 3),
           dy: (Math.random() - 0.5) * (type === "big-win" ? 5 : 2.5),
           life: 1,
-          size: Math.random() * 3 + 1.5,
-          color: burstColor
+          size: Math.random() * (type === "loss" ? 24 : 3) + (type === "loss" ? 28 : 1.5),
+          color: burstColor,
+          type,
+          spin: (Math.random() - 0.5) * 0.15,
+          angle: Math.random() * Math.PI * 2
         });
       }
+    }
+
+    function playExplosionSound() {
+      if (!soundEnabledRef.current) {
+        return;
+      }
+
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+
+      if (!AudioContextClass) {
+        return;
+      }
+
+      const audioContext = new AudioContextClass();
+      const masterGain = audioContext.createGain();
+      masterGain.gain.setValueAtTime(0.0001, audioContext.currentTime);
+      masterGain.gain.exponentialRampToValueAtTime(0.18, audioContext.currentTime + 0.02);
+      masterGain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.42);
+      masterGain.connect(audioContext.destination);
+
+      const oscillator = audioContext.createOscillator();
+      oscillator.type = "triangle";
+      oscillator.frequency.setValueAtTime(160, audioContext.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(38, audioContext.currentTime + 0.4);
+      oscillator.connect(masterGain);
+      oscillator.start();
+      oscillator.stop(audioContext.currentTime + 0.42);
+
+      const noiseBuffer = audioContext.createBuffer(1, audioContext.sampleRate * 0.45, audioContext.sampleRate);
+      const channelData = noiseBuffer.getChannelData(0);
+      for (let index = 0; index < channelData.length; index += 1) {
+        channelData[index] = Math.random() * 2 - 1;
+      }
+
+      const noiseSource = audioContext.createBufferSource();
+      noiseSource.buffer = noiseBuffer;
+      const noiseFilter = audioContext.createBiquadFilter();
+      noiseFilter.type = "lowpass";
+      noiseFilter.frequency.setValueAtTime(720, audioContext.currentTime);
+      const noiseGain = audioContext.createGain();
+      noiseGain.gain.setValueAtTime(0.24, audioContext.currentTime);
+      noiseGain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.35);
+      noiseSource.connect(noiseFilter);
+      noiseFilter.connect(noiseGain);
+      noiseGain.connect(audioContext.destination);
+      noiseSource.start();
+      noiseSource.stop(audioContext.currentTime + 0.35);
+
+      window.setTimeout(() => {
+        audioContext.close().catch(() => {});
+      }, 650);
     }
 
     function draw() {
@@ -91,7 +163,26 @@ export function ThemeEffects({ accentColor }) {
         particle.y += particle.dy;
         particle.dy += 0.015;
         particle.life *= 0.94;
-        particle.size *= 0.985;
+        particle.size *= particle.type === "loss" ? 0.975 : 0.985;
+        particle.angle += particle.spin;
+
+        if (particle.type === "loss" && explosionImageRef.current?.complete) {
+          context.save();
+          context.globalAlpha = particle.life;
+          context.shadowBlur = 18;
+          context.shadowColor = `rgba(255, 110, 110, ${particle.life * 0.9})`;
+          context.translate(particle.x, particle.y);
+          context.rotate(particle.angle);
+          context.drawImage(
+            explosionImageRef.current,
+            -particle.size / 2,
+            -particle.size / 2,
+            particle.size,
+            particle.size
+          );
+          context.restore();
+          return;
+        }
 
         context.beginPath();
         context.fillStyle = `rgba(${particle.color.r}, ${particle.color.g}, ${particle.color.b}, ${particle.life})`;
@@ -113,14 +204,27 @@ export function ThemeEffects({ accentColor }) {
       document.documentElement.style.setProperty("--bg-shift-y", `${pointerRef.current.y}px`);
     }
 
+    function handleSettings(event) {
+      soundEnabledRef.current = event.detail?.soundEnabled ?? soundEnabledRef.current;
+      effectsEnabledRef.current = event.detail?.effectsEnabled ?? effectsEnabledRef.current;
+    }
+
     function handleGameEffect(event) {
       const type = event.detail?.type || "win";
+
+      if (!effectsEnabledRef.current && type !== "loss") {
+        return;
+      }
+
       document.body.classList.remove("win-flash", "lose-flash", "pulse");
       void document.body.offsetWidth;
 
       if (type === "loss") {
-        document.body.classList.add("lose-flash", "pulse");
+        if (effectsEnabledRef.current) {
+          document.body.classList.add("lose-flash", "pulse");
+        }
         spawnBurst("loss");
+        playExplosionSound();
         window.setTimeout(() => {
           document.body.classList.remove("lose-flash", "pulse");
         }, 220);
@@ -148,11 +252,13 @@ export function ThemeEffects({ accentColor }) {
     draw();
     window.addEventListener("resize", resize);
     window.addEventListener("mousemove", handlePointerMove);
+    window.addEventListener("donutdrop:settings", handleSettings);
     window.addEventListener("donutdrop:game-effect", handleGameEffect);
 
     return () => {
       window.removeEventListener("resize", resize);
       window.removeEventListener("mousemove", handlePointerMove);
+      window.removeEventListener("donutdrop:settings", handleSettings);
       window.removeEventListener("donutdrop:game-effect", handleGameEffect);
 
       if (frameRef.current) {
