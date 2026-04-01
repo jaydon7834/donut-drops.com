@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { api } from "../lib/api.js";
 import { formatBetInput, parseBetInput } from "../lib/betting.js";
+import { triggerGameEffect } from "../lib/gameEffects.js";
 
 const totalSteps = 10;
 
@@ -71,6 +72,7 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
       const data = await api.stepChicken(token, { gameId: game.gameId });
       setGame(data.game);
       onBalanceChange(data.balance);
+      triggerGameEffect(data.game.result === "lose" ? "loss" : "win");
       setShowDeathOverlay(data.game.result === "lose");
       setFeedback(
         data.game.result === "lose"
@@ -95,6 +97,7 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
       const data = await api.cashoutChicken(token, { gameId: game.gameId });
       setGame(data.game);
       onBalanceChange(data.balance);
+      triggerGameEffect(Number(data.payout || 0) >= Number(data.game?.bet || 0) * 3 ? "big-win" : "win");
       setFeedback(`Cashed out for $${data.payout.toFixed(2)}.`);
     } catch (error) {
       setFeedback(error.message);

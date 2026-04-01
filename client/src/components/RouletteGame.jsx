@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { api } from "../lib/api.js";
 import { formatBetInput, parseBetInput } from "../lib/betting.js";
+import { triggerGameEffect } from "../lib/gameEffects.js";
 
 const numbers = [
   0, 32, 15, 19, 4, 21, 2, 25,
@@ -118,6 +119,13 @@ export function RouletteGame({ token, user, onBalanceChange, onBack }) {
       window.setTimeout(() => {
         setResult(data.game);
         onBalanceChange(data.balance);
+        triggerGameEffect(
+          data.game.win
+            ? Number(data.game.payout || 0) >= Number(data.game.bet || 0) * 3
+              ? "big-win"
+              : "win"
+            : "loss"
+        );
         setFeedback(
           data.game.win
             ? `Landed on ${data.game.number} ${data.game.color}. You won $${data.game.payout.toFixed(2)}.`

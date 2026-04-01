@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { api } from "../lib/api.js";
 import { formatBetInput, parseBetInput } from "../lib/betting.js";
+import { triggerGameEffect } from "../lib/gameEffects.js";
 
 function AnimatedRoll({ roll, outcome }) {
   const toneClass =
@@ -87,6 +88,13 @@ export function DiceGame({ token, user, onBalanceChange }) {
 
       setResult(data.game);
       onBalanceChange(data.balance);
+      triggerGameEffect(
+        data.game.result.isWin
+          ? Number(data.game.payout || 0) >= Number(data.game.bet || 0) * 3
+            ? "big-win"
+            : "win"
+          : "loss"
+      );
       setFeedback({
         text: data.game.result.isWin
           ? `Win locked in at ${data.game.result.multiplier}x.`

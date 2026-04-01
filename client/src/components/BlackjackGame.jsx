@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { api } from "../lib/api.js";
 import { formatBetInput, parseBetInput } from "../lib/betting.js";
+import { triggerGameEffect } from "../lib/gameEffects.js";
 
 const CHIP_VALUES = [10, 25, 100, 500];
 
@@ -76,6 +77,9 @@ export function BlackjackGame({ token, onBalanceChange, onBack }) {
       const data = await api.hitBlackjack(token, { gameId: game.gameId });
       setGame(data.game);
       onBalanceChange(data.balance);
+      if (data.game.result === "lose") {
+        triggerGameEffect("loss");
+      }
       setFeedback(
         data.game.result === "lose"
           ? "Bust. Dealer scoops the hand."
@@ -100,6 +104,15 @@ export function BlackjackGame({ token, onBalanceChange, onBack }) {
       const data = await api.standBlackjack(token, { gameId: game.gameId });
       setGame(data.game);
       onBalanceChange(data.balance);
+      triggerGameEffect(
+        data.game.result === "win"
+          ? Number(data.game.payout || 0) >= Number(data.game.bet || 0) * 3
+            ? "big-win"
+            : "win"
+          : data.game.result === "lose"
+            ? "loss"
+            : "win"
+      );
 
       setFeedback(
         data.game.result === "win"

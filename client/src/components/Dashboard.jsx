@@ -17,6 +17,41 @@ import { parseBetInput } from "../lib/betting.js";
 import { createAppSocket } from "../lib/socket.js";
 
 const topNavItems = ["Fairness", "Affiliate", "Bonus", "Leaderboard", "Profile", "Store"];
+const THEME_STORAGE_KEY = "donutdrop-theme";
+const GLOW_STORAGE_KEY = "donutdrop-glow";
+const DARK_STORAGE_KEY = "donutdrop-dark";
+const THEMES = {
+  green: {
+    label: "Green",
+    bg: "radial-gradient(circle at top, #022c22, #020617)",
+    accent: "#00ff88",
+    accentGradient: "linear-gradient(135deg, #00ff88, #34d399)"
+  },
+  purple: {
+    label: "Purple",
+    bg: "radial-gradient(circle at top, #1e1b4b, #020617)",
+    accent: "#a855f7",
+    accentGradient: "linear-gradient(135deg, #a855f7, #7c3aed)"
+  },
+  blue: {
+    label: "Blue",
+    bg: "radial-gradient(circle at top, #0c4a6e, #020617)",
+    accent: "#38bdf8",
+    accentGradient: "linear-gradient(135deg, #38bdf8, #0ea5e9)"
+  },
+  rainbow: {
+    label: "Rainbow",
+    bg: "linear-gradient(135deg, #020617, #020617)",
+    accent: "#38bdf8",
+    accentGradient: "linear-gradient(90deg, #00ff88, #38bdf8, #a855f7, #facc15)"
+  },
+  red: {
+    label: "Red",
+    bg: "radial-gradient(circle at top, #450a0a, #020617)",
+    accent: "#ff3b3b",
+    accentGradient: "linear-gradient(135deg, #ff3b3b, #ef4444)"
+  }
+};
 
 const gameCards = [
   { id: "blackjack", label: "Blackjack", accent: "from-orange-700 via-orange-500 to-amber-300", players: 6, image: "/images/blackjack-card.svg" },
@@ -32,39 +67,6 @@ const FALLBACK_CRYPTO_ASSETS = [
   { symbol: "ETH", label: "Ethereum", address: "0xF8914Bb5a5fe8e3df8256877c4ed1E7F6d0BE190", minUsdAmount: 5, donutsPerOrder: 71_428_571 },
   { symbol: "SOL", label: "Solana", address: "ExWCCU5SJbYePDX59itfm69hDAiFg9EgLUCG34Z187cg", minUsdAmount: 5, donutsPerOrder: 71_428_571 }
 ];
-const BONUS_CONFIG = {
-  thirtyMinute: { label: "30 Minute Bonus", amount: 1_000_000, cooldownMs: 30 * 60 * 1000, meta: "Claim your faucet reward every 30 minutes." },
-  daily: { label: "Daily Bonus", amount: 5_000_000, cooldownMs: 24 * 60 * 60 * 1000, meta: "Daily reward that refreshes every 24 hours." },
-  weekly: { label: "Weekly Bonus", amount: 30_000_000, cooldownMs: 7 * 24 * 60 * 60 * 1000, meta: "Weekly reward for coming back consistently." },
-  monthly: { label: "Monthly Bonus", amount: 100_000_000, cooldownMs: 30 * 24 * 60 * 60 * 1000, meta: "Big monthly reward for long-term players." }
-};
-
-function formatCompactMoney(value) {
-  return `${formatCompactNumber(value)}`;
-}
-
-function formatRemainingTime(milliseconds) {
-  const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
-  const days = Math.floor(totalSeconds / 86400);
-  const hours = Math.floor((totalSeconds % 86400) / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-
-  if (days > 0) {
-    return `${days}d ${hours}h`;
-  }
-
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  }
-
-  return `${minutes}m ${seconds}s`;
-}
-
-function resolveCreatedAt(user) {
-  const createdAt = Date.parse(user?.createdAt || "");
-  return Number.isFinite(createdAt) ? createdAt : Date.now();
-}
 
 function formatMoney(value) {
   return `$${Number(value || 0).toFixed(2)}`;
@@ -92,7 +94,7 @@ function trimCompact(value) {
   return value.toFixed(value >= 10 ? 0 : 1).replace(/\.0$/, "");
 }
 
-function buildProfitPath(recentGames, startingBalance) {
+function buildProfitPoints(recentGames, startingBalance) {
   const points = [startingBalance - recentGames.reduce((sum, game) => sum + game.profit, 0)];
 
   recentGames.forEach((game) => {
@@ -103,13 +105,42 @@ function buildProfitPath(recentGames, startingBalance) {
   const max = Math.max(...points);
   const range = Math.max(max - min, 1);
 
-  return points
-    .map((point, index) => {
-      const x = (index / Math.max(points.length - 1, 1)) * 100;
-      const y = 100 - ((point - min) / range) * 100;
-      return `${index === 0 ? "M" : "L"} ${x} ${y}`;
-    })
-    .join(" ");
+  return points.map((point, index) => {
+    const x = (index / Math.max(points.length - 1, 1)) * 100;
+    const y = 100 - ((point - min) / range) * 100;
+    return { x, y };
+  });
+}
+
+function buildSmoothProfitPath(points) {
+  if (!points.length) {
+    return "";
+  }
+
+  if (points.length === 1) {
+    return `M ${points[0].x} ${points[0].y}`;
+  }
+
+  let path = `M ${points[0].x} ${points[0].y}`;
+
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const current = points[index];
+    const next = points[index + 1];
+    const controlX = (current.x + next.x) / 2;
+
+    path += ` C ${controlX} ${current.y}, ${controlX} ${next.y}, ${next.x} ${next.y}`;
+  }
+
+  return path;
+}
+
+function buildTrackerAreaPath(points, linePath) {
+  if (!points.length) {
+    return "";
+  }
+
+  const lastPoint = points[points.length - 1];
+  return `${linePath} L ${lastPoint.x} 100 L ${points[0].x} 100 Z`;
 }
 
 function calculateWinStreak(recentGames) {
@@ -147,13 +178,22 @@ export function Dashboard() {
   const [chatInput, setChatInput] = useState("");
   const [chatError, setChatError] = useState("");
   const [chatTimeoutUntil, setChatTimeoutUntil] = useState(0);
+  const [chatCanModerate, setChatCanModerate] = useState(false);
+  const [flaggedMessages, setFlaggedMessages] = useState([]);
+  const [modForm, setModForm] = useState({ username: "", word: "" });
+  const [customWords, setCustomWords] = useState([]);
+  const [modMessage, setModMessage] = useState("");
+  const [moderatingAction, setModeratingAction] = useState("");
   const [players, setPlayers] = useState([]);
   const [tipForm, setTipForm] = useState({ username: "", amount: "100" });
   const [tipMessage, setTipMessage] = useState("");
   const [tipping, setTipping] = useState(false);
-  const [promoCodeInput, setPromoCodeInput] = useState("");
+  const [promoCode, setPromoCode] = useState("");
   const [promoMessage, setPromoMessage] = useState("");
   const [redeemingPromo, setRedeemingPromo] = useState(false);
+  const [affiliateInput, setAffiliateInput] = useState("");
+  const [affiliateMessage, setAffiliateMessage] = useState("");
+  const [affiliateLoading, setAffiliateLoading] = useState("");
   const [trackerOpen, setTrackerOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -174,16 +214,102 @@ export function Dashboard() {
   const [rainMessage, setRainMessage] = useState("");
   const [joiningRain, setJoiningRain] = useState(false);
   const [startingRain, setStartingRain] = useState(false);
-  const [bonusClaims, setBonusClaims] = useState({});
-  const [rakebackClaims, setRakebackClaims] = useState([]);
-  const [bonusNow, setBonusNow] = useState(Date.now());
+  const [levelUpPopup, setLevelUpPopup] = useState(null);
+  const [claimMessage, setClaimMessage] = useState("");
+  const [claimingReward, setClaimingReward] = useState("");
+  const [themeName, setThemeName] = useState(() => {
+    if (typeof window === "undefined") {
+      return "green";
+    }
+
+    const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+    return THEMES[savedTheme] ? savedTheme : "green";
+  });
+  const [glowLevel, setGlowLevel] = useState(() => {
+    if (typeof window === "undefined") {
+      return 1;
+    }
+
+    const savedGlow = Number(window.localStorage.getItem(GLOW_STORAGE_KEY) || 1);
+    return Number.isFinite(savedGlow) ? savedGlow : 1;
+  });
+  const [lightMode, setLightMode] = useState(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+
+    return window.localStorage.getItem(DARK_STORAGE_KEY) === "light";
+  });
   const availableCryptoAssets = cryptoAssets.length ? cryptoAssets : FALLBACK_CRYPTO_ASSETS;
   const selectedCryptoAsset =
     availableCryptoAssets.find((asset) => asset.symbol === selectedCrypto) || availableCryptoAssets[0];
+  const level = user?.level || 1;
+  const xp = user?.xp || 0;
+  const xpRequired = user?.xpRequired || 500;
+  const xpProgress = Math.min((xp / Math.max(xpRequired, 1)) * 100, 100);
+  const nextLevelReward = (level + 1) * 50_000;
+  const currentTheme = THEMES[themeName] || THEMES.green;
+
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    const root = document.documentElement;
+    root.style.setProperty("--app-bg", currentTheme.bg);
+    root.style.setProperty("--accent-solid", currentTheme.accent);
+    root.style.setProperty("--accent-glow", `${currentTheme.accent}55`);
+    root.style.setProperty("--accent-gradient", currentTheme.accentGradient);
+    window.localStorage.setItem(THEME_STORAGE_KEY, themeName);
+  }, [currentTheme, themeName]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    document.documentElement.style.setProperty("--glow", String(glowLevel));
+    window.localStorage.setItem(GLOW_STORAGE_KEY, String(glowLevel));
+  }, [glowLevel]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    document.body.classList.toggle("light", lightMode);
+    window.localStorage.setItem(DARK_STORAGE_KEY, lightMode ? "light" : "dark");
+  }, [lightMode]);
 
   useEffect(() => {
     setClientSeed(user?.clientSeed || "");
   }, [user?.clientSeed]);
+
+  useEffect(() => {
+    if (!user?.level) {
+      return;
+    }
+
+    setLevelUpPopup((current) => {
+      if (!current) {
+        return { seenLevel: user.level, visible: false, reward: 0 };
+      }
+
+      if (user.level > current.seenLevel) {
+        return {
+          seenLevel: user.level,
+          visible: true,
+          reward: user.level * 50_000
+        };
+      }
+
+      if (user.level < current.seenLevel) {
+        return { seenLevel: user.level, visible: false, reward: 0 };
+      }
+
+      return current;
+    });
+  }, [user?.level]);
 
   useEffect(() => {
     let ignore = false;
@@ -255,38 +381,6 @@ export function Dashboard() {
     setMinecraftUsername(user?.minecraftUsername || user?.username || "");
     setMinecraftLinked(Boolean(user?.minecraftUsername));
   }, [user?.minecraftUsername, user?.username]);
-
-  useEffect(() => {
-    const claimKey = `donutdrop_bonus_claims_${user?.id || "guest"}`;
-    const rakebackKey = `donutdrop_rakeback_claims_${user?.id || "guest"}`;
-
-    try {
-      setBonusClaims(JSON.parse(window.localStorage.getItem(claimKey) || "{}"));
-      setRakebackClaims(JSON.parse(window.localStorage.getItem(rakebackKey) || "[]"));
-    } catch {
-      setBonusClaims({});
-      setRakebackClaims([]);
-    }
-  }, [user?.id]);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setBonusNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    if (!user?.id) {
-      return;
-    }
-    window.localStorage.setItem(`donutdrop_bonus_claims_${user.id}`, JSON.stringify(bonusClaims));
-  }, [bonusClaims, user?.id]);
-
-  useEffect(() => {
-    if (!user?.id) {
-      return;
-    }
-    window.localStorage.setItem(`donutdrop_rakeback_claims_${user.id}`, JSON.stringify(rakebackClaims));
-  }, [rakebackClaims, user?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -380,8 +474,10 @@ export function Dashboard() {
       try {
         const data = await api.getChat(token);
         if (!cancelled) {
-          setChatMessages((data.messages || []).slice(-30));
+          setChatMessages(data.messages || []);
           setChatTimeoutUntil(data.timeoutUntil || 0);
+          setChatCanModerate(Boolean(data.canModerate));
+          setFlaggedMessages(data.flaggedMessages || []);
           setChatError("");
         }
       } catch (error) {
@@ -403,6 +499,33 @@ export function Dashboard() {
   useEffect(() => {
     let cancelled = false;
 
+    async function loadModerationWords() {
+      if (!token || !chatCanModerate) {
+        return;
+      }
+
+      try {
+        const data = await api.getChatModerationWords(token);
+        if (!cancelled) {
+          setCustomWords(data.words || []);
+        }
+      } catch {
+        if (!cancelled) {
+          setCustomWords([]);
+        }
+      }
+    }
+
+    loadModerationWords();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [chatCanModerate, token]);
+
+  useEffect(() => {
+    let cancelled = false;
+
     async function loadPlayers() {
       if (!token) {
         return;
@@ -412,6 +535,10 @@ export function Dashboard() {
         const data = await api.getPlayers(token);
         if (!cancelled) {
           setPlayers(data.players || []);
+          setTipForm((current) => ({
+            ...current,
+            username: current.username || data.players?.[0]?.username || ""
+          }));
         }
       } catch {
         if (!cancelled) {
@@ -469,8 +596,9 @@ export function Dashboard() {
 
     try {
       const data = await api.sendChat(token, { text: chatInput });
-      setChatMessages((data.messages || []).slice(-30));
+      setChatMessages(data.messages || []);
       setChatTimeoutUntil(data.timeoutUntil || 0);
+      setFlaggedMessages(data.flaggedMessages || []);
       setChatInput("");
       setChatError("");
     } catch (error) {
@@ -479,7 +607,68 @@ export function Dashboard() {
       if (freshChat) {
         setChatMessages(freshChat.messages || []);
         setChatTimeoutUntil(freshChat.timeoutUntil || 0);
+        setFlaggedMessages(freshChat.flaggedMessages || []);
       }
+    }
+  }
+
+  async function handleModerationAction(action, durationSeconds = 0) {
+    if (!modForm.username.trim()) {
+      setModMessage("Enter a username first.");
+      return;
+    }
+
+    setModeratingAction(action);
+    setModMessage("");
+
+    try {
+      const data = await api.moderateChatUser(token, {
+        username: modForm.username.trim(),
+        action,
+        durationSeconds
+      });
+      setFlaggedMessages(data.flaggedMessages || []);
+      setModMessage(`${data.target} ${action} applied.`);
+    } catch (error) {
+      setModMessage(error.message);
+    } finally {
+      setModeratingAction("");
+    }
+  }
+
+  async function handleAddCustomWord() {
+    if (!modForm.word.trim()) {
+      setModMessage("Enter a custom word first.");
+      return;
+    }
+
+    setModeratingAction("word-add");
+    setModMessage("");
+
+    try {
+      const data = await api.addChatModerationWord(token, modForm.word.trim());
+      setCustomWords(data.words || []);
+      setModForm((current) => ({ ...current, word: "" }));
+      setModMessage("Custom banned word added.");
+    } catch (error) {
+      setModMessage(error.message);
+    } finally {
+      setModeratingAction("");
+    }
+  }
+
+  async function handleRemoveCustomWord(word) {
+    setModeratingAction(`word-remove-${word}`);
+    setModMessage("");
+
+    try {
+      const data = await api.removeChatModerationWord(token, word);
+      setCustomWords(data.words || []);
+      setModMessage(`Removed "${word}".`);
+    } catch (error) {
+      setModMessage(error.message);
+    } finally {
+      setModeratingAction("");
     }
   }
 
@@ -500,6 +689,63 @@ export function Dashboard() {
       setTipMessage(error.message);
     } finally {
       setTipping(false);
+    }
+  }
+
+  async function handleRedeemPromo() {
+    if (!promoCode.trim()) {
+      return;
+    }
+
+    setRedeemingPromo(true);
+    setPromoMessage("");
+
+    try {
+      const data = await api.redeemCode(token, promoCode.trim());
+      setUser(data.user);
+      setPromoCode("");
+      setPromoMessage(`Redeemed ${data.code} for ${formatMoney(data.reward)}.`);
+      await refreshBalance();
+    } catch (error) {
+      setPromoMessage(error.message);
+    } finally {
+      setRedeemingPromo(false);
+    }
+  }
+
+  async function handleApplyAffiliate() {
+    if (!affiliateInput.trim()) {
+      return;
+    }
+
+    setAffiliateLoading("apply");
+    setAffiliateMessage("");
+
+    try {
+      const data = await api.applyAffiliate(token, affiliateInput.trim());
+      setUser(data.user);
+      setAffiliateInput("");
+      setAffiliateMessage(`Affiliate code ${data.user.affiliateCodeUsed} applied.`);
+    } catch (error) {
+      setAffiliateMessage(error.message);
+    } finally {
+      setAffiliateLoading("");
+    }
+  }
+
+  async function handleClaimAffiliate() {
+    setAffiliateLoading("claim");
+    setAffiliateMessage("");
+
+    try {
+      const data = await api.claimAffiliate(token);
+      setUser(data.user);
+      setAffiliateMessage(`Claimed ${formatMoney(data.amount)} in affiliate earnings.`);
+      await refreshBalance();
+    } catch (error) {
+      setAffiliateMessage(error.message);
+    } finally {
+      setAffiliateLoading("");
     }
   }
 
@@ -535,6 +781,12 @@ export function Dashboard() {
 
   const totalProfit = recentGames.reduce((sum, game) => sum + game.profit, 0);
   const totalWagered = user.stats?.totalWagered ?? recentGames.reduce((sum, game) => sum + game.betAmount, 0);
+  const rakebackBalance = Number(user?.rakebackBalance || 0);
+  const onlineReward = Number(user?.onlineReward || 0);
+  const affiliateCode = user?.affiliateCode || String(user?.username || "").toUpperCase();
+  const affiliateCodeUsed = user?.affiliateCodeUsed || "";
+  const affiliateAvailable = Number(user?.affiliateAvailable || 0);
+  const affiliateEarned = Number(user?.affiliateEarned || 0);
   const gamesPlayed = recentGames.length;
   const winCount = recentGames.filter((game) => game.profit > 0).length;
   const biggestWin = user.stats?.biggestWin ?? recentGames.reduce((max, game) => Math.max(max, game.profit), 0);
@@ -545,81 +797,38 @@ export function Dashboard() {
     { label: "💰 Wagered", value: formatMoney(totalWagered), tone: "text-emerald-300" },
     { label: "🎯 Biggest Win", value: formatMoney(biggestWin), tone: "text-sky-300" }
   ];
-  const trackerPath = buildProfitPath(recentGames, user.balance || 1000);
-  const totalBonusClaimed = Object.values(bonusClaims).reduce((sum, entry) => sum + Number(entry?.claimed || 0), 0);
-  const totalRakebackClaimed = rakebackClaims.reduce((sum, entry) => sum + Number(entry?.amount || 0), 0);
-  const availableRakeback = Math.max(Math.floor(totalWagered * 0.02) - totalRakebackClaimed, 0);
-  const lastRakebackClaimAt = rakebackClaims.length ? Number(rakebackClaims[rakebackClaims.length - 1]?.claimedAt || 0) : 0;
-  const rakebackCooldownRemaining = Math.max(0, 60 * 60 * 1000 - (bonusNow - lastRakebackClaimAt));
-  const accountCreatedAt = resolveCreatedAt(user);
-  const accountAgeMs = Math.max(0, bonusNow - accountCreatedAt);
-
-  function creditBalance(amount) {
-    setUser((current) => ({
-      ...current,
-      balance: Number(current.balance || 0) + Number(amount || 0)
-    }));
-  }
-
-  async function handleRedeemPromo() {
-    if (!promoCodeInput.trim()) {
-      setPromoMessage("Enter a promo code first.");
-      return;
-    }
-
-    setRedeemingPromo(true);
-    setPromoMessage("");
-
-    try {
-      const data = await api.redeemPromoCode(token, { code: promoCodeInput });
-      setUser(data.user);
-      setPromoCodeInput("");
-      setPromoMessage(`${data.message} +${formatCompactMoney(data.amount)}`);
-    } catch (error) {
-      setPromoMessage(error.message);
-    } finally {
-      setRedeemingPromo(false);
-    }
-  }
-
-  function handleClaimBonus(key) {
-    const bonus = BONUS_CONFIG[key];
-    if (!bonus) {
-      return;
-    }
-
-    const existing = bonusClaims[key];
-    const lastClaimedAt = Number(existing?.lastClaimedAt || 0);
-    const accountAgeRemaining = Math.max(0, bonus.cooldownMs - accountAgeMs);
-    if (accountAgeRemaining > 0 || bonusNow - lastClaimedAt < bonus.cooldownMs) {
-      return;
-    }
-
-    setBonusClaims((current) => ({
-      ...current,
-      [key]: {
-        lastClaimedAt: Date.now(),
-        claimed: Number(current[key]?.claimed || 0) + bonus.amount
-      }
-    }));
-    creditBalance(bonus.amount);
-  }
-
-  function handleClaimRakeback() {
-    if (availableRakeback <= 0 || rakebackCooldownRemaining > 0) {
-      return;
-    }
-
-    const amount = availableRakeback;
-    setRakebackClaims((current) => [...current, { amount, claimedAt: Date.now() }]);
-    creditBalance(amount);
-  }
+  const trackerPoints = buildProfitPoints(recentGames, user.balance || 1000);
+  const trackerPath = buildSmoothProfitPath(trackerPoints);
+  const trackerAreaPath = buildTrackerAreaPath(trackerPoints, trackerPath);
   const activeTimeoutSeconds = Math.max(0, Math.ceil((chatTimeoutUntil - Date.now()) / 1000));
   const timeoutLabel = useMemo(() => {
     const minutes = Math.floor(activeTimeoutSeconds / 60);
     const seconds = activeTimeoutSeconds % 60;
     return `${minutes}:${String(seconds).padStart(2, "0")}`;
   }, [activeTimeoutSeconds]);
+  const tipTargetExists = players.some(
+    (player) => player.username.toLowerCase() === String(tipForm.username || "").trim().toLowerCase()
+  );
+
+  async function handleClaimReward(type) {
+    setClaimingReward(type);
+    setClaimMessage("");
+
+    try {
+      const data =
+        type === "rakeback"
+          ? await api.claimRakeback(token)
+          : await api.claimOnlineReward(token);
+
+      setUser(data.user);
+      setClaimMessage(`+${formatMoney(data.amount)} added to wallet.`);
+      await refreshBalance();
+    } catch (error) {
+      setClaimMessage(error.message);
+    } finally {
+      setClaimingReward("");
+    }
+  }
 
   function openWallet() {
     setWalletOpen(true);
@@ -774,8 +983,8 @@ export function Dashboard() {
 
                   <div className="ml-auto flex overflow-hidden rounded-2xl bg-white/5">
                     <input
-                      value={promoCodeInput}
-                      onChange={(event) => setPromoCodeInput(event.target.value)}
+                      value={promoCode}
+                      onChange={(event) => setPromoCode(event.target.value)}
                       className="bg-transparent px-4 py-3 text-sm text-white outline-none"
                       placeholder="Promo code"
                     />
@@ -846,42 +1055,11 @@ export function Dashboard() {
                     </div>
                   </>
                 ) : (
-                  <div className="space-y-5">
-                    <div>
-                      <p className="text-lg font-semibold text-white">Minecraft In-Game</p>
-                      <div className="mt-3 overflow-hidden rounded-[1.4rem] border border-yellow-400/10 bg-[linear-gradient(135deg,rgba(67,56,9,0.95),rgba(29,33,49,0.95))] text-left">
-                        <div className="flex min-h-[132px] items-end bg-[radial-gradient(circle_at_left,rgba(250,204,21,0.18),transparent_28%),linear-gradient(90deg,rgba(0,0,0,0.05),rgba(0,0,0,0.35))] px-5 py-4">
-                          <div>
-                            <p className="text-2xl font-black text-white">DonutSMP</p>
-                            <p className="mt-2 text-sm text-white/70">
-                              Withdrawals route through your linked Minecraft account once the DonutSMP bot is online.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                      <div className="rounded-[1.6rem] border border-white/6 bg-[#171824] p-6">
-                        <p className="text-lg font-semibold text-white">Withdrawals</p>
-                        <div className="mt-4 rounded-2xl border border-amber-300/15 bg-amber-500/10 px-4 py-4">
-                          <p className="text-xs uppercase tracking-[0.25em] text-amber-100/60">Minimum Withdraw</p>
-                          <p className="mt-2 text-3xl font-black text-white">10m</p>
-                          <p className="mt-2 text-sm text-white/65">
-                            Withdraw requests below 10m are not accepted through the DonutSMP flow.
-                          </p>
-                        </div>
-                        <p className="mt-4 text-white/60">
-                          Join Discord for withdrawal support, queue updates, and live status while the DonutSMP bot flow is active.
-                        </p>
-                        <a
-                          href="https://discord.gg/nr3edCRG"
-                          target="_blank"
-                          rel="noreferrer"
-                          className="mt-5 inline-flex rounded-xl border border-indigo-400/35 bg-indigo-500/10 px-4 py-3 font-semibold text-indigo-200 transition hover:bg-indigo-500/20"
-                        >
-                          Join Discord
-                        </a>
-                      </div>
+                  <div className="rounded-[1.6rem] border border-white/6 bg-[#171824] p-6">
+                    <p className="text-lg font-semibold text-white">Withdrawals</p>
+                    <p className="mt-3 text-white/60">
+                      Withdrawals will route through your linked Minecraft account once the deposit bot is enabled.
+                    </p>
                   </div>
                 )}
               </div>
@@ -1074,37 +1252,16 @@ export function Dashboard() {
                     <p className="text-2xl font-bold text-emerald-300">Deposit Bot Online</p>
                   </div>
                   <p className="mt-3 text-white/70">
-                    DonutSMP in-game deposits are available right now.
+                    DonutSMP in-game deposits are available right now. You can change this status later whenever the bot goes offline.
                   </p>
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-2xl bg-black/20 px-4 py-4">
-                      <p className="text-xs uppercase tracking-[0.25em] text-white/45">Pay This Bot</p>
-                      <p className="mt-2 text-3xl font-black text-white">
-                        {depositSession?.botName || "a5ew"}
-                      </p>
-                    </div>
-                    <div className="rounded-2xl bg-black/20 px-4 py-4">
-                      <p className="text-xs uppercase tracking-[0.25em] text-white/45">Exact Amount</p>
-                      <p className="mt-2 text-4xl font-black tracking-[0.12em] text-white">
-                        {depositSession?.requiredAmount || "---"}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-3 rounded-2xl bg-black/20 px-4 py-4">
-                    <p className="text-xs uppercase tracking-[0.25em] text-white/45">Verification</p>
-                    <p className="mt-2 text-sm text-white/75">
-                      Pay exactly <span className="font-semibold text-white">{depositSession?.requiredAmount || "---"}</span> to{" "}
-                      <span className="font-semibold text-white">{depositSession?.botName || "a5ew"}</span>. Once that payment is verified,
-                      your DonutDrop balance is credited automatically.
+                  <div className="mt-4 rounded-2xl bg-black/20 px-4 py-4">
+                    <p className="text-xs uppercase tracking-[0.25em] text-white/45">Minecraft Deposit Amount</p>
+                    <p className="mt-2 text-4xl font-black tracking-[0.12em] text-white">
+                      {depositSession?.requiredAmount || 950}
                     </p>
-                    <a
-                      href="https://discord.gg/nr3edCRG"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-4 inline-flex rounded-xl border border-indigo-400/35 bg-indigo-500/10 px-4 py-3 text-sm font-semibold text-indigo-200 transition hover:bg-indigo-500/20"
-                    >
-                      Join Discord
-                    </a>
+                    <p className="mt-2 text-sm text-white/55">
+                      Pay exactly {depositSession?.requiredAmount || 950} in Minecraft money to the DonutSMP deposit bot. Once your bot confirms that payment for the linked username, the website will credit your balance.
+                    </p>
                   </div>
                 </div>
 
@@ -1186,73 +1343,71 @@ export function Dashboard() {
                 </p>
               </div>
               <div className="rounded-2xl bg-white/5 px-4 py-3 text-sm text-white/75">
-                Total Claimed: {formatCompactMoney(totalBonusClaimed + totalRakebackClaimed)}
+                Total Claimed: {formatMoney(Math.max(totalProfit, 0))}
               </div>
             </div>
           </div>
 
           <div className="grid gap-4 xl:grid-cols-4">
-            {Object.entries(BONUS_CONFIG).map(([key, bonus]) => {
-              const lastClaimedAt = Number(bonusClaims[key]?.lastClaimedAt || 0);
-              const remaining = Math.max(0, bonus.cooldownMs - (bonusNow - lastClaimedAt));
-              const accountAgeRemaining = Math.max(0, bonus.cooldownMs - accountAgeMs);
-              const available = remaining === 0 && accountAgeRemaining === 0;
-
-              return (
-                <div key={bonus.label} className="rounded-[1.8rem] border border-white/6 bg-[#171824] p-6">
-                  <p className="text-sm uppercase tracking-[0.04em] text-indigo-200/70">{bonus.label}</p>
-                  <p className="mt-4 text-4xl font-black text-white">{formatCompactMoney(bonus.amount)}</p>
-                  <p className="mt-4 min-h-[52px] text-sm leading-6 text-white/60">{bonus.meta}</p>
-                  <div className="mt-4 rounded-xl bg-black/20 px-4 py-3 text-sm text-white/55">
-                    {accountAgeRemaining > 0
-                      ? `Requires ${formatRemainingTime(accountAgeRemaining)} more account age`
-                      : available
-                      ? "Available now"
-                      : `Available in ${formatRemainingTime(remaining)}`}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleClaimBonus(key)}
-                    disabled={!available}
-                    className="mt-4 w-full rounded-xl bg-emerald-500 px-4 py-3 font-semibold text-slate-950 disabled:opacity-55"
-                  >
-                    {available ? `Claim ${formatCompactMoney(bonus.amount)}` : "On Cooldown"}
-                  </button>
+            {[
+              { label: "Online Reward", amount: onlineReward, meta: "Accumulates automatically while you stay online." },
+              { label: "Rakeback", amount: rakebackBalance, meta: "Earn 1% back on every wager placed across games." },
+              { label: "Total Wagered", amount: totalWagered, meta: "Tracked server-side and used for progression." },
+              { label: "Net Profit", amount: Math.max(totalProfit, 0), meta: "Your best positive session flow so far." }
+            ].map((bonus) => (
+              <div key={bonus.label} className="reward-box rounded-[1.8rem] border border-white/6 bg-[#171824] p-6">
+                <p className="text-sm uppercase tracking-[0.04em] text-indigo-200/70">{bonus.label}</p>
+                <p className="mt-4 text-4xl font-black text-white">{formatMoney(bonus.amount)}</p>
+                <p className="mt-4 min-h-[52px] text-sm leading-6 text-white/60">{bonus.meta}</p>
+                <div className="mt-4 rounded-xl bg-black/20 px-4 py-3 text-sm text-white/55">
+                  {bonus.label === "Online Reward" ? "Updates every minute of active time." : "Stored live on your account."}
                 </div>
-              );
-            })}
+                <button
+                  type="button"
+                  disabled
+                  className="claim-btn mt-4 w-full rounded-xl px-4 py-3 font-semibold text-slate-950 opacity-60"
+                >
+                  Passive
+                </button>
+              </div>
+            ))}
           </div>
 
           <div className="grid gap-4 lg:grid-cols-[1.6fr,1fr]">
-            <div className="rounded-[1.8rem] border border-white/6 bg-[#171824] p-6">
+            <div className="reward-box rounded-[1.8rem] border border-white/6 bg-[#171824] p-6">
               <p className="text-sm uppercase tracking-[0.2em] text-indigo-200/70">Rakeback</p>
               <div className="mt-4 rounded-xl bg-black/20 px-4 py-3 text-sm text-white/65">
-                Rakeback rate: 2% of total wagered, claimable once per hour.
+                Rakeback rate: 1% of every bet, credited server-side as you wager.
               </div>
               <div className="mt-5 rounded-[1.4rem] border border-white/6 bg-[#11121a] p-6">
                 <p className="text-sm uppercase tracking-[0.25em] text-white/45">Available Rakeback</p>
-                <p className="mt-3 text-4xl font-black text-white">{formatCompactMoney(availableRakeback)}</p>
+                <p className="mt-3 text-4xl font-black text-white">{formatMoney(rakebackBalance)}</p>
                 <p className="mt-3 text-sm text-white/55">
-                  Claimable once per hour based on your wagered volume.
+                  Claim any time and it goes straight into your wallet.
                 </p>
               </div>
             </div>
 
-            <div className="rounded-[1.8rem] border border-white/6 bg-[#171824] p-6">
-              <p className="text-sm uppercase tracking-[0.25em] text-white/45">Status</p>
-              <p className="mt-4 text-white/80">
-                {rakebackCooldownRemaining > 0
-                  ? `Available in ${formatRemainingTime(rakebackCooldownRemaining)}`
-                  : "Available now"}
-              </p>
+            <div className="reward-box rounded-[1.8rem] border border-white/6 bg-[#171824] p-6">
+              <p className="text-sm uppercase tracking-[0.25em] text-white/45">Claim Center</p>
+              <p className="mt-4 text-white/80">Wallet: {formatMoney(user.balance)}</p>
               <button
                 type="button"
-                onClick={handleClaimRakeback}
-                disabled={availableRakeback <= 0 || rakebackCooldownRemaining > 0}
-                className="mt-5 w-full rounded-xl bg-emerald-500 px-4 py-3 font-semibold text-slate-950"
+                onClick={() => handleClaimReward("rakeback")}
+                disabled={claimingReward !== "" || rakebackBalance <= 0}
+                className="claim-btn glow mt-5 w-full rounded-xl px-4 py-3 font-semibold text-slate-950 disabled:opacity-50"
               >
-                Claim Rakeback
+                {claimingReward === "rakeback" ? "Claiming..." : "Claim Rakeback"}
               </button>
+              <button
+                type="button"
+                onClick={() => handleClaimReward("online")}
+                disabled={claimingReward !== "" || onlineReward <= 0}
+                className="claim-btn glow mt-3 w-full rounded-xl px-4 py-3 font-semibold text-slate-950 disabled:opacity-50"
+              >
+                {claimingReward === "online" ? "Claiming..." : "Claim Online Reward"}
+              </button>
+              {claimMessage && <p className="mt-4 text-sm text-white/70">{claimMessage}</p>}
             </div>
           </div>
         </section>
@@ -1374,8 +1529,10 @@ export function Dashboard() {
     }
 
     if (activeTopTab === "affiliate") {
-      const referralCode = user.username.toUpperCase();
-      const referralLink = `https://donut-drops.com/?ref=${referralCode}`;
+      const referralLink = `https://donut-drops.com/?ref=${affiliateCode}`;
+      const usersReferred = players.filter(
+        (player) => String(player.affiliateCodeUsed || "").toUpperCase() === affiliateCode
+      ).length;
 
       return (
         <section className="space-y-5">
@@ -1383,10 +1540,10 @@ export function Dashboard() {
             <p className="text-sm uppercase tracking-[0.2em] text-indigo-200/70">Affiliate</p>
             <div className="mt-5 grid gap-4 xl:grid-cols-4">
               {[
-                { label: "Commission", value: "5%" },
-                { label: "Users Referred", value: "0" },
-                { label: "Total Earned", value: formatMoney(Math.max(totalProfit, 0) * 0.05) },
-                { label: "Total Claimed", value: "$0" }
+                { label: "Commission", value: "1%" },
+                { label: "Users Referred", value: String(usersReferred) },
+                { label: "Total Earned", value: formatMoney(affiliateEarned) },
+                { label: "Ready To Claim", value: formatMoney(affiliateAvailable) }
               ].map((card) => (
                 <div key={card.label} className="rounded-[1.3rem] border border-white/6 bg-[#11121a] p-5">
                   <p className="text-xs uppercase tracking-[0.2em] text-white/45">{card.label}</p>
@@ -1402,7 +1559,7 @@ export function Dashboard() {
 
               <label className="mt-5 block">
                 <span className="text-sm font-semibold text-white">Referral Code</span>
-                <div className="mt-3 rounded-xl bg-black/20 px-5 py-4 text-white">{referralCode}</div>
+                <div className="mt-3 rounded-xl bg-black/20 px-5 py-4 text-white">{affiliateCode}</div>
               </label>
 
               <label className="mt-5 block">
@@ -1411,25 +1568,44 @@ export function Dashboard() {
               </label>
 
               <div className="mt-5 rounded-xl bg-black/20 px-5 py-4 text-white/65">
-                You earn 5% of your referrals&apos; wager volume. The more they play, the more you earn.
+                You earn 1% of your referrals&apos; wager volume. The more they play, the more you earn.
               </div>
+              <div className="mt-5 flex gap-3">
+                <input
+                  value={affiliateInput}
+                  onChange={(event) => setAffiliateInput(event.target.value)}
+                  className="w-full rounded-xl bg-black/20 px-5 py-4 text-white outline-none"
+                  placeholder={affiliateCodeUsed ? `Applied: ${affiliateCodeUsed}` : "Enter affiliate code"}
+                  disabled={Boolean(affiliateCodeUsed)}
+                />
+                <button
+                  type="button"
+                  onClick={handleApplyAffiliate}
+                  disabled={affiliateLoading !== "" || Boolean(affiliateCodeUsed)}
+                  className="claim-btn rounded-xl px-5 py-4 disabled:opacity-50"
+                >
+                  {affiliateLoading === "apply" ? "Applying..." : affiliateCodeUsed ? "Applied" : "Apply"}
+                </button>
+              </div>
+              {affiliateMessage && <p className="mt-4 text-sm text-white/65">{affiliateMessage}</p>}
             </div>
 
             <div className="rounded-[1.8rem] border border-white/6 bg-[#171824] p-6">
               <p className="text-sm uppercase tracking-[0.2em] text-indigo-200/70">Claim</p>
               <div className="mt-5 rounded-[1.3rem] bg-[#11121a] p-5">
                 <p className="text-xs uppercase tracking-[0.2em] text-white/45">Ready To Claim</p>
-                <p className="mt-3 text-4xl font-black text-white">$0.00</p>
+                <p className="mt-3 text-4xl font-black text-white">{formatMoney(affiliateAvailable)}</p>
               </div>
               <button
                 type="button"
-                className="mt-5 w-full rounded-xl bg-emerald-500 px-4 py-3 font-semibold text-slate-950"
+                onClick={handleClaimAffiliate}
+                disabled={affiliateLoading !== "" || affiliateAvailable <= 0}
+                className="claim-btn glow mt-5 w-full rounded-xl px-4 py-3 font-semibold text-slate-950 disabled:opacity-50"
               >
-                Claim Earnings
+                {affiliateLoading === "claim" ? "Claiming..." : "Claim Earnings"}
               </button>
               <p className="mt-4 text-sm leading-6 text-white/55">
-                Claims typically settle instantly, though rare delays may extend this process up to one
-                hour. Minimum amount to claim is $10M.
+                Affiliate commission is based on wager volume, not deposits, and credits instantly when claimed.
               </p>
             </div>
           </div>
@@ -1451,7 +1627,7 @@ export function Dashboard() {
                 <p className="text-white/60">@{user.username}</p>
                 <div className="mt-2 flex flex-wrap gap-2 text-sm">
                   <span className="rounded-full bg-emerald-500 px-3 py-1 font-semibold text-slate-950">
-                    Level 1
+                    Level {level}
                   </span>
                   <span className="rounded-full bg-white/5 px-3 py-1 text-white/65">
                     ${totalWagered.toFixed(2)} wagered
@@ -1477,18 +1653,21 @@ export function Dashboard() {
               </div>
 
               <div className="flex items-center justify-between text-sm text-white/60">
-                <span>Progress to Level 2</span>
-                <span>${Math.max(500 - totalWagered, 0).toFixed(2)} remaining</span>
+                <span>Progress to Level {level + 1}</span>
+                <span>{Math.max(xpRequired - xp, 0)} XP remaining</span>
               </div>
               <div className="mt-3 h-3 overflow-hidden rounded-full bg-white/5">
                 <div
-                  className="h-full rounded-full bg-emerald-500"
-                  style={{ width: `${Math.min((totalWagered / 500) * 100, 100)}%` }}
+                  className="h-full rounded-full bg-gradient-to-r from-orange-400 via-amber-300 to-emerald-400 transition-all duration-700"
+                  style={{ width: `${xpProgress}%` }}
                 />
               </div>
               <div className="mt-3 flex items-center justify-between text-sm text-white/55">
-                <span>${totalWagered.toFixed(2)} / $500 this level</span>
-                <span>{Math.min((totalWagered / 500) * 100, 100).toFixed(0)}% complete</span>
+                <span>{xp} / {xpRequired} XP this level</span>
+                <span>{xpProgress.toFixed(0)}% complete</span>
+              </div>
+              <div className="mt-4 rounded-2xl border border-orange-400/15 bg-orange-400/10 px-4 py-3 text-sm text-orange-100">
+                Next level reward preview: ${nextLevelReward.toLocaleString()}
               </div>
             </div>
           </div>
@@ -1578,12 +1757,10 @@ export function Dashboard() {
               </button>
               <button
                 type="button"
-                onClick={handleRedeemPromo}
                 className="mt-3 w-full rounded-xl bg-white/5 px-4 py-4 text-sm font-semibold text-white"
               >
                 Redeem Code
               </button>
-              {promoMessage && <p className="mt-3 text-sm text-white/60">{promoMessage}</p>}
             </div>
 
             <div className="rounded-[1.8rem] border border-white/6 bg-[#171824] p-6">
@@ -1778,19 +1955,31 @@ export function Dashboard() {
           <div className="mt-4 rounded-[1.3rem] bg-[#0c1c2a] p-3">
             <svg viewBox="0 0 100 100" className="h-28 w-full" preserveAspectRatio="none">
               <defs>
-                <linearGradient id="trackerFillMini" x1="0%" x2="0%" y1="0%" y2="100%">
-                  <stop offset="0%" stopColor="rgba(34,197,94,0.25)" />
-                  <stop offset="100%" stopColor="rgba(239,68,68,0.08)" />
+                <linearGradient id="trackerStrokeMini" x1="0%" x2="100%" y1="0%" y2="0%">
+                  <stop offset="0%" stopColor={totalProfit >= 0 ? "#6ee7b7" : "#fb7185"} />
+                  <stop offset="100%" stopColor={totalProfit >= 0 ? "#22c55e" : "#ff4d6d"} />
                 </linearGradient>
+                <linearGradient id="trackerFillMini" x1="0%" x2="0%" y1="0%" y2="100%">
+                  <stop offset="0%" stopColor={totalProfit >= 0 ? "rgba(110,231,183,0.28)" : "rgba(255,77,109,0.24)"} />
+                  <stop offset="100%" stopColor="rgba(255,77,109,0)" />
+                </linearGradient>
+                <filter id="trackerGlowMini" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="2.2" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
               </defs>
-              <path d={`${trackerPath} L 100 100 L 0 100 Z`} fill="url(#trackerFillMini)" opacity="0.65" />
+              <path d={trackerAreaPath} fill="url(#trackerFillMini)" opacity="0.9" />
               <path
                 d={trackerPath}
                 fill="none"
-                stroke={totalProfit >= 0 ? "#4ade80" : "#fb7185"}
-                strokeWidth="2.8"
+                stroke="url(#trackerStrokeMini)"
+                strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                filter="url(#trackerGlowMini)"
               />
             </svg>
           </div>
@@ -1909,6 +2098,47 @@ export function Dashboard() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-3">
+                {Object.entries(THEMES).map(([name, theme]) => (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => setThemeName(name)}
+                    className={`theme-chip rounded-full px-3 py-2 text-xs font-semibold text-white/80 transition hover:scale-105 ${
+                      themeName === name ? "theme-chip-active text-white" : "bg-white/5"
+                    }`}
+                    style={{
+                      background: themeName === name ? theme.accentGradient : undefined
+                    }}
+                    title={`${theme.label} theme`}
+                  >
+                    {theme.label}
+                  </button>
+                ))}
+              </div>
+              <div className="glow flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                <label htmlFor="glowSlider" className="text-xs font-semibold uppercase tracking-[0.22em] text-white/55">
+                  Glow
+                </label>
+                <input
+                  id="glowSlider"
+                  type="range"
+                  min="0"
+                  max="2"
+                  step="0.1"
+                  value={glowLevel}
+                  onChange={(event) => setGlowLevel(Number(event.target.value))}
+                  className="accent-accent w-24"
+                />
+                <span className="w-8 text-right text-sm font-semibold text-white/75">{glowLevel.toFixed(1)}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setLightMode((current) => !current)}
+                className="glow rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/10"
+              >
+                {lightMode ? "🌙 Dark" : "☀ Light"}
+              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -2042,7 +2272,7 @@ export function Dashboard() {
         )}
       </main>
 
-      <aside className="glass-panel hidden h-[calc(100vh-5rem)] w-[240px] shrink-0 rounded-[2rem] p-4 xl:ml-6 xl:sticky xl:top-6 xl:block">
+      <aside className="glass-panel hidden w-[240px] shrink-0 rounded-[2rem] p-4 xl:ml-6 xl:block">
         <div className="flex items-center justify-between rounded-2xl bg-white/5 px-4 py-3">
           <p className="font-semibold text-white">Chat</p>
           <p className="text-sm text-white/55">
@@ -2051,52 +2281,52 @@ export function Dashboard() {
           </p>
         </div>
 
-        {(rain.canStart || rain.active) && (
-          <div className="mt-4 rounded-2xl border border-sky-400/15 bg-sky-500/10 p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-[0.26em] text-sky-100/65">
-                  {rain.canStart ? "Rain Controls" : "Rain Live"}
-                </p>
-                <p className="mt-2 text-sm text-white/72">
-                  {rain.active
-                    ? `Live pool ${formatCompactNumber(rain.amount || 0)} with ${rain.participants} joined`
-                    : "Kick off a live rain event for everyone online."}
-                </p>
-              </div>
-              {rain.canStart && (
-                <button
-                  type="button"
-                  onClick={handleStartRain}
-                  disabled={startingRain || rain.active}
-                  className="rounded-2xl bg-sky-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-300 disabled:opacity-50"
-                >
-                  {startingRain ? "Starting..." : "Start Rain"}
-                </button>
-              )}
+        <div className="mt-4 rounded-2xl border border-sky-400/15 bg-sky-500/10 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.26em] text-sky-100/65">Rain Controls</p>
+              <p className="mt-2 text-sm text-white/72">
+                {rain.active
+                  ? `Live pool ${formatCompactNumber(rain.amount || 0)} with ${rain.participants} joined`
+                  : "Kick off a live rain event for everyone online."}
+              </p>
             </div>
-            {rainMessage && <p className="mt-3 text-xs text-sky-100/75">{rainMessage}</p>}
-            {rain.active && (
-              <div className="mt-3 rounded-2xl border border-white/10 bg-white/10 px-4 py-3">
-                <p className="text-[11px] font-bold uppercase tracking-[0.26em] text-sky-100/70">
-                  Rain Live
-                </p>
-                <p className="mt-1 text-sm font-semibold text-white">
-                  Live pool {formatCompactNumber(rain.amount || 0)}
-                </p>
-                <p className="mt-1 text-xs text-white/70">{rain.participants} joined</p>
-                <button
-                  type="button"
-                  onClick={handleJoinRain}
-                  disabled={joiningRain}
-                  className="mt-3 w-full rounded-2xl bg-white px-4 py-3 text-sm font-bold text-slate-950 transition hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60"
-                >
-                  {joiningRain ? "Joining..." : "Join Rain"}
-                </button>
+            {rain.canStart ? (
+              <button
+                type="button"
+                onClick={handleStartRain}
+                disabled={startingRain || rain.active}
+                className="rounded-2xl bg-sky-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-300 disabled:opacity-50"
+              >
+                {startingRain ? "Starting..." : "Start Rain"}
+              </button>
+            ) : (
+              <div className="rounded-2xl bg-white/5 px-3 py-2 text-[11px] uppercase tracking-[0.24em] text-white/45">
+                Player View
               </div>
             )}
           </div>
-        )}
+          {rainMessage && <p className="mt-3 text-xs text-sky-100/75">{rainMessage}</p>}
+          {rain.active && (
+            <div className="mt-3 rounded-2xl border border-white/10 bg-white/10 px-4 py-3">
+              <p className="text-[11px] font-bold uppercase tracking-[0.26em] text-sky-100/70">
+                Rain Live
+              </p>
+              <p className="mt-1 text-sm font-semibold text-white">
+                Live pool {formatCompactNumber(rain.amount || 0)}
+              </p>
+              <p className="mt-1 text-xs text-white/70">{rain.participants} joined</p>
+              <button
+                type="button"
+                onClick={handleJoinRain}
+                disabled={joiningRain}
+                className="mt-3 w-full rounded-2xl bg-white px-4 py-3 text-sm font-bold text-slate-950 transition hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60"
+              >
+                {joiningRain ? "Joining..." : "Join Rain"}
+              </button>
+            </div>
+          )}
+        </div>
 
         <div className="mt-4 rounded-2xl bg-white/5 p-4">
           <p className="text-sm font-semibold text-white">Tip a player</p>
@@ -2104,19 +2334,25 @@ export function Dashboard() {
             <input
               value={tipForm.username}
               onChange={(event) => setTipForm((current) => ({ ...current, username: event.target.value }))}
-              className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none"
-              placeholder={players.length ? `Try ${players[0].username}` : "Player username"}
+              className={`w-full rounded-2xl border bg-black/30 px-4 py-3 text-sm text-white outline-none ${
+                !tipForm.username
+                  ? "border-white/10"
+                  : tipTargetExists
+                    ? "border-[#00ff88]"
+                    : "border-[#ff3b3b]"
+              }`}
+              placeholder="Enter username"
             />
             <input
               value={tipForm.amount}
               onChange={(event) => setTipForm((current) => ({ ...current, amount: event.target.value }))}
               className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none"
-              placeholder="100k"
+              placeholder="Amount"
             />
             <button
               type="button"
               onClick={handleTip}
-              disabled={tipping}
+              disabled={tipping || !tipTargetExists}
               className="w-full rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-slate-950 disabled:opacity-50"
             >
               {tipping ? "Sending..." : "Send Tip"}
@@ -2125,10 +2361,29 @@ export function Dashboard() {
           </div>
         </div>
 
-        <div className="mt-4 flex h-[360px] flex-col gap-3 overflow-y-auto pr-1">
+        <div className="mt-4 space-y-3">
           <div className="rounded-2xl border border-indigo-400/40 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-200">
             Join our Discord!
           </div>
+          {rain.active && (
+            <div className="rounded-2xl border border-sky-400/30 bg-sky-500/10 px-4 py-3">
+              <p className="text-[11px] font-bold uppercase tracking-[0.26em] text-sky-100/70">
+                Rain Live
+              </p>
+              <p className="mt-1 text-sm font-semibold text-white">
+                Live pool {formatCompactNumber(rain.amount || 0)}
+              </p>
+              <p className="mt-1 text-xs text-white/70">In chat: {rain.participants} joined</p>
+              <button
+                type="button"
+                onClick={handleJoinRain}
+                disabled={joiningRain}
+                className="mt-3 w-full rounded-2xl bg-white px-4 py-3 text-sm font-bold text-slate-950 transition hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60"
+              >
+                {joiningRain ? "Joining..." : "Join Rain"}
+              </button>
+            </div>
+          )}
           {chatMessages.map((message) => (
             <div key={`${message.id}-${message.createdAt}`} className="rounded-2xl bg-white/5 p-4">
               <p className="text-sm text-sky-300">{message.username}</p>
@@ -2136,6 +2391,108 @@ export function Dashboard() {
             </div>
           ))}
         </div>
+
+        {chatCanModerate && (
+          <div className="mt-4 rounded-2xl border border-fuchsia-400/20 bg-fuchsia-500/10 p-4">
+            <p className="text-xs uppercase tracking-[0.24em] text-fuchsia-100/65">Mod Panel</p>
+            <div className="mt-3 space-y-2">
+              <input
+                value={modForm.username}
+                onChange={(event) => setModForm((current) => ({ ...current, username: event.target.value }))}
+                className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none"
+                placeholder="Username"
+              />
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleModerationAction("mute", 300)}
+                  disabled={Boolean(moderatingAction)}
+                  className="rounded-2xl bg-amber-400 px-3 py-2 text-xs font-bold text-slate-950 disabled:opacity-60"
+                >
+                  Mute
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleModerationAction("kick")}
+                  disabled={Boolean(moderatingAction)}
+                  className="rounded-2xl bg-rose-400 px-3 py-2 text-xs font-bold text-slate-950 disabled:opacity-60"
+                >
+                  Kick
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleModerationAction("ban")}
+                  disabled={Boolean(moderatingAction)}
+                  className="rounded-2xl bg-red-500 px-3 py-2 text-xs font-bold text-white disabled:opacity-60"
+                >
+                  Ban
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleModerationAction("shadowmute")}
+                  disabled={Boolean(moderatingAction)}
+                  className="rounded-2xl bg-slate-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-60"
+                >
+                  Shadow
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleModerationAction("unmute")}
+                  disabled={Boolean(moderatingAction)}
+                  className="rounded-2xl bg-emerald-500 px-3 py-2 text-xs font-bold text-slate-950 disabled:opacity-60"
+                >
+                  Unmute
+                </button>
+              </div>
+              <input
+                value={modForm.word}
+                onChange={(event) => setModForm((current) => ({ ...current, word: event.target.value }))}
+                className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none"
+                placeholder="Custom banned word"
+              />
+              <button
+                type="button"
+                onClick={handleAddCustomWord}
+                disabled={Boolean(moderatingAction)}
+                className="w-full rounded-2xl bg-fuchsia-400 px-4 py-3 text-sm font-semibold text-slate-950 disabled:opacity-60"
+              >
+                Add Banned Word
+              </button>
+              {customWords.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {customWords.map((word) => (
+                    <button
+                      key={word}
+                      type="button"
+                      onClick={() => handleRemoveCustomWord(word)}
+                      disabled={Boolean(moderatingAction)}
+                      className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/75 disabled:opacity-60"
+                    >
+                      {word} ×
+                    </button>
+                  ))}
+                </div>
+              )}
+              {flaggedMessages.length > 0 && (
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                  <p className="text-xs uppercase tracking-[0.22em] text-white/45">Flags</p>
+                  <div className="mt-2 space-y-2">
+                    {flaggedMessages.slice(0, 4).map((flag) => (
+                      <div key={flag.id} className="rounded-2xl bg-white/5 p-3 text-xs text-white/75">
+                        <p className="font-semibold text-rose-200">{flag.username}</p>
+                        <p className="mt-1 text-white/55">{flag.reason}</p>
+                        <p className="mt-1 line-clamp-2">{flag.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            {modMessage && <p className="mt-3 text-xs text-fuchsia-100/75">{modMessage}</p>}
+          </div>
+        )}
 
         {chatError && <p className="mt-4 text-sm text-rose-300">{chatError}</p>}
         {activeTimeoutSeconds > 0 && (
@@ -2167,6 +2524,35 @@ export function Dashboard() {
         </div>
       </aside>
 
+      <AnimatePresence>
+        {levelUpPopup?.visible && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.94, y: 18 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.96, y: 12 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm"
+          >
+            <div className="w-full max-w-md rounded-[2rem] border border-orange-300/20 bg-[#171824] p-6 text-center shadow-[0_30px_90px_rgba(249,115,22,0.2)]">
+              <p className="text-xs uppercase tracking-[0.3em] text-orange-200/70">Level Up</p>
+              <h3 className="mt-3 text-4xl font-black text-white">Level {levelUpPopup.seenLevel}</h3>
+              <p className="mt-3 text-white/70">You earned a progression reward for leveling up.</p>
+              <div className="mt-5 rounded-[1.5rem] border border-emerald-300/15 bg-emerald-400/10 px-4 py-5">
+                <p className="text-xs uppercase tracking-[0.22em] text-emerald-100/60">Reward</p>
+                <p className="mt-2 text-3xl font-black text-emerald-300">
+                  ${Number(levelUpPopup.reward || 0).toLocaleString()}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setLevelUpPopup((current) => (current ? { ...current, visible: false } : current))}
+                className="mt-5 w-full rounded-2xl bg-orange-500 px-4 py-3 font-semibold text-slate-950 transition hover:bg-orange-400"
+              >
+                Keep Playing
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

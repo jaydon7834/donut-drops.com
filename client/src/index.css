@@ -3,12 +3,29 @@
 @tailwind utilities;
 
 :root {
-  color: #f5f5f5;
-  background:
-    radial-gradient(circle at top, rgba(255, 122, 0, 0.16), transparent 28%),
-    radial-gradient(circle at 85% 20%, rgba(168, 85, 247, 0.14), transparent 22%),
-    linear-gradient(180deg, #0f172a 0%, #090f1e 100%);
+  color: #ffffff;
+  --bg: #020617;
+  --panel: #0f172a;
+  --text: #ffffff;
+  --muted: #94a3b8;
+  --app-bg: radial-gradient(circle at top, #022c22, #020617);
+  --accent-solid: #00ff88;
+  --accent-glow: rgba(0, 255, 136, 0.4);
+  --accent-gradient: linear-gradient(90deg, #00ff88, #00ff88);
+  --glow: 1;
+  --bg-shift-x: 0px;
+  --bg-shift-y: 0px;
+  background: var(--bg);
   font-family: "Trebuchet MS", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body.light {
+  --bg: #f8fafc;
+  --panel: #ffffff;
+  --text: #020617;
+  --muted: #64748b;
+  --accent-solid: #16a34a;
+  --accent-glow: rgba(22, 163, 74, 0.22);
 }
 
 * {
@@ -19,11 +36,58 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background-color: #0f172a;
-  background-image:
-    radial-gradient(circle at top, rgba(255, 122, 0, 0.12), transparent 24%),
-    radial-gradient(circle at bottom right, rgba(168, 85, 247, 0.14), transparent 18%),
-    linear-gradient(180deg, #0f172a 0%, #090f1e 100%);
+  background-color: var(--bg);
+  background-image: var(--app-bg);
+  color: var(--text);
+  transition: background-color 0.3s ease, background-image 0.5s ease, color 0.3s ease;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: -4%;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 18%, color-mix(in srgb, var(--accent-solid) 16%, transparent), transparent 24%),
+    radial-gradient(circle at 82% 15%, rgba(255, 255, 255, 0.05), transparent 18%),
+    radial-gradient(circle at 50% 80%, color-mix(in srgb, var(--accent-solid) 10%, transparent), transparent 26%);
+  transform: translate(var(--bg-shift-x), var(--bg-shift-y));
+  transition: transform 0.22s ease-out;
+}
+
+#particles {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  pointer-events: none;
+}
+
+#root,
+.bg-hero-glow {
+  background: transparent !important;
+  color: var(--text);
+  transition: color 0.3s ease;
+}
+
+.text-accent {
+  color: var(--accent-solid) !important;
+}
+
+.border-accent {
+  border-color: var(--accent-solid) !important;
+}
+
+.focus\:border-accent:focus {
+  border-color: var(--accent-solid) !important;
+  box-shadow: 0 0 0 1px var(--accent-glow);
+}
+
+.accent-accent {
+  accent-color: var(--accent-solid) !important;
 }
 
 button,
@@ -34,12 +98,18 @@ select {
 
 .glass-panel {
   @apply border border-white/10 bg-white/5 backdrop-blur-xl;
+  background: color-mix(in srgb, var(--panel) 86%, transparent);
+  border-color: color-mix(in srgb, var(--text) 10%, transparent);
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
 }
 
 .casino-card {
-  background: linear-gradient(180deg, rgba(18, 23, 37, 0.9), rgba(15, 19, 31, 0.92));
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--panel) 94%, rgba(255, 255, 255, 0.05)),
+    color-mix(in srgb, var(--panel) 98%, rgba(2, 6, 23, 0.18))
+  );
+  border: 1px solid color-mix(in srgb, var(--text) 8%, transparent);
   backdrop-filter: blur(24px);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.04),
@@ -48,8 +118,8 @@ select {
 
 .neon-button {
   @apply rounded-2xl px-5 py-3 font-semibold text-slate-950 transition;
-  background: linear-gradient(135deg, #ff7a00, #f59e0b);
-  box-shadow: 0 18px 40px rgba(255, 122, 0, 0.22);
+  background: var(--accent-gradient);
+  box-shadow: 0 18px 40px var(--accent-glow);
 }
 
 .neon-button:hover {
@@ -58,15 +128,83 @@ select {
 
 .neon-button-green {
   @apply rounded-2xl px-5 py-3 font-semibold text-slate-950 transition;
-  background: linear-gradient(135deg, #22c55e, #4ade80);
-  box-shadow: 0 18px 40px rgba(34, 197, 94, 0.22);
+  background: var(--accent-gradient);
+  box-shadow: 0 18px 40px var(--accent-glow);
 }
 
 .casino-input {
-  @apply w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition;
+  @apply w-full rounded-2xl px-4 py-3 outline-none transition;
+  border: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
+  background: color-mix(in srgb, var(--panel) 84%, transparent);
+  color: var(--text);
 }
 
 .casino-input:focus {
-  border-color: rgba(255, 122, 0, 0.65);
-  box-shadow: 0 0 0 1px rgba(255, 122, 0, 0.22);
+  border-color: var(--accent-solid);
+  box-shadow: 0 0 0 1px var(--accent-glow);
+}
+
+.theme-chip {
+  border: 1px solid color-mix(in srgb, var(--accent-solid) 60%, transparent);
+  box-shadow: 0 0 calc(10px * var(--glow)) color-mix(in srgb, var(--accent-solid) 35%, transparent);
+}
+
+.theme-chip-active {
+  border-color: var(--accent-solid);
+  box-shadow:
+    0 0 calc(10px * var(--glow)) color-mix(in srgb, var(--accent-solid) 50%, transparent),
+    0 0 calc(24px * var(--glow)) color-mix(in srgb, var(--accent-solid) 28%, transparent);
+}
+
+.glow {
+  box-shadow:
+    0 0 calc(10px * var(--glow)) color-mix(in srgb, var(--accent-solid) 75%, transparent),
+    0 0 calc(20px * var(--glow)) color-mix(in srgb, var(--accent-solid) 45%, transparent);
+}
+
+body.light .glow {
+  box-shadow: 0 0 calc(6px * var(--glow)) color-mix(in srgb, var(--accent-solid) 55%, transparent);
+}
+
+.win-flash::after,
+.lose-flash::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+}
+
+.win-flash::after {
+  box-shadow: inset 0 0 100px rgba(0, 255, 136, 0.15);
+}
+
+.lose-flash::after {
+  box-shadow: inset 0 0 80px rgba(255, 59, 59, 0.2);
+}
+
+@keyframes app-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.01); }
+  100% { transform: scale(1); }
+}
+
+.pulse #root {
+  animation: app-pulse 0.4s ease;
+}
+
+.reward-box {
+  border: 1px solid color-mix(in srgb, var(--accent-solid) 45%, rgba(255, 255, 255, 0.08));
+  box-shadow: 0 0 calc(10px * var(--glow)) color-mix(in srgb, var(--accent-solid) 24%, transparent);
+}
+
+.claim-btn {
+  background: var(--accent-gradient);
+  color: black;
+  font-weight: 700;
+  transition: 0.2s ease;
+}
+
+.claim-btn:hover:not(:disabled) {
+  transform: scale(1.05);
 }

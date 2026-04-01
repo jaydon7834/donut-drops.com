@@ -2,92 +2,43 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { api } from "../lib/api.js";
 import { formatBetInput, parseBetInput } from "../lib/betting.js";
+import { triggerGameEffect } from "../lib/gameEffects.js";
 
-const PREVIEW_TEMPLATES = {
-  low: {
-    8: [5.6, 2.1, 1.1, 1, 0.5, 1, 1.1, 2.1, 5.6],
-    9: [5.6, 2, 1.6, 1, 0.7, 0.4, 0.7, 1, 1.6, 2, 5.6],
-    10: [8.9, 3, 1.4, 1.1, 1, 0.5, 1, 1.1, 1.4, 3, 8.9],
-    11: [8.4, 3, 1.9, 1.3, 1, 0.7, 0.7, 1, 1.3, 1.9, 3, 8.4],
-    12: [8.4, 3, 1.9, 1.3, 1, 0.7, 0.4, 0.7, 1, 1.3, 1.9, 3, 8.4],
-    13: [9, 4, 2, 1.4, 1.1, 0.8, 0.4, 0.4, 0.8, 1.1, 1.4, 2, 4, 9],
-    14: [9, 4, 2.2, 1.4, 1.2, 1, 0.7, 0.4, 0.7, 1, 1.2, 1.4, 2.2, 4, 9],
-    15: [10, 5, 2.5, 1.6, 1.3, 1.1, 0.8, 0.4, 0.8, 1.1, 1.3, 1.6, 2.5, 5, 10],
-    16: [10, 5, 2.6, 1.7, 1.3, 1.1, 1, 0.7, 0.4, 0.7, 1, 1.1, 1.3, 1.7, 2.6, 5, 10]
-  },
-  medium: {
-    8: [13, 3, 1.3, 0.7, 0.4, 0.7, 1.3, 3, 13],
-    9: [16, 5, 2, 1.1, 0.5, 0.3, 0.5, 1.1, 2, 5, 16],
-    10: [20, 6, 2.6, 1.4, 0.6, 0.3, 0.6, 1.4, 2.6, 6, 20],
-    11: [24, 8, 3.5, 1.7, 0.9, 0.4, 0.4, 0.9, 1.7, 3.5, 8, 24],
-    12: [12, 8.28, 5.04, 2.67, 1.11, 0.29, 0.07, 0.29, 1.11, 2.67, 5.04, 8.28, 12],
-    13: [16, 9, 5, 2.5, 1.3, 0.5, 0.09, 0.09, 0.5, 1.3, 2.5, 5, 9, 16],
-    14: [24, 13, 6.5, 3.5, 1.8, 0.7, 0.2, 0.2, 0.7, 1.8, 3.5, 6.5, 13, 24],
-    15: [30, 16, 7.6, 3.9, 2, 0.9, 0.3, 0.15, 0.3, 0.9, 2, 3.9, 7.6, 16, 30],
-    16: [24, 13, 6.2, 3.2, 1.8, 1, 0.5, 0.3, 0.2, 0.3, 0.5, 1, 1.8, 3.2, 6.2, 13, 24]
-  },
-  high: {
-    8: [29, 4, 1.5, 0.3, 0.2, 0.3, 1.5, 4, 29],
-    9: [43, 7, 2, 0.6, 0.2, 0.1, 0.2, 0.6, 2, 7, 43],
-    10: [76, 10, 3, 0.9, 0.3, 0.1, 0.3, 0.9, 3, 10, 76],
-    11: [120, 14, 5.2, 1.4, 0.4, 0.15, 0.15, 0.4, 1.4, 5.2, 14, 120],
-    12: [33, 11, 4, 2, 1.2, 0.5, 0.2, 0.5, 1.2, 2, 4, 11, 33],
-    13: [63, 22, 6.5, 2.4, 1.1, 0.4, 0.12, 0.12, 0.4, 1.1, 2.4, 6.5, 22, 63],
-    14: [120, 36, 10, 3.7, 1.3, 0.4, 0.13, 0.13, 0.4, 1.3, 3.7, 10, 36, 120],
-    15: [300, 54, 15, 4.8, 1.6, 0.5, 0.14, 0.05, 0.14, 0.5, 1.6, 4.8, 15, 54, 300],
-    16: [1000, 130, 26, 9, 4, 2, 0.5, 0.2, 0.08, 0.2, 0.5, 2, 4, 9, 26, 130, 1000]
-  }
+const PLINKO_RISK_TABLES = {
+  low: [2, 1.5, 1.2, 1.1, 1.05, 1.02, 1, 1.02, 1.05, 1.1, 1.2, 1.5, 2],
+  medium: [5, 3, 2, 1.5, 1.2, 0.8, 0.5, 0.8, 1.2, 1.5, 2, 3, 5],
+  high: [33, 11, 4, 2, 1.2, 0.5, 0.2, 0.5, 1.2, 2, 4, 11, 33]
 };
 
-function roundTo(value, digits = 2) {
-  return Number(value.toFixed(digits));
-}
-
-function sampleInterpolated(values, position) {
+function interpolateValue(source, position) {
   const lowerIndex = Math.floor(position);
   const upperIndex = Math.ceil(position);
 
   if (lowerIndex === upperIndex) {
-    return values[lowerIndex];
+    return source[lowerIndex];
   }
 
-  const ratio = position - lowerIndex;
-  return values[lowerIndex] + (values[upperIndex] - values[lowerIndex]) * ratio;
+  const weight = position - lowerIndex;
+  return source[lowerIndex] * (1 - weight) + source[upperIndex] * weight;
 }
 
-function buildSymmetricFromHalf(edgeToCenter) {
-  const mirrored = edgeToCenter.slice(0, -1).reverse();
-  return [...edgeToCenter, ...mirrored];
-}
+function getPlinkoMultipliers(rows, risk) {
+  const source = PLINKO_RISK_TABLES[risk] || PLINKO_RISK_TABLES.medium;
+  const bucketCount = rows + 1;
 
-function resampleTemplate(template, rows) {
-  const half = template.slice(0, Math.floor(template.length / 2) + 1);
-  const targetHalfLength = Math.floor((rows + 1) / 2) + 1;
-  const nextHalf = Array.from({ length: targetHalfLength }, (_, index) => {
-    const position = targetHalfLength === 1 ? 0 : (index / (targetHalfLength - 1)) * (half.length - 1);
-    return sampleInterpolated(half, position);
+  if (bucketCount === source.length) {
+    return source;
+  }
+
+  return Array.from({ length: bucketCount }, (_, index) => {
+    const position = (index / (bucketCount - 1)) * (source.length - 1);
+    return Number(interpolateValue(source, position).toFixed(2));
   });
-
-  return buildSymmetricFromHalf(nextHalf);
-}
-
-function buildPreviewMultipliers(rows, risk) {
-  const templates = PREVIEW_TEMPLATES[risk] || PREVIEW_TEMPLATES.medium;
-
-  if (templates[rows]) {
-    return templates[rows];
-  }
-
-  const keys = Object.keys(templates).map(Number).sort((a, b) => a - b);
-  const nearest = keys.reduce((best, current) =>
-    Math.abs(current - rows) < Math.abs(best - rows) ? current : best
-  );
-  return resampleTemplate(templates[nearest], rows);
 }
 
 function buildKeyframes(path, rows) {
-  const horizontalStep = Math.max(10, 16 - (rows - 8) * 0.55);
-  const verticalStep = Math.max(16, 24 - (rows - 8) * 0.45);
+  const horizontalStep = Math.max(12, 18 - (rows - 8) * 0.6);
+  const verticalStep = Math.max(20, 28 - (rows - 8) * 0.5);
   let x = 0;
   let y = 0;
 
@@ -98,15 +49,9 @@ function buildKeyframes(path, rows) {
   });
 }
 
-function formatMultiplier(multiplier) {
-  return Number(multiplier)
-    .toFixed(multiplier >= 10 ? 0 : multiplier % 1 === 0 ? 0 : 2)
-    .replace(/\.00$/, "");
-}
-
 export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
-  const [betAmount, setBetAmount] = useState(1000);
-  const [betInput, setBetInput] = useState("1k");
+  const [betAmount, setBetAmount] = useState(20);
+  const [betInput, setBetInput] = useState("20");
   const [rows, setRows] = useState(12);
   const [risk, setRisk] = useState("medium");
   const [ballCount, setBallCount] = useState(1);
@@ -119,16 +64,13 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
   const dropIntervalRef = useRef(null);
   const autoRestartTimeoutRef = useRef(null);
   const queueRemainingRef = useRef(0);
-
   const isResultSynced = result?.rows === rows && result?.risk === risk;
-  const multipliers = useMemo(() => {
-    if (isResultSynced && result?.multipliers?.length) {
-      return result.multipliers;
-    }
-
-    return buildPreviewMultipliers(rows, risk);
-  }, [isResultSynced, result?.multipliers, rows, risk]);
+  const multipliers = useMemo(
+    () => (isResultSynced ? result?.multipliers : null) || getPlinkoMultipliers(rows, risk),
+    [isResultSynced, result?.multipliers, risk, rows]
+  );
   const lastPayout = result ? Number((result.bet * result.multiplier).toFixed(2)) : 0;
+
   const dropping = queueRemaining > 0 || activeBalls.length > 0;
 
   useEffect(() => {
@@ -147,11 +89,6 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
   }, []);
 
   useEffect(() => {
-    setResult(null);
-    setFeedback("");
-  }, [rows, risk]);
-
-  useEffect(() => {
     if (queueRemaining <= 0 || dropIntervalRef.current) {
       return undefined;
     }
@@ -161,7 +98,12 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
         return;
       }
 
-      setQueueRemaining((current) => (current <= 0 ? 0 : current - 1));
+      setQueueRemaining((current) => {
+        if (current <= 0) {
+          return 0;
+        }
+        return current - 1;
+      });
 
       try {
         const data = await api.dropPlinko(token, {
@@ -172,18 +114,24 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
         });
 
         const ballId = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
-        setActiveBalls((current) => [
-          ...current,
-          {
-            id: ballId,
-            frames: buildKeyframes(data.game.path || [], rows),
-            bucketIndex: data.game.bucketIndex,
-            risk
-          }
-        ]);
+        const nextBall = {
+          id: ballId,
+          frames: buildKeyframes(data.game.path || [], rows),
+          bucketIndex: data.game.bucketIndex,
+          risk
+        };
+
+        setActiveBalls((current) => [...current, nextBall]);
         setResult(data.game);
         setFeedback(`Latest hit: ${data.game.multiplier}x`);
         onBalanceChange(data.balance);
+        triggerGameEffect(
+          Number(data.game.payout || 0) > Number(data.game.bet || 0)
+            ? Number(data.game.payout || 0) >= Number(data.game.bet || 0) * 3
+              ? "big-win"
+              : "win"
+            : "loss"
+        );
 
         window.setTimeout(() => {
           setActiveBalls((current) => current.filter((entry) => entry.id !== ballId));
@@ -195,10 +143,12 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
     }
 
     releaseBall();
+
     dropIntervalRef.current = window.setInterval(() => {
-      if (queueRemainingRef.current > 0) {
-        releaseBall();
+      if (queueRemainingRef.current <= 0) {
+        return;
       }
+      releaseBall();
     }, 1000);
 
     return () => {
@@ -248,7 +198,7 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
   }
 
   function adjustBet(multiplierValue) {
-    const nextBet = Math.max(1000, Math.round(parseBetInput(betInput || betAmount) * multiplierValue));
+    const nextBet = Math.max(1, Math.round(parseBetInput(betInput || betAmount) * multiplierValue));
     setBetAmount(nextBet);
     setBetInput(formatBetInput(nextBet));
   }
@@ -285,8 +235,8 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
   }
 
   return (
-    <div className="flex w-full min-w-0 flex-col gap-4 p-4 xl:flex-row xl:items-stretch xl:p-4">
-      <div className="w-full shrink-0 rounded-2xl bg-[#0f172a] p-4 text-white xl:w-[150px]">
+    <div className="flex w-full min-w-0 flex-col gap-6 p-4 xl:flex-row xl:items-stretch xl:p-6">
+      <div className="w-full shrink-0 rounded-2xl bg-[#0f172a] p-5 text-white xl:w-[190px]">
         <div className="space-y-4">
           <div>
             <p className="text-sm text-gray-400">Bet Amount</p>
@@ -422,7 +372,7 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
             <p className="text-xs uppercase tracking-[0.24em] text-white/45">Best Hit</p>
-            <p className="mt-2 text-2xl font-black text-emerald-300">{multipliers.length ? `${formatMultiplier(Math.max(...multipliers))}x` : "--"}</p>
+            <p className="mt-2 text-2xl font-black text-emerald-300">{Math.max(...multipliers)}x</p>
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
             <p className="text-xs uppercase tracking-[0.24em] text-white/45">Latest Payout</p>
@@ -430,16 +380,16 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
           </div>
         </div>
 
-        <div className="relative min-h-[440px] xl:min-h-[520px]">
+        <div className="relative min-h-[520px] xl:min-h-[600px]">
           <div className="flex h-full w-full items-center justify-center pb-12">
             <div className="relative flex w-full justify-center">
-              <div className="mt-2 flex origin-top scale-[0.54] flex-col items-center sm:scale-[0.62] xl:scale-[0.7] 2xl:scale-[0.8]">
+              <div className="mt-2 flex origin-top scale-[0.7] flex-col items-center sm:scale-[0.78] xl:scale-[0.88] 2xl:scale-[0.96]">
                 {Array.from({ length: rows }).map((_, row) => (
                   <div key={row} className="flex justify-center">
                     {Array.from({ length: row + 1 }).map((__, index) => (
                       <div
                         key={`${row}-${index}`}
-                        className="m-1 h-2.5 w-2.5 rounded-full bg-slate-300 shadow-[0_0_18px_rgba(148,163,184,0.45)] xl:m-1.5 xl:h-3 xl:w-3"
+                        className="m-1.5 h-3 w-3 rounded-full bg-slate-300 shadow-[0_0_18px_rgba(148,163,184,0.45)] xl:m-2 xl:h-3 xl:w-3"
                       />
                     ))}
                   </div>
@@ -453,7 +403,11 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
                     animate={ball.frames.map((frame) => ({ ...frame, opacity: 0.15 }))}
                     transition={{ duration: 1.45, ease: "easeInOut" }}
                     className={`absolute left-1/2 top-4 h-3 w-3 -translate-x-1/2 rounded-full blur-sm xl:top-5 ${
-                      ball.risk === "high" ? "bg-red-400" : ball.risk === "low" ? "bg-green-300" : "bg-yellow-300"
+                      ball.risk === "high"
+                        ? "bg-red-400"
+                        : ball.risk === "low"
+                        ? "bg-green-300"
+                        : "bg-yellow-300"
                     }`}
                   />
                   <motion.div
@@ -472,12 +426,14 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
 
           <div
             className="absolute inset-x-0 bottom-0 mx-auto grid w-full max-w-[780px] gap-1 px-1"
-            style={{ gridTemplateColumns: `repeat(${multipliers.length || rows + 1}, minmax(0, 1fr))` }}
+            style={{ gridTemplateColumns: `repeat(${multipliers.length}, minmax(0, 1fr))` }}
           >
             {multipliers.map((multiplier, index) => (
               <motion.div
                 key={index}
-                animate={result?.bucketIndex === index ? { scale: [1, 1.12, 1.04], y: [0, -4, 0] } : { scale: 1, y: 0 }}
+                animate={
+                  result?.bucketIndex === index ? { scale: [1, 1.12, 1.04], y: [0, -4, 0] } : { scale: 1, y: 0 }
+                }
                 transition={{ duration: 0.35 }}
                 className={`rounded-md border px-0.5 py-1 text-center text-[8px] font-black leading-none sm:text-[9px] xl:text-[10px] ${
                   result?.bucketIndex === index
@@ -491,7 +447,7 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
                     : "border-white/8 bg-[#111827] text-white/80"
                 }`}
               >
-                {formatMultiplier(multiplier)}x
+                {Number(multiplier).toFixed(multiplier >= 10 ? 0 : multiplier % 1 === 0 ? 0 : 2).replace(/\.00$/, "")}x
               </motion.div>
             ))}
           </div>

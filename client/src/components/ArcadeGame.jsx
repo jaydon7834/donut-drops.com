@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { api } from "../lib/api.js";
 import { formatBetInput, parseBetInput } from "../lib/betting.js";
 import { createAppSocket } from "../lib/socket.js";
+import { triggerGameEffect } from "../lib/gameEffects.js";
 import { GameLayout } from "./GameLayout.jsx";
 
 const caseRewards = [
@@ -282,6 +283,13 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
 
       setResult(data.game);
       onBalanceChange(data.balance);
+      triggerGameEffect(
+        Number(data.game.payout || 0) > Number(data.game.bet || 0)
+          ? Number(data.game.payout || 0) >= Number(data.game.bet || 0) * 3
+            ? "big-win"
+            : "win"
+          : "loss"
+      );
       setFeedback(data.game.payout > data.game.bet ? "Win locked in." : "Round settled.");
     } catch (error) {
       setFeedback(error.message);
