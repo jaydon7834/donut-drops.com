@@ -4,6 +4,9 @@ import { api } from "../lib/api.js";
 import { formatBetInput, parseBetInput } from "../lib/betting.js";
 import { triggerGameEffect } from "../lib/gameEffects.js";
 
+const SAFE_TILE_IMAGE = "/images/mines-safe-emerald.png";
+const MINE_TILE_IMAGE = "/images/mines-mine-tnt.png";
+
 function combination(n, k) {
   if (k > n) {
     return 0;
@@ -83,7 +86,20 @@ function Tile({ state, onClick, disabled, shake, spark }) {
           ))}
         </>
       )}
-      {state === "mine" ? "💣" : state === "safe" ? "◆" : ""}
+      {state === "safe" && (
+        <img
+          src={SAFE_TILE_IMAGE}
+          alt="Safe emerald"
+          className="h-8 w-8 object-contain drop-shadow-[0_0_10px_rgba(16,255,136,0.45)] sm:h-9 sm:w-9 xl:h-10 xl:w-10 2xl:h-12 2xl:w-12"
+        />
+      )}
+      {state === "mine" && (
+        <img
+          src={MINE_TILE_IMAGE}
+          alt="TNT mine"
+          className="h-8 w-8 object-contain drop-shadow-[0_0_12px_rgba(255,59,59,0.45)] sm:h-9 sm:w-9 xl:h-10 xl:w-10 2xl:h-12 2xl:w-12"
+        />
+      )}
     </motion.div>
   );
 }
