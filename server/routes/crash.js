@@ -499,10 +499,29 @@ router.post("/bet", async (req, res, next) => {
       isBot: false
     };
 
+    let joinedRoundId = round.roundId;
+    let roundResponse = round;
+    let queuedForNextRound = false;
+
     if (round.status === "countdown") {
       round.players.set(entryId, entry);
+    } else if (round.status === "crashed") {
+      crashState.pendingEntries.push(entry);
+      await persistUsers();
+      await startCrashRound();
+      roundResponse = getCrashStore().currentRound;
+      joinedRoundId = roundResponse?.roundId || round.roundId;
+      queuedForNextRound = true;
+
+      return res.status(201).json({
+        balance: req.user.balance,
+        joinedRoundId,
+        queuedForNextRound,
+        round: serializeCrashRound(roundResponse, req.user.id)
+      });
     } else {
       crashState.pendingEntries.push(entry);
+      queuedForNextRound = true;
     }
 
     await persistUsers();
@@ -510,8 +529,9 @@ router.post("/bet", async (req, res, next) => {
 
     return res.status(201).json({
       balance: req.user.balance,
-      joinedRoundId: round.roundId,
-      round: serializeCrashRound(round, req.user.id)
+      joinedRoundId,
+      queuedForNextRound,
+      round: serializeCrashRound(roundResponse, req.user.id)
     });
   } catch (error) {
     return next(error);

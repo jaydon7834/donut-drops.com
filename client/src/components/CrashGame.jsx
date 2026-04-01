@@ -303,7 +303,11 @@ export function CrashGame({ token, user, onBalanceChange }) {
 
       setRound(data.round);
       onBalanceChange(data.balance);
-      setFeedback(`Queued your crash bet for the ${round?.status === "countdown" ? "current" : "next"} round.`);
+      setFeedback(
+        data.queuedForNextRound
+          ? "Queued your crash bet for the next round."
+          : "Joined the current crash round."
+      );
       setBetSlip(createBetSlip());
     } catch (error) {
       setFeedback(error.message);
