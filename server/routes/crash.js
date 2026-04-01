@@ -18,7 +18,7 @@ const COUNTDOWN_MS = 5_000;
 const POST_CRASH_MS = 4_500;
 const TICK_MS = 100;
 const MAX_CRASH_POINT = 1_000;
-const GROWTH_RATE = 0.115;
+const GROWTH_RATE = 0.055;
 const MIN_AUTO_CASHOUT = 1.01;
 const CRASH_BOT_NAMES = [
   "cam",
