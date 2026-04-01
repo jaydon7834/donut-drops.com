@@ -261,6 +261,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
   const cashedEntries = activeBets.filter((entry) => entry.status === "cashed");
   const manualCashoutEntry = liveEntries[0] || null;
   const canManualCashout = round?.status === "running" && Boolean(manualCashoutEntry);
+  const autoCashoutEnabled = String(betSlip.autoCashout || "").trim().length > 0;
   const players = round?.players || [];
   const recentCrashHistory = history.slice(0, 5);
   const statusTone = getStatusTone(round?.status);
@@ -297,7 +298,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
     try {
       const data = await api.placeCrashBet(token, {
         bet: parseBetInput(betSlip.amount),
-        autoCashout: betSlip.autoCashout ? Number(betSlip.autoCashout) : null
+        autoCashout: autoCashoutEnabled ? Number(betSlip.autoCashout) : null
       });
 
       setRound(data.round);
@@ -371,7 +372,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
               value={betSlip.autoCashout}
               onChange={(event) => updateBetSlip("autoCashout", event.target.value)}
               className="mt-2 w-full rounded-xl border border-white/10 bg-[#1e293b] p-3 text-white outline-none"
-              placeholder="2.00"
+              placeholder="Optional"
             />
           </div>
 
@@ -399,7 +400,9 @@ export function CrashGame({ token, user, onBalanceChange }) {
                 ? "Your bet is queued. Cash out becomes available when the round starts."
                 : round?.status === "crashed"
                   ? "This round already crashed."
-                  : "Join a round first, then cash out before the crash."}
+                  : autoCashoutEnabled
+                    ? "Auto cashout is armed, but you can still cash out manually before it hits."
+                    : "Leave auto cashout blank if you want to play manual only."}
           </p>
         </div>
       </div>

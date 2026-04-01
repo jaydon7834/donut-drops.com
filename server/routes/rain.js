@@ -5,7 +5,7 @@ import { createError } from "../utils/helpers.js";
 import { getIo } from "../socket.js";
 
 const router = Router();
-const RAIN_DURATION_MS = 10 * 60 * 1000;
+const RAIN_DURATION_MS = 3 * 60 * 1000;
 const MIN_RAIN_INTERVAL_MS = 30 * 60 * 1000;
 const MAX_RAIN_INTERVAL_MS = 60 * 60 * 1000;
 
