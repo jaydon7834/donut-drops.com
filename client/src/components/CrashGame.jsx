@@ -24,6 +24,24 @@ function formatMoney(value) {
   return `$${amount.toFixed(2)}`;
 }
 
+function formatCrashValue(value) {
+  const amount = Number(value || 0);
+
+  if (amount >= 1_000_000_000) {
+    return `${(amount / 1_000_000_000).toFixed(amount >= 10_000_000_000 ? 0 : 1).replace(/\.0$/, "")}b`;
+  }
+
+  if (amount >= 1_000_000) {
+    return `${(amount / 1_000_000).toFixed(amount >= 10_000_000 ? 0 : 1).replace(/\.0$/, "")}m`;
+  }
+
+  if (amount >= 1_000) {
+    return `${(amount / 1_000).toFixed(amount >= 10_000 ? 0 : 1).replace(/\.0$/, "")}k`;
+  }
+
+  return amount.toFixed(amount >= 100 ? 0 : 2);
+}
+
 function getRocketPlacement(multiplier, status) {
   if (status === "countdown") {
     return { left: "50%", top: "58%" };
@@ -525,22 +543,22 @@ export function CrashGame({ token, user, onBalanceChange }) {
             </p>
           </div>
 
-          <div className="grid min-w-[220px] grid-cols-2 gap-3">
-            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+          <div className="grid min-w-[220px] grid-cols-2 gap-3 xl:min-w-[280px]">
+            <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
               <p className="text-[11px] uppercase tracking-[0.22em] text-white/45">Room Pot</p>
-              <p className="mt-2 text-2xl font-black text-white">{formatMoney(round?.totalBet || 0)}</p>
+              <p className="mt-2 text-2xl font-black text-white">{formatCrashValue(round?.totalBet || 0)}</p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+            <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
               <p className="text-[11px] uppercase tracking-[0.22em] text-white/45">Joined</p>
               <p className="mt-2 text-2xl font-black text-white">{round?.playerCount || 0}</p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+            <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
               <p className="text-[11px] uppercase tracking-[0.22em] text-white/45">Your Bets</p>
               <p className="mt-2 text-2xl font-black text-white">{activeBets.length}</p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+            <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
               <p className="text-[11px] uppercase tracking-[0.22em] text-white/45">Live Exit</p>
-              <p className="mt-2 text-2xl font-black text-white">{formatMoney(projectedCashout)}</p>
+              <p className="mt-2 text-2xl font-black text-white">{formatCrashValue(projectedCashout)}</p>
             </div>
           </div>
         </div>
@@ -573,7 +591,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
         </div>
 
         <div
-          className="relative z-10 mt-6 h-[24rem] overflow-hidden rounded-[1.8rem] border border-white/10"
+          className="relative z-10 mt-6 h-[30rem] overflow-hidden rounded-[1.8rem] border border-white/10 xl:h-[38rem]"
           style={{ background: skyStage.background }}
         >
           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),transparent)]" />
@@ -733,7 +751,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
             ) : (
               <div className="relative flex h-24 w-20 items-center justify-center">
                 {round?.status === "countdown" ? (
-                  <div className="absolute -top-16 left-1/2 -translate-x-1/2 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-5 py-2 text-lg font-black tracking-[0.18em] text-cyan-100">
+                  <div className="absolute -top-20 left-1/2 -translate-x-1/2 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-6 py-3 text-xl font-black tracking-[0.18em] text-cyan-100 shadow-[0_0_30px_rgba(56,189,248,0.18)]">
                     {countdownText}
                   </div>
                 ) : null}
@@ -759,7 +777,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
                   <img
                     src="/images/crash-rocket.png"
                     alt="Rocket"
-                    className="h-20 w-20 object-contain"
+                    className="h-24 w-24 object-contain xl:h-28 xl:w-28"
                   />
                 </motion.div>
               </div>
@@ -795,7 +813,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
         </div>
 
         <div className="mt-3 space-y-2">
-          <div className="max-h-[32rem] space-y-2 overflow-y-auto pr-1">
+          <div className="max-h-[28rem] space-y-2 overflow-y-auto pr-1">
           {topPlayers.length === 0 ? (
             <p className="text-sm text-white/55">No one has joined this round yet.</p>
           ) : (
@@ -823,7 +841,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
                   </span>
                 </div>
                 <div className="mt-2 flex items-center justify-between gap-3 text-sm">
-                  <span className="text-white/65">{formatMoney(player.bet)}</span>
+                  <span className="text-white/65">{formatCrashValue(player.bet)}</span>
                   <span className="font-semibold text-white">
                     {player.status === "cashed"
                       ? `${Number(player.cashoutMultiplier || 0).toFixed(2)}x`
@@ -849,7 +867,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
           ) : (
             recentCrashHistory.map((entry) => (
               <div key={entry.roundId} className="flex items-center justify-between rounded-2xl bg-black/20 px-4 py-3 text-sm">
-                <span className="text-white/65">{entry.roundId}</span>
+                <span className="text-white/65">Round {String(entry.roundId || "").replace("crashround_", "")}</span>
                 <span className={`font-black ${Number(entry.crashPoint || 1) >= 2 ? "text-emerald-300" : "text-rose-300"}`}>
                   {Number(entry.crashPoint || 1).toFixed(2)}x
                 </span>
@@ -870,6 +888,9 @@ export function CrashGame({ token, user, onBalanceChange }) {
       controls={controls}
       main={main}
       rightPanel={rightPanel}
+      controlsClassName="w-full shrink-0 rounded-[1.4rem] bg-white/5 p-4 backdrop-blur xl:w-[280px]"
+      mainClassName="min-w-0 flex-1 overflow-visible rounded-[1.4rem] bg-white/5 p-4 backdrop-blur xl:p-6"
+      rightPanelClassName="w-full shrink-0 rounded-[1.4rem] bg-white/5 p-4 backdrop-blur xl:w-[260px]"
     />
   );
 }

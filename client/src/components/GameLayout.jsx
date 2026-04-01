@@ -8,7 +8,10 @@ export function GameLayout({
   main,
   rightPanel,
   children,
-  accent = "from-orange-500/20 via-transparent to-emerald-500/10"
+  accent = "from-orange-500/20 via-transparent to-emerald-500/10",
+  controlsClassName = "w-full shrink-0 rounded-xl bg-white/5 p-4 backdrop-blur xl:w-[220px]",
+  mainClassName = "min-w-0 flex-1 overflow-hidden rounded-xl bg-white/5 p-4 backdrop-blur xl:p-6",
+  rightPanelClassName = "w-full shrink-0 rounded-xl bg-white/5 p-4 backdrop-blur xl:w-[300px]"
 }) {
   return (
     <div className="space-y-5">
@@ -28,7 +31,7 @@ export function GameLayout({
         <motion.aside
           initial={{ opacity: 0, x: -16 }}
           animate={{ opacity: 1, x: 0 }}
-          className="w-full shrink-0 rounded-xl bg-white/5 p-4 backdrop-blur xl:w-[220px]"
+          className={controlsClassName}
         >
           {controls}
         </motion.aside>
@@ -36,7 +39,7 @@ export function GameLayout({
         <motion.section
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="min-w-0 flex-1 overflow-hidden rounded-xl bg-white/5 p-4 backdrop-blur xl:p-6"
+          className={mainClassName}
         >
           {main || children}
         </motion.section>
@@ -45,7 +48,7 @@ export function GameLayout({
           <motion.aside
             initial={{ opacity: 0, x: 16 }}
             animate={{ opacity: 1, x: 0 }}
-            className="w-full shrink-0 rounded-xl bg-white/5 p-4 backdrop-blur xl:w-[300px]"
+            className={rightPanelClassName}
           >
             {rightPanel}
           </motion.aside>
