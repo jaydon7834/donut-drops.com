@@ -472,7 +472,9 @@ export function MinesGame({ token, user, onBalanceChange }) {
                   settledGame && !activeGame
                     ? isMine
                       ? "mine"
-                      : "safe"
+                      : isRevealed
+                        ? "safe"
+                        : "hidden"
                     : isMine
                     ? "mine"
                     : isRevealed
