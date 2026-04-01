@@ -389,24 +389,18 @@ export function CrashGame({ token, user, onBalanceChange }) {
                 : "bg-white/10 text-white/45"
             } disabled:cursor-not-allowed disabled:opacity-100`}
           >
-            {canManualCashout
-              ? loading === manualCashoutEntry?.entryId
-                ? "Cashing Out..."
-                : `Cash Out ${Number(round?.multiplier || 1).toFixed(2)}x`
-              : queuedBets.length > 0
-                ? "Cash Out When Round Starts"
-                : round?.status === "crashed"
-                  ? "Round Crashed"
-                  : "No Live Bet To Cash Out"}
+            {loading === manualCashoutEntry?.entryId ? "Cashing Out..." : "Cash Out"}
           </button>
 
-          {!canManualCashout ? (
-            <p className="text-xs text-white/50">
-              {queuedBets.length > 0
-                ? "Your bet is queued. This button will activate once the rocket launches and your bet is live."
-                : "Join a round first, then cash out before the crash."}
-            </p>
-          ) : null}
+          <p className="text-xs text-white/50">
+            {canManualCashout
+              ? `Ready at ${Number(round?.multiplier || 1).toFixed(2)}x`
+              : queuedBets.length > 0
+                ? "Your bet is queued. Cash out becomes available when the round starts."
+                : round?.status === "crashed"
+                  ? "This round already crashed."
+                  : "Join a round first, then cash out before the crash."}
+          </p>
         </div>
       </div>
 
