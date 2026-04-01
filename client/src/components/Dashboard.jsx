@@ -54,11 +54,11 @@ const THEMES = {
 };
 
 const gameCards = [
-  { id: "blackjack", label: "Blackjack", accent: "from-orange-700 via-orange-500 to-amber-300", players: 6, image: "/images/blackjack-card.svg" },
+  { id: "blackjack", label: "Blackjack", accent: "from-orange-700 via-orange-500 to-amber-300", players: 6, image: "/images/blackjack-dashboard.png" },
   { id: "mines", label: "Mines", accent: "from-emerald-900 via-emerald-500 to-lime-300", players: 8, image: "/images/mines-dashboard.png" },
-  { id: "dice", label: "Dice", accent: "from-indigo-900 via-violet-500 to-sky-300", players: 5, image: "/images/dice-card.svg" },
-  { id: "roulette", label: "Roulette", accent: "from-fuchsia-900 via-pink-500 to-amber-300", players: 7, image: "/images/roulette-card.svg" },
-  { id: "chicken", label: "Chicken", accent: "from-rose-900 via-orange-500 to-amber-300", players: 4, image: "/images/mines-card.svg" },
+  { id: "dice", label: "Dice", accent: "from-indigo-900 via-violet-500 to-sky-300", players: 5, image: "/images/dice-dashboard.png" },
+  { id: "roulette", label: "Roulette", accent: "from-fuchsia-900 via-pink-500 to-amber-300", players: 7, image: "/images/roulette-dashboard.png" },
+  { id: "chicken", label: "Chicken", accent: "from-rose-900 via-orange-500 to-amber-300", players: 4, image: "/images/chicken-dashboard.png" },
   { id: "limbo", label: "Limbo", accent: "from-amber-800 via-orange-500 to-yellow-300", players: 6, image: "/images/limbo-dashboard.png" },
   { id: "plinko", label: "Plinko", accent: "from-cyan-900 via-cyan-500 to-sky-300", players: 3, image: "/images/plinko-dashboard.png" },
   { id: "cases", label: "Cases", accent: "from-fuchsia-700 via-pink-500 to-amber-300", players: 5, image: "/images/cases-dashboard.png" },
