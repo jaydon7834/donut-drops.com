@@ -4,7 +4,6 @@ import { api } from "../lib/api.js";
 import { createAppSocket } from "../lib/socket.js";
 import { formatBetInput, parseBetInput } from "../lib/betting.js";
 import { triggerGameEffect } from "../lib/gameEffects.js";
-import { GameLayout } from "./GameLayout.jsx";
 
 function formatMoney(value) {
   const amount = Number(value || 0);
@@ -497,7 +496,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
       <motion.div
         animate={round?.status === "crashed" ? { x: [0, -6, 6, -4, 4, 0] } : { x: 0 }}
         transition={{ duration: 0.34 }}
-        className={`relative overflow-hidden rounded-[2rem] border p-6 ${
+        className={`relative overflow-hidden rounded-[2rem] border p-5 xl:p-6 ${
           round?.status === "crashed"
             ? "border-rose-400/30 bg-[radial-gradient(circle_at_top,rgba(251,113,133,0.18),rgba(8,12,20,0.96)_45%)]"
             : "border-emerald-400/15 bg-[radial-gradient(circle_at_top,rgba(34,197,94,0.16),rgba(8,12,20,0.96)_45%)]"
@@ -872,17 +871,46 @@ export function CrashGame({ token, user, onBalanceChange }) {
   );
 
   return (
-    <GameLayout
-      eyebrow="Crash"
-      title="Live multiplayer crash"
-      subtitle="Shared rounds, multiple slips, auto cashout targets, and manual exits while the line keeps running to the real crash point."
-      accent="from-yellow-500/20 via-orange-500/10 to-sky-500/20"
-      controls={controls}
-      main={main}
-      rightPanel={rightPanel}
-      controlsClassName="w-full shrink-0 rounded-[1.4rem] bg-white/5 p-4 backdrop-blur xl:w-[230px]"
-      mainClassName="min-w-0 flex-1 overflow-visible rounded-[1.4rem] bg-white/5 p-4 backdrop-blur xl:p-6"
-      rightPanelClassName="w-full shrink-0 rounded-[1.4rem] bg-white/5 p-4 backdrop-blur xl:w-[210px]"
-    />
+    <div className="space-y-5">
+      <motion.aside
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="casino-card overflow-hidden rounded-[2rem] bg-gradient-to-br from-yellow-500/20 via-orange-500/10 to-sky-500/20 p-6"
+      >
+        <p className="text-xs uppercase tracking-[0.35em] text-white/45">Crash</p>
+        <h2 className="mt-3 text-4xl font-black text-white">Live multiplayer crash</h2>
+        <p className="mt-3 max-w-3xl text-sm leading-7 text-white/60">
+          Shared rounds, multiple slips, auto cashout targets, and manual exits while the rocket keeps running to the real crash point.
+        </p>
+      </motion.aside>
+
+      <div className="grid gap-4 xl:grid-cols-[220px,minmax(0,1fr)] xl:gap-5">
+        <motion.aside
+          initial={{ opacity: 0, x: -16 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="rounded-[1.4rem] bg-white/5 p-4 backdrop-blur"
+        >
+          {controls}
+        </motion.aside>
+
+        <div className="min-w-0 space-y-4">
+          <motion.section
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="min-w-0 overflow-visible rounded-[1.4rem] bg-white/5 p-4 backdrop-blur xl:p-6"
+          >
+            {main}
+          </motion.section>
+
+          <motion.section
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-[1.4rem] bg-white/5 p-4 backdrop-blur xl:p-5"
+          >
+            {rightPanel}
+          </motion.section>
+        </div>
+      </div>
+    </div>
   );
 }
