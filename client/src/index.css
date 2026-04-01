@@ -22,10 +22,19 @@
 body.light {
   --bg: #f8fafc;
   --panel: #ffffff;
+  --panel-strong: #eef2ff;
+  --panel-soft: #f8fafc;
   --text: #020617;
   --muted: #64748b;
+  --muted-soft: #475569;
   --accent-solid: #16a34a;
   --accent-glow: rgba(22, 163, 74, 0.22);
+}
+
+:root {
+  --panel-strong: #111827;
+  --panel-soft: #0f172a;
+  --muted-soft: #cbd5e1;
 }
 
 * {
@@ -164,6 +173,93 @@ select {
 
 body.light .glow {
   box-shadow: 0 0 calc(6px * var(--glow)) color-mix(in srgb, var(--accent-solid) 55%, transparent);
+}
+
+body.light .glass-panel,
+body.light .casino-card {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 20px 50px rgba(15, 23, 42, 0.08);
+}
+
+body.light [class*="bg-[#0f172a]"],
+body.light [class*="bg-[#131625]"],
+body.light [class*="bg-[#131722]"],
+body.light [class*="bg-[#171824]"],
+body.light [class*="bg-[#171b2a]"],
+body.light [class*="bg-[#111827]"],
+body.light [class*="bg-[#102536]"],
+body.light [class*="bg-[#0c1c2a]"],
+body.light [class*="bg-[#0d0f18]"],
+body.light [class*="bg-[#0f1119]"],
+body.light [class*="bg-[#0b0f1a]"] {
+  background: var(--panel) !important;
+  color: var(--text) !important;
+}
+
+body.light [class*="bg-black/30"],
+body.light [class*="bg-black/25"],
+body.light [class*="bg-black/20"],
+body.light [class*="bg-black/15"],
+body.light [class*="bg-white/5"],
+body.light [class*="bg-white/10"] {
+  background: color-mix(in srgb, var(--panel-strong) 55%, white) !important;
+}
+
+body.light [class*="border-white/10"],
+body.light [class*="border-white/8"],
+body.light [class*="border-white/6"],
+body.light [class*="border-white/5"] {
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+body.light [class*="text-white"] {
+  color: var(--text) !important;
+}
+
+body.light [class*="text-white/80"],
+body.light [class*="text-white/75"],
+body.light [class*="text-white/72"],
+body.light [class*="text-white/70"],
+body.light [class*="text-white/65"],
+body.light [class*="text-white/60"],
+body.light [class*="text-white/55"],
+body.light [class*="text-white/50"],
+body.light [class*="text-white/45"],
+body.light [class*="text-white/40"],
+body.light [class*="text-white/35"] {
+  color: var(--muted-soft) !important;
+}
+
+body.light [class*="text-gray-400"],
+body.light [class*="text-slate-400"] {
+  color: var(--muted) !important;
+}
+
+body.light input,
+body.light select,
+body.light textarea {
+  color: var(--text) !important;
+}
+
+body.light input::placeholder,
+body.light textarea::placeholder {
+  color: var(--muted) !important;
+}
+
+body.light .theme-chip {
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--text) !important;
+}
+
+body.light .theme-chip-active {
+  color: #ffffff !important;
+}
+
+body.light .neon-button,
+body.light .neon-button-green,
+body.light .claim-btn {
+  color: #ffffff;
 }
 
 .win-flash::after,
