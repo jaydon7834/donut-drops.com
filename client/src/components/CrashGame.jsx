@@ -67,10 +67,6 @@ function buildAreaPath(points, linePath) {
   return `${linePath} L ${last.x} 100 L ${first.x} 100 Z`;
 }
 
-function formatCountdown(milliseconds) {
-  return `${Math.max(0, Math.ceil(milliseconds / 1000))}s`;
-}
-
 function getStatusTone(status) {
   if (status === "crashed") {
     return "rose";
@@ -198,12 +194,13 @@ export function CrashGame({ token, user, onBalanceChange }) {
   const linePath = useMemo(() => buildLinePath(chartPoints), [chartPoints]);
   const areaPath = useMemo(() => buildAreaPath(chartPoints, linePath), [chartPoints, linePath]);
   const activeBets = round?.activeBets || [];
+  const queuedBets = round?.queuedBets || [];
   const liveEntries = activeBets.filter((entry) => entry.status === "active");
   const cashedEntries = activeBets.filter((entry) => entry.status === "cashed");
   const players = round?.players || [];
-  const countdownLabel = formatCountdown((round?.bettingClosesAt || 0) - Date.now());
   const statusTone = getStatusTone(round?.status);
   const totalPlayerExposure = activeBets.reduce((sum, entry) => sum + Number(entry.bet || 0), 0);
+  const totalQueuedExposure = queuedBets.reduce((sum, entry) => sum + Number(entry.bet || 0), 0);
   const projectedCashout = liveEntries.reduce((sum, entry) => sum + Number(entry.bet || 0) * Number(round?.multiplier || 1), 0);
   const topPlayers = [...players].sort((left, right) => Number(right.bet || 0) - Number(left.bet || 0));
   const particleDots = useMemo(
@@ -252,7 +249,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
 
       setRound(latestRound);
       onBalanceChange(latestBalance);
-      setFeedback(`Placed ${betSlips.length} crash ${betSlips.length === 1 ? "bet" : "bets"} into the live round.`);
+      setFeedback(`Queued ${betSlips.length} crash ${betSlips.length === 1 ? "bet" : "bets"} for the next round.`);
       setBetSlips([createBetSlip()]);
     } catch (error) {
       setFeedback(error.message);
@@ -284,7 +281,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
         <p className="text-xs uppercase tracking-[0.3em] text-indigo-200/65">Crash Bet</p>
         <h2 className="mt-3 text-3xl font-black text-white">Time the escape</h2>
         <p className="mt-3 text-sm leading-6 text-white/60">
-          Stack multiple slips before launch, set auto cashouts, or ride them manually once the room goes live.
+          The game keeps rolling. Join at any time, queue your slips for the next round, then cash them manually or by auto target.
         </p>
         <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
           <p>Minimum bet: <span className="font-bold text-white">1k</span></p>
@@ -360,24 +357,26 @@ export function CrashGame({ token, user, onBalanceChange }) {
         </div>
         <div className="mt-3 flex items-center justify-between">
           <p className="text-white/65">Your Exposure</p>
-          <span className="font-bold text-white">{formatMoney(totalPlayerExposure)}</span>
+          <span className="font-bold text-white">{formatMoney(totalPlayerExposure + totalQueuedExposure)}</span>
         </div>
         <div className="mt-3 flex items-center justify-between">
           <p className="text-white/65">Room Pot</p>
           <span className="font-bold text-white">{formatMoney(round?.totalBet || 0)}</span>
         </div>
+        <div className="mt-3 flex items-center justify-between">
+          <p className="text-white/65">Queued Next</p>
+          <span className="font-bold text-white">{formatMoney(round?.queueTotal || 0)}</span>
+        </div>
       </div>
 
-      {round?.status === "countdown" ? (
-        <button
-          type="button"
-          onClick={handlePlaceAllBets}
-          disabled={loading !== ""}
-          className="w-full rounded-xl bg-gradient-to-r from-sky-400 to-cyan-300 px-4 py-4 text-lg font-black text-slate-950 transition hover:scale-[1.01] disabled:opacity-50"
-        >
-          {loading === "join" ? "Joining..." : `Place All Bets ${countdownLabel}`}
-        </button>
-      ) : null}
+      <button
+        type="button"
+        onClick={handlePlaceAllBets}
+        disabled={loading !== ""}
+        className="w-full rounded-xl bg-gradient-to-r from-sky-400 to-cyan-300 px-4 py-4 text-lg font-black text-slate-950 transition hover:scale-[1.01] disabled:opacity-50"
+      >
+        {loading === "join" ? "Joining..." : "Join Next Round"}
+      </button>
 
       {liveEntries.length > 0 ? (
         <div className="space-y-3">
@@ -401,6 +400,22 @@ export function CrashGame({ token, user, onBalanceChange }) {
               </div>
             </button>
           ))}
+        </div>
+      ) : null}
+
+      {queuedBets.length > 0 ? (
+        <div className="rounded-2xl border border-sky-400/15 bg-sky-400/8 p-4">
+          <p className="text-xs uppercase tracking-[0.22em] text-sky-100/70">Queued For Next Round</p>
+          <div className="mt-3 space-y-2">
+            {queuedBets.map((entry) => (
+              <div key={entry.entryId} className="flex items-center justify-between gap-3 rounded-xl bg-black/20 px-3 py-2 text-sm">
+                <span className="font-semibold text-white">{formatMoney(entry.bet)}</span>
+                <span className="text-sky-100/80">
+                  {entry.autoCashout ? `Auto ${Number(entry.autoCashout).toFixed(2)}x` : "Manual"}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       ) : null}
 
@@ -452,9 +467,9 @@ export function CrashGame({ token, user, onBalanceChange }) {
             </motion.h3>
             <p className="mt-3 text-sm text-white/60">
               {round?.status === "countdown"
-                ? `Launching in ${countdownLabel}`
+                ? "Next round is loading in."
                 : round?.status === "running"
-                  ? "The round is live right now."
+                  ? "The round is live right now. New joins queue automatically."
                   : "Round ended. Watching the real landing point."}
             </p>
           </div>
@@ -576,6 +591,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
         </div>
 
         <div className="mt-3 space-y-2">
+          <div className="max-h-[32rem] space-y-2 overflow-y-auto pr-1">
           {topPlayers.length === 0 ? (
             <p className="text-sm text-white/55">No one has joined this round yet.</p>
           ) : (
@@ -622,6 +638,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
               </div>
             ))
           )}
+          </div>
         </div>
       </div>
 

@@ -37,6 +37,7 @@ export const store = {
   crash: {
     roundNumber: 0,
     currentRound: null,
+    pendingEntries: [],
     history: [],
     tickInterval: null,
     nextRoundTimer: null

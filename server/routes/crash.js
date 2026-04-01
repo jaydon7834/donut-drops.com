@@ -14,7 +14,6 @@ import { createError, ensurePositiveBet } from "../utils/helpers.js";
 const router = Router();
 
 const CRASH_HOUSE_EDGE = 0.8;
-const COUNTDOWN_MS = 8_000;
 const POST_CRASH_MS = 4_500;
 const TICK_MS = 150;
 const MAX_CRASH_POINT = 1_000;
@@ -135,12 +134,13 @@ function serializePlayer(player, userId) {
 }
 
 function serializeCrashRound(round, userId) {
+  const crashState = getCrashStore();
+
   if (!round) {
     return {
       roundId: "",
       status: "idle",
       multiplier: 1,
-      bettingClosesAt: 0,
       startedAt: 0,
       crashedAt: 0,
       crashPoint: null,
@@ -148,18 +148,36 @@ function serializeCrashRound(round, userId) {
       players: [],
       playerCount: 0,
       totalBet: 0,
-      activeBets: []
+      activeBets: [],
+      queuedBets: [],
+      queueCount: 0,
+      queueTotal: 0
     };
   }
 
   const players = Array.from(round.players.values()).map((player) => serializePlayer(player, userId));
   const activeBets = userId ? players.filter((player) => player.userId === userId) : [];
+  const queuedBets = userId
+    ? crashState.pendingEntries
+        .filter((player) => player.userId === userId)
+        .map((player) => ({
+          entryId: player.entryId,
+          userId: player.userId,
+          username: player.username,
+          bet: player.bet,
+          autoCashout: player.autoCashout || null,
+          status: "queued",
+          payout: 0,
+          cashoutMultiplier: 0,
+          isBot: false,
+          isYou: true
+        }))
+    : [];
 
   return {
     roundId: round.roundId,
     status: round.status,
     multiplier: round.multiplier,
-    bettingClosesAt: round.bettingClosesAt,
     startedAt: round.startedAt,
     crashedAt: round.crashedAt,
     crashPoint: round.status === "crashed" ? round.crashPoint : null,
@@ -169,7 +187,12 @@ function serializeCrashRound(round, userId) {
     totalBet: Number(
       Array.from(round.players.values()).reduce((sum, player) => sum + Number(player.bet || 0), 0).toFixed(2)
     ),
-    activeBets
+    activeBets,
+    queuedBets,
+    queueCount: crashState.pendingEntries.length,
+    queueTotal: Number(
+      crashState.pendingEntries.reduce((sum, player) => sum + Number(player.bet || 0), 0).toFixed(2)
+    )
   };
 }
 
@@ -315,14 +338,11 @@ async function startCrashRound() {
   crashState.roundNumber += 1;
   const fair = getCrashPoint(crashState.roundNumber);
   const roundId = nextGameId("crashround");
-  const startedAt = Date.now() + COUNTDOWN_MS;
-  const bettingClosesAt = startedAt;
 
   crashState.currentRound = {
     roundId,
-    status: "countdown",
-    startedAt,
-    bettingClosesAt,
+    status: "running",
+    startedAt: Date.now(),
     crashedAt: 0,
     multiplier: 1,
     crashPoint: fair.crashPoint,
@@ -337,46 +357,44 @@ async function startCrashRound() {
     crashState.currentRound.players.set(bot.entryId, bot);
   });
 
+  crashState.pendingEntries.forEach((entry) => {
+    crashState.currentRound.players.set(entry.entryId, {
+      ...entry,
+      resolved: false,
+      cashedOut: false,
+      payout: 0,
+      cashoutMultiplier: 0
+    });
+  });
+  crashState.pendingEntries = [];
+
   emitCrashState();
 
-  crashState.nextRoundTimer = setTimeout(() => {
-    const round = crashState.currentRound;
-    if (!round || round.roundId !== roundId) {
+  crashState.tickInterval = setInterval(() => {
+    const activeRound = crashState.currentRound;
+    if (!activeRound || activeRound.roundId !== roundId || activeRound.status !== "running") {
       return;
     }
 
-    round.status = "running";
-    round.startedAt = Date.now();
-    round.multiplier = 1;
-    round.history = [1];
+    activeRound.multiplier = getCurrentMultiplier(activeRound);
+    activeRound.history.push(activeRound.multiplier);
+    activeRound.history = activeRound.history.slice(-160);
+
+    const autoChanged = processAutoCashouts(activeRound);
+    if (autoChanged) {
+      persistUsers().catch((error) => {
+        console.error("Failed to persist auto cashout state", error);
+      });
+    }
+
     emitCrashState();
 
-    crashState.tickInterval = setInterval(() => {
-      const activeRound = crashState.currentRound;
-      if (!activeRound || activeRound.roundId !== roundId || activeRound.status !== "running") {
-        return;
-      }
-
-      activeRound.multiplier = getCurrentMultiplier(activeRound);
-      activeRound.history.push(activeRound.multiplier);
-      activeRound.history = activeRound.history.slice(-160);
-
-      const autoChanged = processAutoCashouts(activeRound);
-      if (autoChanged) {
-        persistUsers().catch((error) => {
-          console.error("Failed to persist auto cashout state", error);
-        });
-      }
-
-      emitCrashState();
-
-      if (activeRound.multiplier >= activeRound.crashPoint) {
-        crashCurrentRound().catch((error) => {
-          console.error("Failed to settle crash round", error);
-        });
-      }
-    }, TICK_MS);
-  }, COUNTDOWN_MS);
+    if (activeRound.multiplier >= activeRound.crashPoint) {
+      crashCurrentRound().catch((error) => {
+        console.error("Failed to settle crash round", error);
+      });
+    }
+  }, TICK_MS);
 }
 
 function requireCrashRound() {
@@ -401,17 +419,14 @@ router.get("/state", (req, res) => {
 router.post("/bet", async (req, res, next) => {
   try {
     const round = requireCrashRound();
-
-    if (round.status !== "countdown" || Date.now() >= round.bettingClosesAt) {
-      throw createError("Betting is closed for this crash round.", 400);
-    }
+    const crashState = getCrashStore();
 
     const bet = ensurePositiveBet(req.body.bet, req.user.balance);
     const autoCashout = sanitizeAutoCashout(req.body.autoCashout);
     const entryId = nextGameId("crash");
 
     req.user.balance = Number((req.user.balance - bet).toFixed(2));
-    round.players.set(entryId, {
+    crashState.pendingEntries.push({
       entryId,
       userId: req.user.id,
       username: req.user.username,
@@ -429,6 +444,7 @@ router.post("/bet", async (req, res, next) => {
 
     return res.status(201).json({
       balance: req.user.balance,
+      joinedRoundId: round.roundId,
       round: serializeCrashRound(round, req.user.id)
     });
   } catch (error) {
