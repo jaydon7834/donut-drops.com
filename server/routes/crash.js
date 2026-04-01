@@ -15,7 +15,7 @@ const router = Router();
 
 const CRASH_HOUSE_EDGE = 0.8;
 const COUNTDOWN_MS = 5_000;
-const POST_CRASH_MS = 4_500;
+const POST_CRASH_MS = 250;
 const TICK_MS = 100;
 const MAX_CRASH_POINT = 1_000;
 const GROWTH_RATE = 0.055;
@@ -448,6 +448,21 @@ function requireCrashRound() {
   return round;
 }
 
+function hasOpenCrashBet(userId) {
+  const crashState = getCrashStore();
+  const round = crashState.currentRound;
+
+  const hasLiveOrCountdownEntry = round
+    ? Array.from(round.players.values()).some(
+        (player) => player.userId === userId && !player.resolved && !player.cashedOut
+      )
+    : false;
+
+  const hasQueuedEntry = crashState.pendingEntries.some((player) => player.userId === userId);
+
+  return hasLiveOrCountdownEntry || hasQueuedEntry;
+}
+
 router.use(authMiddleware);
 
 router.get("/state", (req, res) => {
@@ -461,6 +476,10 @@ router.post("/bet", async (req, res, next) => {
   try {
     const round = requireCrashRound();
     const crashState = getCrashStore();
+
+    if (hasOpenCrashBet(req.user.id)) {
+      throw createError("You already have a live or queued crash bet.", 409);
+    }
 
     const bet = ensurePositiveBet(req.body.bet, req.user.balance);
     const autoCashout = sanitizeAutoCashout(req.body.autoCashout);

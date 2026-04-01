@@ -567,6 +567,15 @@ export function CrashGame({ token, user, onBalanceChange }) {
           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),transparent)]" />
 
           {round?.status === "countdown" ? (
+            <div className="pointer-events-none absolute inset-0 z-[2] flex items-center justify-center">
+              <div className="rounded-[2rem] border border-cyan-300/30 bg-slate-950/45 px-10 py-6 text-center shadow-[0_0_40px_rgba(56,189,248,0.18)] backdrop-blur">
+                <p className="text-xs uppercase tracking-[0.34em] text-cyan-100/65">Launch Sequence</p>
+                <p className="mt-3 text-5xl font-black tracking-[0.18em] text-cyan-100 sm:text-6xl">{countdownText}</p>
+              </div>
+            </div>
+          ) : null}
+
+          {round?.status === "countdown" ? (
             <>
               <div className="absolute inset-x-0 bottom-0 h-24 bg-[linear-gradient(180deg,rgba(20,83,45,0),rgba(20,83,45,0.55)_40%,rgba(21,28,36,0.95)_100%)]" />
               <div className="absolute bottom-8 left-10 text-6xl opacity-90">🏙️</div>
@@ -721,7 +730,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
             ) : (
               <div className="relative flex h-40 w-36 items-center justify-center">
                 {round?.status === "countdown" ? (
-                  <div className="absolute -top-24 left-1/2 -translate-x-1/2 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-8 py-4 text-2xl font-black tracking-[0.18em] text-cyan-100 shadow-[0_0_30px_rgba(56,189,248,0.18)]">
+                  <div className="absolute -top-24 left-1/2 -translate-x-1/2 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-8 py-4 text-2xl font-black tracking-[0.18em] text-cyan-100 shadow-[0_0_30px_rgba(56,189,248,0.18)] opacity-0">
                     {countdownText}
                   </div>
                 ) : null}
