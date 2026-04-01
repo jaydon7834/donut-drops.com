@@ -8,6 +8,7 @@ import { ChickenGame } from "./ChickenGame.jsx";
 import { RouletteGame } from "./RouletteGame.jsx";
 import { LimboGame } from "./LimboGame.jsx";
 import { PlinkoGame } from "./PlinkoGame.jsx";
+import { CrashGame } from "./CrashGame.jsx";
 import { ArcadeGame } from "./ArcadeGame.jsx";
 import { FairnessCard } from "./FairnessCard.jsx";
 import { GameCard } from "./GameCard.jsx";
@@ -62,11 +63,12 @@ const gameCards = [
   { id: "chicken", label: "Chicken", accent: "from-rose-900 via-orange-500 to-amber-300", players: 4, image: "/images/chicken-dashboard.png" },
   { id: "limbo", label: "Limbo", accent: "from-amber-800 via-orange-500 to-yellow-300", players: 6, image: "/images/limbo-dashboard.png" },
   { id: "plinko", label: "Plinko", accent: "from-cyan-900 via-cyan-500 to-sky-300", players: 3, image: "/images/plinko-dashboard.png" },
+  { id: "crash", label: "Crash", accent: "from-yellow-500 via-orange-400 to-sky-400", players: 12, image: "/images/crash-dashboard.png" },
   { id: "cases", label: "Cases", accent: "from-fuchsia-700 via-pink-500 to-amber-300", players: 5, image: "/images/cases-dashboard.png" },
   { id: "case-battles", label: "Case Battles", accent: "from-sky-800 via-blue-500 to-indigo-300", players: 4, image: "/images/case-battles-dashboard.png" }
 ];
 
-const sideGames = ["Cases", "Case Battles", "Blackjack", "Mines", "Plinko", "Limbo", "Dice", "Roulette", "Chicken"];
+const sideGames = ["Crash", "Cases", "Case Battles", "Blackjack", "Mines", "Plinko", "Limbo", "Dice", "Roulette", "Chicken"];
 const FALLBACK_CRYPTO_ASSETS = [
   { symbol: "BTC", label: "Bitcoin", address: "bc1qlxer836vvxah73m5sl9dev78tuvfn9xkg4qqky", minUsdAmount: 5, donutsPerOrder: 71_428_571 },
   { symbol: "ETH", label: "Ethereum", address: "0xF8914Bb5a5fe8e3df8256877c4ed1E7F6d0BE190", minUsdAmount: 5, donutsPerOrder: 71_428_571 },
@@ -1946,6 +1948,17 @@ export function Dashboard() {
     if (activeView === "plinko") {
       return (
         <PlinkoGame
+          token={token}
+          user={user}
+          onBalanceChange={updateBalance}
+          onBack={() => setActiveView("lobby")}
+        />
+      );
+    }
+
+    if (activeView === "crash") {
+      return (
+        <CrashGame
           token={token}
           user={user}
           onBalanceChange={updateBalance}

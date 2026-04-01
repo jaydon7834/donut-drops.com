@@ -88,6 +88,15 @@ export const api = {
       },
       token
     ),
+  updateBalance: (token, balance) =>
+    request(
+      "/user/update-balance",
+      {
+        method: "POST",
+        body: JSON.stringify({ balance })
+      },
+      token
+    ),
   updateClientSeed: (token, clientSeed) =>
     request(
       "/user/seed",
@@ -184,6 +193,24 @@ export const api = {
       {
         method: "POST",
         body: JSON.stringify(payload)
+      },
+      token
+    ),
+  getCrashState: (token) => request("/game/crash/state", {}, token),
+  placeCrashBet: (token, payload) =>
+    request(
+      "/game/crash/bet",
+      {
+        method: "POST",
+        body: JSON.stringify(payload)
+      },
+      token
+    ),
+  cashoutCrash: (token) =>
+    request(
+      "/game/crash/cashout",
+      {
+        method: "POST"
       },
       token
     ),

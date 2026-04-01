@@ -8,6 +8,7 @@ import minesRoutes from "./routes/mines.js";
 import diceRoutes from "./routes/dice.js";
 import blackjackRoutes from "./routes/blackjack.js";
 import chickenRoutes from "./routes/chicken.js";
+import crashRoutes from "./routes/crash.js";
 import rouletteRoutes from "./routes/roulette.js";
 import limboRoutes from "./routes/limbo.js";
 import plinkoRoutes from "./routes/plinko.js";
@@ -15,6 +16,7 @@ import instantRoutes from "./routes/instant.js";
 import chatRoutes from "./routes/chat.js";
 import rainRoutes from "./routes/rain.js";
 import { initializeRainScheduler } from "./routes/rain.js";
+import { initializeCrashEngine } from "./routes/crash.js";
 import { initializeStore, USERS_FILE } from "./state/store.js";
 import { createRateLimiter } from "./middleware/rateLimit.js";
 import { processingLock } from "./middleware/processingLock.js";
@@ -60,6 +62,7 @@ app.use("/game/mines", gameLimiter, processingLock, minesRoutes);
 app.use("/game/dice", gameLimiter, processingLock, diceRoutes);
 app.use("/game/blackjack", gameLimiter, processingLock, blackjackRoutes);
 app.use("/game/chicken", gameLimiter, processingLock, chickenRoutes);
+app.use("/game/crash", gameLimiter, crashRoutes);
 app.use("/game/roulette", gameLimiter, processingLock, rouletteRoutes);
 app.use("/game/limbo", gameLimiter, processingLock, limboRoutes);
 app.use("/game/plinko", gameLimiter, processingLock, plinkoRoutes);
@@ -83,6 +86,7 @@ initializeStore()
   .then(() => {
     initializeSocket(server);
     initializeRainScheduler();
+    initializeCrashEngine();
     console.log(`DonutDrop users file: ${USERS_FILE}`);
     server.listen(PORT, () => {
       console.log(`DonutDrop API running on http://localhost:${PORT}`);

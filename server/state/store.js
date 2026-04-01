@@ -33,7 +33,14 @@ export const store = {
     nextTimer: null,
     nextStartAt: 0
   },
-  caseBattles: new Map()
+  caseBattles: new Map(),
+  crash: {
+    roundNumber: 0,
+    currentRound: null,
+    history: [],
+    tickInterval: null,
+    nextRoundTimer: null
+  }
 };
 
 let userSequence = 1;
