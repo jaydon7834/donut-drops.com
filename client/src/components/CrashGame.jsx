@@ -86,7 +86,7 @@ function getStatusTone(status) {
 function createBetSlip() {
   return {
     id: `slip_${Math.random().toString(36).slice(2, 9)}`,
-    amount: "20",
+    amount: "1k",
     autoCashout: ""
   };
 }
@@ -286,6 +286,10 @@ export function CrashGame({ token, user, onBalanceChange }) {
         <p className="mt-3 text-sm leading-6 text-white/60">
           Stack multiple slips before launch, set auto cashouts, or ride them manually once the room goes live.
         </p>
+        <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
+          <p>Minimum bet: <span className="font-bold text-white">1k</span></p>
+          <p className="mt-1">Crash edge: <span className="font-bold text-white">20%</span></p>
+        </div>
       </div>
 
       <div className="space-y-3">
@@ -308,7 +312,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
                     value={slip.amount}
                     onChange={(event) => updateBetSlip(slip.id, "amount", event.target.value)}
                     className="w-full bg-transparent p-3 text-white outline-none"
-                    placeholder="1m"
+                    placeholder="1k"
                   />
                   <div className="flex items-center gap-1 pr-2">
                     <button type="button" onClick={() => updateBetSlip(slip.id, "amount", formatBetInput(Math.max(1, Math.round(parseBetInput(slip.amount || 0) * 0.5))))} className="rounded-lg bg-white/10 px-2 py-1 text-xs font-semibold text-white">
