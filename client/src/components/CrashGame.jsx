@@ -198,6 +198,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
   const liveEntries = activeBets.filter((entry) => entry.status === "active");
   const cashedEntries = activeBets.filter((entry) => entry.status === "cashed");
   const players = round?.players || [];
+  const recentCrashHistory = history.slice(0, 5);
   const statusTone = getStatusTone(round?.status);
   const totalPlayerExposure = activeBets.reduce((sum, entry) => sum + Number(entry.bet || 0), 0);
   const totalQueuedExposure = queuedBets.reduce((sum, entry) => sum + Number(entry.bet || 0), 0);
@@ -494,6 +495,33 @@ export function CrashGame({ token, user, onBalanceChange }) {
           </div>
         </div>
 
+        <div className="relative z-10 mt-5">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs uppercase tracking-[0.24em] text-white/45">Last Crashes</p>
+            <span className="text-xs uppercase tracking-[0.18em] text-white/35">latest 5 only</span>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {recentCrashHistory.length === 0 ? (
+              <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/55">
+                Waiting for the first crash.
+              </div>
+            ) : (
+              recentCrashHistory.map((entry) => (
+                <div
+                  key={entry.roundId}
+                  className={`rounded-full border px-4 py-2 text-sm font-black ${
+                    Number(entry.crashPoint || 1) >= 2
+                      ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
+                      : "border-rose-400/20 bg-rose-400/10 text-rose-300"
+                  }`}
+                >
+                  {Number(entry.crashPoint || 1).toFixed(2)}x
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
         <div className="relative z-10 mt-6 rounded-[1.8rem] border border-white/10 bg-[linear-gradient(180deg,rgba(8,15,26,0.82),rgba(8,12,20,0.96))] p-4">
           <svg viewBox="0 0 100 100" className="h-[24rem] w-full" preserveAspectRatio="none">
             <defs>
@@ -645,10 +673,10 @@ export function CrashGame({ token, user, onBalanceChange }) {
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
         <p className="text-xs uppercase tracking-[0.24em] text-white/45">Recent Crashes</p>
         <div className="mt-3 space-y-2">
-          {history.length === 0 ? (
+          {recentCrashHistory.length === 0 ? (
             <p className="text-sm text-white/55">Waiting for the first crash result.</p>
           ) : (
-            history.map((entry) => (
+            recentCrashHistory.map((entry) => (
               <div key={entry.roundId} className="flex items-center justify-between rounded-2xl bg-black/20 px-4 py-3 text-sm">
                 <span className="text-white/65">{entry.roundId}</span>
                 <span className={`font-black ${Number(entry.crashPoint || 1) >= 2 ? "text-emerald-300" : "text-rose-300"}`}>
