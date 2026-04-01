@@ -231,6 +231,7 @@ export function Dashboard() {
   const [pendingLevelReward, setPendingLevelReward] = useState({ level: 0, amount: 0 });
   const [claimMessage, setClaimMessage] = useState("");
   const [claimingReward, setClaimingReward] = useState("");
+  const [bonusView, setBonusView] = useState("overview");
   const [themeName, setThemeName] = useState(() => {
     if (typeof window === "undefined") {
       return "green";
@@ -790,6 +791,13 @@ export function Dashboard() {
     } finally {
       setRedeemingPromo(false);
     }
+  }
+
+  function openRedeemCodeScreen() {
+    setActiveTopTab("bonus");
+    setActiveView("lobby");
+    setBonusView("redeem");
+    setPromoMessage("");
   }
 
   async function handleApplyAffiliate() {
@@ -1461,6 +1469,78 @@ export function Dashboard() {
             </div>
           </div>
 
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => setBonusView("overview")}
+              className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
+                bonusView === "overview"
+                  ? "bg-white/10 text-white"
+                  : "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              Rewards
+            </button>
+            <button
+              type="button"
+              onClick={() => setBonusView("redeem")}
+              className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
+                bonusView === "redeem"
+                  ? "bg-emerald-500/15 text-emerald-100"
+                  : "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              Redeem Code
+            </button>
+          </div>
+
+          {bonusView === "redeem" && (
+            <div className="grid gap-5 lg:grid-cols-[1.25fr,0.85fr]">
+              <div className="reward-box rounded-[1.8rem] border border-emerald-300/10 bg-[#171824] p-6">
+                <p className="text-xs uppercase tracking-[0.3em] text-emerald-200/60">Redeem Code</p>
+                <h3 className="mt-4 text-3xl font-black text-white">Enter code that you want to redeem:</h3>
+                <p className="mt-3 text-white/60">
+                  Promo rewards credit straight into your wallet as soon as the code is valid.
+                </p>
+                <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                  <input
+                    value={promoCode}
+                    onChange={(event) => setPromoCode(event.target.value.toUpperCase())}
+                    className="casino-input flex-1"
+                    placeholder="ENTER CODE"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleRedeemPromo}
+                    disabled={redeemingPromo || !promoCode.trim()}
+                    className="claim-btn glow rounded-2xl px-6 py-3 font-semibold text-slate-950 disabled:opacity-50"
+                  >
+                    {redeemingPromo ? "Redeeming..." : "Redeem"}
+                  </button>
+                </div>
+                {promoMessage && <p className="mt-4 text-sm text-white/70">{promoMessage}</p>}
+              </div>
+
+              <div className="rounded-[1.8rem] border border-white/6 bg-[#171824] p-6">
+                <p className="text-sm uppercase tracking-[0.2em] text-indigo-200/70">How It Works</p>
+                <div className="mt-5 space-y-4 text-white/65">
+                  <div className="rounded-xl bg-black/20 px-5 py-4">
+                    Enter your code exactly as you received it.
+                  </div>
+                  <div className="rounded-xl bg-black/20 px-5 py-4">
+                    Valid rewards go directly into your wallet balance.
+                  </div>
+                  <div className="rounded-xl bg-black/20 px-5 py-4">
+                    Each code can only be claimed once per account.
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {bonusView === "overview" && (
+            <>
+
           <div className="grid gap-4 xl:grid-cols-4">
             {[
               { label: "Online Reward", amount: onlineReward, meta: "Accumulates automatically while you stay online." },
@@ -1523,6 +1603,8 @@ export function Dashboard() {
               {claimMessage && <p className="mt-4 text-sm text-white/70">{claimMessage}</p>}
             </div>
           </div>
+            </>
+          )}
         </section>
       );
     }
@@ -1900,10 +1982,7 @@ export function Dashboard() {
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setActiveTopTab("bonus");
-                  setActiveView("lobby");
-                }}
+                onClick={openRedeemCodeScreen}
                 className="mt-3 w-full rounded-xl bg-white/5 px-4 py-4 text-sm font-semibold text-white"
               >
                 Redeem Code
@@ -2236,6 +2315,9 @@ export function Dashboard() {
                     onClick={() => {
                       setActiveTopTab(item.toLowerCase());
                       setActiveView("lobby");
+                      if (item.toLowerCase() === "bonus") {
+                        setBonusView("overview");
+                      }
                     }}
                     className={`rounded-xl px-4 py-2 transition ${
                       activeTopTab === item.toLowerCase()
