@@ -7,7 +7,21 @@ import { triggerGameEffect } from "../lib/gameEffects.js";
 import { GameLayout } from "./GameLayout.jsx";
 
 function formatMoney(value) {
-  return `$${Number(value || 0).toFixed(2)}`;
+  const amount = Number(value || 0);
+
+  if (amount >= 1_000_000_000) {
+    return `$${(amount / 1_000_000_000).toFixed(amount >= 10_000_000_000 ? 0 : 1).replace(/\.0$/, "")}b`;
+  }
+
+  if (amount >= 1_000_000) {
+    return `$${(amount / 1_000_000).toFixed(amount >= 10_000_000 ? 0 : 1).replace(/\.0$/, "")}m`;
+  }
+
+  if (amount >= 1_000) {
+    return `$${(amount / 1_000).toFixed(amount >= 10_000 ? 0 : 1).replace(/\.0$/, "")}k`;
+  }
+
+  return `$${amount.toFixed(2)}`;
 }
 
 function buildCrashPath(history) {
@@ -259,7 +273,12 @@ export function CrashGame({ token, user, onBalanceChange, onBack }) {
       </div>
 
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-        <p className="text-xs uppercase tracking-[0.24em] text-white/45">Players</p>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs uppercase tracking-[0.24em] text-white/45">Joined Players</p>
+          <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-white/65">
+            {players.length} in round
+          </span>
+        </div>
         <div className="mt-3 space-y-2">
           {players.length === 0 ? (
             <p className="text-sm text-white/55">No one has joined this round yet.</p>
@@ -267,7 +286,14 @@ export function CrashGame({ token, user, onBalanceChange, onBack }) {
             players.map((player) => (
               <div key={player.userId} className="rounded-2xl bg-black/20 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
-                  <p className="font-semibold text-white">{player.username}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-white">{player.username}</p>
+                    {player.isBot ? (
+                      <span className="rounded-full bg-sky-400/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-sky-200">
+                        Bot
+                      </span>
+                    ) : null}
+                  </div>
                   <span className={`text-xs font-bold uppercase tracking-[0.18em] ${
                     player.status === "cashed" ? "text-emerald-300" : player.status === "lost" ? "text-rose-300" : "text-sky-300"
                   }`}>

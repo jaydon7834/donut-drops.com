@@ -19,9 +19,79 @@ const POST_CRASH_MS = 4_500;
 const TICK_MS = 150;
 const MAX_CRASH_POINT = 1_000;
 const GROWTH_RATE = 0.18;
+const CRASH_BOT_NAMES = [
+  "cam",
+  "arxhive",
+  ".arminal",
+  "vextorian",
+  "farex",
+  "i_killed_pedro1",
+  "axtro2",
+  "wer",
+  "jvcob",
+  "skellicuh",
+  "casino800m"
+];
+const CRASH_BOT_BETS = [
+  10,
+  20,
+  35,
+  50,
+  75,
+  100,
+  150,
+  200,
+  250,
+  500,
+  1_000,
+  2_500,
+  5_000,
+  10_000
+];
 
 function getCrashStore() {
   return store.crash;
+}
+
+function shuffle(list) {
+  return [...list].sort(() => Math.random() - 0.5);
+}
+
+function pickCrashBotBet() {
+  return CRASH_BOT_BETS[Math.floor(Math.random() * CRASH_BOT_BETS.length)];
+}
+
+function getCrashBotCashoutTarget(crashPoint) {
+  const roll = Math.random();
+
+  if (roll < 0.22) {
+    return null;
+  }
+
+  const headroom = Math.max(1.05, crashPoint * (0.65 + Math.random() * 0.22));
+  return Number(Math.max(1.05, Math.min(headroom, crashPoint - 0.02)).toFixed(2));
+}
+
+function createCrashBots(roundId, crashPoint) {
+  const botCount = 5 + Math.floor(Math.random() * 6);
+  const names = shuffle(CRASH_BOT_NAMES).slice(0, botCount);
+
+  return names.map((username, index) => {
+    const bet = pickCrashBotBet();
+
+    return {
+      entryId: nextGameId("crashbot"),
+      userId: `crash_bot_${roundId}_${index + 1}`,
+      username,
+      bet,
+      payout: 0,
+      cashedOut: false,
+      cashoutMultiplier: 0,
+      resolved: false,
+      isBot: true,
+      targetCashoutMultiplier: getCrashBotCashoutTarget(crashPoint)
+    };
+  });
 }
 
 function getCurrentMultiplier(round, now = Date.now()) {
@@ -57,6 +127,7 @@ function serializePlayer(player, userId) {
     status: player.cashedOut ? "cashed" : player.resolved ? "lost" : "active",
     payout: player.payout || 0,
     cashoutMultiplier: player.cashoutMultiplier || 0,
+    isBot: Boolean(player.isBot),
     isYou: player.userId === userId
   };
 }
@@ -113,6 +184,10 @@ async function settleCrashRound(round) {
   let totalBet = 0;
 
   for (const player of round.players.values()) {
+    if (player.isBot) {
+      continue;
+    }
+
     totalBet += Number(player.bet || 0);
 
     if (player.cashedOut) {
@@ -211,6 +286,10 @@ async function startCrashRound() {
     history: [1]
   };
 
+  createCrashBots(roundId, fair.crashPoint).forEach((bot) => {
+    crashState.currentRound.players.set(bot.userId, bot);
+  });
+
   emitCrashState();
 
   crashState.nextRoundTimer = setTimeout(() => {
@@ -234,6 +313,23 @@ async function startCrashRound() {
       activeRound.multiplier = getCurrentMultiplier(activeRound);
       activeRound.history.push(activeRound.multiplier);
       activeRound.history = activeRound.history.slice(-160);
+
+      for (const player of activeRound.players.values()) {
+        if (!player.isBot || player.cashedOut || player.resolved) {
+          continue;
+        }
+
+        if (
+          player.targetCashoutMultiplier &&
+          activeRound.multiplier >= player.targetCashoutMultiplier &&
+          player.targetCashoutMultiplier < activeRound.crashPoint
+        ) {
+          player.cashedOut = true;
+          player.cashoutMultiplier = player.targetCashoutMultiplier;
+          player.payout = Number((player.bet * player.cashoutMultiplier).toFixed(2));
+        }
+      }
+
       emitCrashState();
 
       if (activeRound.multiplier >= activeRound.crashPoint) {
