@@ -149,6 +149,7 @@ function createBetSlip() {
   return {
     id: `slip_${Math.random().toString(36).slice(2, 9)}`,
     amount: "1k",
+    cashoutMode: "manual",
     autoCashout: ""
   };
 }
@@ -310,7 +311,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
       for (const slip of betSlips) {
         const data = await api.placeCrashBet(token, {
           bet: parseBetInput(slip.amount),
-          autoCashout: slip.autoCashout ? Number(slip.autoCashout) : null
+          autoCashout: slip.cashoutMode === "auto" && slip.autoCashout ? Number(slip.autoCashout) : null
         });
         latestBalance = data.balance;
         latestRound = data.round;
@@ -391,14 +392,48 @@ export function CrashGame({ token, user, onBalanceChange }) {
               </div>
 
               <div>
-                <p className="text-xs uppercase tracking-[0.18em] text-white/45">Auto Cashout</p>
-                <input
-                  value={slip.autoCashout}
-                  onChange={(event) => updateBetSlip(slip.id, "autoCashout", event.target.value)}
-                  className="mt-2 w-full rounded-xl border border-white/10 bg-[#1e293b] p-3 text-white outline-none"
-                  placeholder="2.00"
-                />
+                <p className="text-xs uppercase tracking-[0.18em] text-white/45">Cashout Mode</p>
+                <div className="mt-2 grid grid-cols-2 gap-2 rounded-xl border border-white/10 bg-[#1e293b] p-1">
+                  <button
+                    type="button"
+                    onClick={() => updateBetSlip(slip.id, "cashoutMode", "manual")}
+                    className={`rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-[0.14em] transition ${
+                      slip.cashoutMode === "manual"
+                        ? "bg-emerald-400 text-slate-950"
+                        : "bg-transparent text-white/65 hover:bg-white/5"
+                    }`}
+                  >
+                    Manual
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateBetSlip(slip.id, "cashoutMode", "auto")}
+                    className={`rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-[0.14em] transition ${
+                      slip.cashoutMode === "auto"
+                        ? "bg-sky-400 text-slate-950"
+                        : "bg-transparent text-white/65 hover:bg-white/5"
+                    }`}
+                  >
+                    Auto Cashout
+                  </button>
+                </div>
               </div>
+
+              {slip.cashoutMode === "auto" ? (
+                <div>
+                  <p className="text-xs uppercase tracking-[0.18em] text-white/45">Auto Cashout At</p>
+                  <input
+                    value={slip.autoCashout}
+                    onChange={(event) => updateBetSlip(slip.id, "autoCashout", event.target.value)}
+                    className="mt-2 w-full rounded-xl border border-white/10 bg-[#1e293b] p-3 text-white outline-none"
+                    placeholder="2.00"
+                  />
+                </div>
+              ) : (
+                <div className="rounded-xl border border-emerald-400/15 bg-emerald-400/8 px-3 py-3 text-sm text-emerald-100/85">
+                  This slip will use the manual cashout button once the round is live.
+                </div>
+              )}
             </div>
           </div>
         ))}
