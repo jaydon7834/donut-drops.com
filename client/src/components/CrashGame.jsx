@@ -77,6 +77,79 @@ function getRocketPlacement(points) {
   };
 }
 
+function getCountdownText(bettingClosesAt) {
+  const remaining = Math.max(0, Math.ceil((Number(bettingClosesAt || 0) - Date.now()) / 1000));
+
+  if (remaining <= 0) {
+    return "START";
+  }
+
+  return `T-${remaining}`;
+}
+
+function getSkyStage(multiplier, status) {
+  if (status === "crashed") {
+    return {
+      label: "Signal Lost",
+      subtitle: "The rocket broke apart before escape velocity.",
+      background:
+        "radial-gradient(circle at top, rgba(251,113,133,0.18), rgba(8,12,20,0.98) 48%)"
+    };
+  }
+
+  if (status === "countdown") {
+    return {
+      label: "Launch Pad",
+      subtitle: "Engines primed on the runway.",
+      background:
+        "radial-gradient(circle at top, rgba(56,189,248,0.10), rgba(8,15,26,0.98) 42%)"
+    };
+  }
+
+  if (multiplier >= 40) {
+    return {
+      label: "Sunline",
+      subtitle: "The rocket is blazing past the sun.",
+      background:
+        "radial-gradient(circle at 60% 20%, rgba(250,204,21,0.26), rgba(249,115,22,0.12) 22%, rgba(8,12,20,0.98) 55%)"
+    };
+  }
+
+  if (multiplier >= 30) {
+    return {
+      label: "Saturn",
+      subtitle: "Ringed orbit ahead.",
+      background:
+        "radial-gradient(circle at 72% 28%, rgba(245,158,11,0.18), rgba(8,12,20,0.98) 48%)"
+    };
+  }
+
+  if (multiplier >= 20) {
+    return {
+      label: "Jupiter",
+      subtitle: "Heavy atmosphere and giant storms.",
+      background:
+        "radial-gradient(circle at 75% 24%, rgba(251,191,36,0.16), rgba(8,12,20,0.98) 45%)"
+    };
+  }
+
+  if (multiplier >= 10) {
+    return {
+      label: "Moon Run",
+      subtitle: "Breaking into deep space.",
+      background:
+        "radial-gradient(circle at 72% 18%, rgba(255,255,255,0.16), rgba(8,12,20,0.98) 42%)"
+    };
+  }
+
+  return {
+    label: "Atmosphere",
+    subtitle: "Climbing through the clouds.",
+    background:
+      "radial-gradient(circle at top, rgba(56,189,248,0.12), rgba(8,15,26,0.98) 42%)"
+  };
+}
+
 function getStatusTone(status) {
   if (status === "crashed") {
     return "rose";
@@ -210,13 +283,18 @@ export function CrashGame({ token, user, onBalanceChange }) {
   const players = round?.players || [];
   const recentCrashHistory = history.slice(0, 5);
   const statusTone = getStatusTone(round?.status);
+  const countdownText = getCountdownText(round?.bettingClosesAt);
   const totalPlayerExposure = activeBets.reduce((sum, entry) => sum + Number(entry.bet || 0), 0);
   const totalQueuedExposure = queuedBets.reduce((sum, entry) => sum + Number(entry.bet || 0), 0);
   const projectedCashout = liveEntries.reduce((sum, entry) => sum + Number(entry.bet || 0) * Number(round?.multiplier || 1), 0);
   const topPlayers = [...players]
     .sort((left, right) => Number(right.bet || 0) - Number(left.bet || 0))
     .slice(0, 20);
-  const rocketPlacement = getRocketPlacement(chartPoints);
+  const rocketPlacement =
+    round?.status === "countdown"
+      ? { left: "50%", top: "58%" }
+      : getRocketPlacement(chartPoints);
+  const skyStage = getSkyStage(Number(round?.multiplier || 1), round?.status);
   const particleDots = useMemo(
     () =>
       Array.from({ length: 36 }, (_, index) => ({
@@ -388,7 +466,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
         disabled={loading !== ""}
         className="w-full rounded-xl bg-gradient-to-r from-sky-400 to-cyan-300 px-4 py-4 text-lg font-black text-slate-950 transition hover:scale-[1.01] disabled:opacity-50"
       >
-        {loading === "join" ? "Joining..." : "Join Next Round"}
+        {loading === "join" ? "Joining..." : round?.status === "countdown" ? "Join This Round" : "Join Next Round"}
       </button>
 
       {liveEntries.length > 0 ? (
@@ -480,7 +558,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
             </motion.h3>
             <p className="mt-3 text-sm text-white/60">
               {round?.status === "countdown"
-                ? "Next round is loading in."
+                ? `Launch sequence ${countdownText}`
                 : round?.status === "running"
                   ? "The round is live right now. New joins queue automatically."
                   : "Round ended. Watching the real landing point."}
@@ -534,8 +612,11 @@ export function CrashGame({ token, user, onBalanceChange }) {
           </div>
         </div>
 
-        <div className="relative z-10 mt-6 h-[24rem] overflow-hidden rounded-[1.8rem] border border-white/10 bg-[linear-gradient(180deg,rgba(8,15,26,0.82),rgba(8,12,20,0.98))]">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.12),transparent_35%),linear-gradient(180deg,rgba(255,255,255,0.02),transparent)]" />
+        <div
+          className="relative z-10 mt-6 h-[24rem] overflow-hidden rounded-[1.8rem] border border-white/10"
+          style={{ background: skyStage.background }}
+        >
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),transparent)]" />
           <div className="absolute inset-0">
             {Array.from({ length: 28 }, (_, index) => (
               <motion.span
@@ -556,6 +637,23 @@ export function CrashGame({ token, user, onBalanceChange }) {
                 }}
               />
             ))}
+          </div>
+
+          {Number(round?.multiplier || 1) >= 10 && round?.status !== "crashed" ? (
+            <div className="pointer-events-none absolute right-8 top-8 text-6xl opacity-80">
+              {Number(round?.multiplier || 1) >= 40
+                ? "☀️"
+                : Number(round?.multiplier || 1) >= 30
+                  ? "🪐"
+                  : Number(round?.multiplier || 1) >= 20
+                    ? "🟠"
+                    : "🌕"}
+            </div>
+          ) : null}
+
+          <div className="pointer-events-none absolute left-6 top-6 rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+            <p className="text-[11px] uppercase tracking-[0.24em] text-white/45">{skyStage.label}</p>
+            <p className="mt-2 text-sm font-semibold text-white/75">{skyStage.subtitle}</p>
           </div>
 
           <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full" preserveAspectRatio="none">
@@ -617,23 +715,28 @@ export function CrashGame({ token, user, onBalanceChange }) {
               </div>
             ) : (
               <div className="relative flex h-24 w-20 items-center justify-center">
+                {round?.status === "countdown" ? (
+                  <div className="absolute -top-16 left-1/2 -translate-x-1/2 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-5 py-2 text-lg font-black tracking-[0.18em] text-cyan-100">
+                    {countdownText}
+                  </div>
+                ) : null}
                 <motion.div
                   className="absolute bottom-1 h-12 w-8 rounded-full bg-[radial-gradient(circle,rgba(250,204,21,0.95),rgba(249,115,22,0.7),transparent_72%)] blur-[1px]"
                   animate={{
-                    scaleY: [0.9, 1.35, 0.95],
-                    scaleX: [0.85, 1.05, 0.9],
-                    opacity: [0.7, 1, 0.72]
+                    scaleY: round?.status === "countdown" ? [0.25, 0.4, 0.25] : [0.9, 1.6, 0.95],
+                    scaleX: round?.status === "countdown" ? [0.25, 0.32, 0.25] : [0.85, 1.08, 0.9],
+                    opacity: round?.status === "countdown" ? [0.25, 0.45, 0.25] : [0.7, 1, 0.72]
                   }}
                   transition={{ duration: 0.24, repeat: Infinity, ease: "easeInOut" }}
                 />
                 <motion.div
                   className="absolute bottom-0 h-16 w-12 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.9),rgba(56,189,248,0.35),transparent_72%)]"
-                  animate={{ opacity: [0.25, 0.45, 0.28] }}
+                  animate={{ opacity: round?.status === "countdown" ? [0.08, 0.18, 0.08] : [0.25, 0.45, 0.28] }}
                   transition={{ duration: 0.4, repeat: Infinity }}
                 />
                 <motion.div
                   className="relative text-5xl drop-shadow-[0_0_18px_rgba(56,189,248,0.45)]"
-                  animate={{ y: [0, -2, 0], rotate: [-1, 1, -1] }}
+                  animate={round?.status === "countdown" ? { y: [0, 0, 0], rotate: [0, 0, 0] } : { y: [0, -2, 0], rotate: [-1, 1, -1] }}
                   transition={{ duration: 0.4, repeat: Infinity, ease: "easeInOut" }}
                 >
                   🚀
