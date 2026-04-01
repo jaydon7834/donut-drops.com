@@ -1,6 +1,10 @@
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
+import { emitToUser } from "../socket.js";
+
+const AFFILIATE_REWARD = 5_000_000;
+const AFFILIATE_WAGER_REQUIREMENT = 5_000_000;
 
 export const store = {
   users: new Map(),
@@ -74,6 +78,7 @@ export async function initializeStore() {
         affiliateCodeUsed: user.affiliateCodeUsed || "",
         affiliateEarned: Number(user.affiliateEarned || 0),
         affiliateAvailable: Number(user.affiliateAvailable || 0),
+        affiliateRewardGranted: Boolean(user.affiliateRewardGranted),
         redeemedPromoHashes: Array.isArray(user.redeemedPromoHashes)
           ? user.redeemedPromoHashes
           : [],
@@ -142,6 +147,34 @@ export function pushRecentGame(entry) {
     user.stats.totalWagered = Number(
       ((user.stats.totalWagered || 0) + Number(entry.betAmount || 0)).toFixed(2)
     );
+
+    if (
+      user.affiliateCodeUsed &&
+      !user.affiliateRewardGranted &&
+      user.stats.totalWagered >= AFFILIATE_WAGER_REQUIREMENT
+    ) {
+      const referrer = Array.from(store.users.values()).find(
+        (candidate) =>
+          String(candidate.affiliateCode || candidate.username || "").toUpperCase() ===
+          String(user.affiliateCodeUsed || "").toUpperCase()
+      );
+
+      if (referrer && referrer.id !== user.id) {
+        referrer.affiliateEarned = Number((Number(referrer.affiliateEarned || 0) + AFFILIATE_REWARD).toFixed(2));
+        referrer.balance = Number((Number(referrer.balance || 0) + AFFILIATE_REWARD).toFixed(2));
+        user.affiliateRewardGranted = true;
+
+        emitToUser(referrer.id, "chat:message", {
+          type: "tip",
+          message: {
+            id: `affiliate_${Date.now()}`,
+            username: "system",
+            text: `✨${user.username} passed 5m wagered. $${(AFFILIATE_REWARD / 1_000_000).toFixed(0)}m was added to your balance.`,
+            createdAt: new Date().toISOString()
+          }
+        });
+      }
+    }
 
     if (Number(entry.profit || 0) > 0) {
       user.stats.winStreak = (user.stats.winStreak || 0) + 1;

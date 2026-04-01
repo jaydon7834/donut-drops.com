@@ -5,7 +5,6 @@ import { findUserByUsername, getRecentGamesForUser, persistUsers, store } from "
 import { createError, sanitizeUser } from "../utils/helpers.js";
 
 const router = Router();
-const AFFILIATE_REWARD = 5_000_000;
 
 router.use(authMiddleware);
 
@@ -136,23 +135,11 @@ router.post("/affiliate/apply", async (req, res, next) => {
     }
 
     req.user.affiliateCodeUsed = code;
-    referrer.affiliateEarned = Number((Number(referrer.affiliateEarned || 0) + AFFILIATE_REWARD).toFixed(2));
-    referrer.balance = Number((Number(referrer.balance || 0) + AFFILIATE_REWARD).toFixed(2));
+    req.user.affiliateRewardGranted = false;
     await persistUsers();
-
-    emitToUser(referrer.id, "chat:message", {
-      type: "tip",
-      message: {
-        id: `affiliate_${Date.now()}`,
-        username: "system",
-        text: `✨${req.user.username} used your affiliate code. $${AFFILIATE_REWARD.toLocaleString()} was added to your balance.`,
-        createdAt: new Date().toISOString()
-      }
-    });
 
     return res.json({
       user: sanitizeUser(req.user),
-      reward: AFFILIATE_REWARD,
       referrer: sanitizeUser(referrer)
     });
   } catch (error) {

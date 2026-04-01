@@ -22,6 +22,7 @@ export function sanitizeUser(user) {
     affiliateCodeUsed: user.affiliateCodeUsed || "",
     affiliateEarned: Number(user.affiliateEarned || 0),
     affiliateAvailable: Number(user.affiliateAvailable || 0),
+    affiliateRewardGranted: Boolean(user.affiliateRewardGranted),
     redeemedPromoHashes: Array.isArray(user.redeemedPromoHashes)
       ? user.redeemedPromoHashes
       : []

@@ -1738,10 +1738,10 @@ export function Dashboard() {
             <p className="text-sm uppercase tracking-[0.2em] text-indigo-200/70">Affiliate</p>
             <div className="mt-5 grid gap-4 xl:grid-cols-4">
               {[
-                { label: "Reward Per Referral", value: formatMoney(5_000_000) },
+                { label: "Reward Per Referral", value: "5m" },
                 { label: "Users Referred", value: String(usersReferred) },
-                { label: "Total Rewards", value: formatMoney(affiliateEarned) },
-                { label: "Paid Instantly", value: "Yes" }
+                { label: "Total Rewards", value: `${(affiliateEarned / 1_000_000).toFixed(affiliateEarned >= 10_000_000 ? 0 : 1).replace(/\\.0$/, "")}m` },
+                { label: "Unlock Rule", value: "5m wagered" }
               ].map((card) => (
                 <div key={card.label} className="rounded-[1.3rem] border border-white/6 bg-[#11121a] p-5">
                   <p className="text-xs uppercase tracking-[0.2em] text-white/45">{card.label}</p>
@@ -1766,7 +1766,7 @@ export function Dashboard() {
               </label>
 
               <div className="mt-5 rounded-xl bg-black/20 px-5 py-4 text-white/65">
-                Each time a new player applies your code, you instantly get a 5m reward added to your site balance.
+                Each time a new player applies your code and uses more than 5m, you get a 5m reward added to your site balance.
               </div>
               <div className="mt-5 flex gap-3">
                 <input
@@ -1792,7 +1792,7 @@ export function Dashboard() {
               <p className="text-sm uppercase tracking-[0.2em] text-indigo-200/70">Instant Rewards</p>
               <div className="mt-5 rounded-[1.3rem] bg-[#11121a] p-5">
                 <p className="text-xs uppercase tracking-[0.2em] text-white/45">Latest Reward Rule</p>
-                <p className="mt-3 text-4xl font-black text-white">{formatMoney(5_000_000)}</p>
+                <p className="mt-3 text-4xl font-black text-white">5m</p>
               </div>
               <button
                 type="button"
@@ -1802,7 +1802,7 @@ export function Dashboard() {
                 How It Works
               </button>
               <p className="mt-4 text-sm leading-6 text-white/55">
-                There is no claim step now. Rewards go straight into your balance the moment someone uses your code.
+                There is no claim step now. Rewards go straight into your balance once that referred player passes 5m wagered.
               </p>
             </div>
           </div>
