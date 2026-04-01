@@ -99,10 +99,10 @@ function getSkyStage(multiplier, status) {
 
   if (status === "countdown") {
     return {
-      label: "Launch Pad",
-      subtitle: "Engines primed on the runway.",
+      label: "Earth",
+      subtitle: "Engines primed on the launch pad.",
       background:
-        "radial-gradient(circle at top, rgba(56,189,248,0.10), rgba(8,15,26,0.98) 42%)"
+        "linear-gradient(180deg, rgba(59,130,246,0.25) 0%, rgba(14,116,144,0.18) 24%, rgba(8,15,26,0.95) 72%)"
     };
   }
 
@@ -146,7 +146,7 @@ function getSkyStage(multiplier, status) {
     label: "Atmosphere",
     subtitle: "Climbing through the clouds.",
     background:
-      "radial-gradient(circle at top, rgba(56,189,248,0.12), rgba(8,15,26,0.98) 42%)"
+      "linear-gradient(180deg, rgba(56,189,248,0.22) 0%, rgba(37,99,235,0.14) 35%, rgba(8,15,26,0.98) 78%)"
   };
 }
 
@@ -617,6 +617,81 @@ export function CrashGame({ token, user, onBalanceChange }) {
           style={{ background: skyStage.background }}
         >
           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),transparent)]" />
+
+          {round?.status === "countdown" ? (
+            <>
+              <div className="absolute inset-x-0 bottom-0 h-24 bg-[linear-gradient(180deg,rgba(20,83,45,0),rgba(20,83,45,0.55)_40%,rgba(21,28,36,0.95)_100%)]" />
+              <div className="absolute bottom-8 left-10 text-5xl opacity-90">🏙️</div>
+              <div className="absolute bottom-10 right-14 text-4xl opacity-80">🗼</div>
+              <motion.div
+                className="absolute left-[18%] top-[24%] text-3xl opacity-80"
+                animate={{ x: [0, 32, 64], y: [0, -4, 0] }}
+                transition={{ duration: 4.2, repeat: Infinity, ease: "linear" }}
+              >
+                ✈️
+              </motion.div>
+              <motion.div
+                className="absolute right-[20%] top-[30%] text-2xl opacity-70"
+                animate={{ x: [0, -28, -56], y: [0, 3, 0] }}
+                transition={{ duration: 5, repeat: Infinity, ease: "linear" }}
+              >
+                🛩️
+              </motion.div>
+            </>
+          ) : null}
+
+          {round?.status === "running" && Number(round?.multiplier || 1) < 10 ? (
+            <>
+              <motion.div
+                className="absolute right-[18%] top-[16%] text-5xl opacity-80"
+                animate={{ y: [0, 8, 0], rotate: [0, 2, 0] }}
+                transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }}
+              >
+                🛰️
+              </motion.div>
+              <motion.div
+                className="absolute left-[22%] top-[24%] text-3xl opacity-75"
+                animate={{ y: [0, -6, 0], x: [0, 6, 0] }}
+                transition={{ duration: 3.6, repeat: Infinity, ease: "easeInOut" }}
+              >
+                👨‍🚀
+              </motion.div>
+              <motion.div
+                className="absolute right-[30%] top-[34%] text-3xl opacity-70"
+                animate={{ y: [0, 5, 0], x: [0, -5, 0] }}
+                transition={{ duration: 3.8, repeat: Infinity, ease: "easeInOut" }}
+              >
+                🧑‍🚀
+              </motion.div>
+            </>
+          ) : null}
+
+          {round?.status === "running" && Number(round?.multiplier || 1) >= 10 ? (
+            <>
+              <motion.div
+                className="absolute left-[12%] top-[18%] text-3xl opacity-75"
+                animate={{ y: [0, -4, 0], x: [0, 4, 0] }}
+                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+              >
+                👽
+              </motion.div>
+              <motion.div
+                className="absolute right-[14%] top-[24%] text-4xl opacity-70"
+                animate={{ y: [0, 5, 0], x: [0, -6, 0] }}
+                transition={{ duration: 3.4, repeat: Infinity, ease: "easeInOut" }}
+              >
+                👾
+              </motion.div>
+              <motion.div
+                className="absolute left-[24%] bottom-[20%] text-3xl opacity-65"
+                animate={{ y: [0, -3, 0], rotate: [0, -6, 0] }}
+                transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
+              >
+                🛸
+              </motion.div>
+            </>
+          ) : null}
+
           <div className="absolute inset-0">
             {Array.from({ length: 28 }, (_, index) => (
               <motion.span
