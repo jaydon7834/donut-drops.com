@@ -582,7 +582,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
         </div>
 
         <div
-          className="relative z-10 mt-6 h-[34rem] overflow-hidden rounded-[1.8rem] border border-white/10 xl:h-[44rem]"
+          className="relative z-10 mt-5 h-[24rem] overflow-hidden rounded-[1.8rem] border border-white/10 xl:h-[30rem]"
           style={{ background: skyStage.background }}
         >
           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),transparent)]" />
@@ -719,7 +719,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
             }}
           >
             {round?.status === "crashed" ? (
-              <div className="relative flex h-40 w-40 items-center justify-center">
+              <div className="relative flex h-36 w-36 items-center justify-center">
                 {Array.from({ length: 10 }, (_, index) => (
                   <motion.span
                     key={`burst-${index}`}
@@ -740,7 +740,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
                 <span className="text-6xl">💥</span>
               </div>
             ) : (
-              <div className="relative flex h-44 w-40 items-center justify-center">
+              <div className="relative flex h-40 w-36 items-center justify-center">
                 {round?.status === "countdown" ? (
                   <div className="absolute -top-24 left-1/2 -translate-x-1/2 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-8 py-4 text-2xl font-black tracking-[0.18em] text-cyan-100 shadow-[0_0_30px_rgba(56,189,248,0.18)]">
                     {countdownText}
@@ -768,7 +768,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
                   <img
                     src="/images/crash-rocket.png"
                     alt="Rocket"
-                    className="h-36 w-36 object-contain xl:h-44 xl:w-44"
+                    className="h-32 w-32 object-contain xl:h-40 xl:w-40"
                   />
                 </motion.div>
               </div>
