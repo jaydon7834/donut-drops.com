@@ -20,6 +20,7 @@ const topNavItems = ["Fairness", "Affiliate", "Bonus", "Leaderboard", "Profile",
 const THEME_STORAGE_KEY = "donutdrop-theme";
 const GLOW_STORAGE_KEY = "donutdrop-glow";
 const DARK_STORAGE_KEY = "donutdrop-dark";
+const LEVEL_REWARD_STORAGE_KEY = "donutdrop-level-reward";
 const THEMES = {
   green: {
     label: "Green",
@@ -222,7 +223,7 @@ export function Dashboard() {
   const [rainMessage, setRainMessage] = useState("");
   const [joiningRain, setJoiningRain] = useState(false);
   const [startingRain, setStartingRain] = useState(false);
-  const [levelUpPopup, setLevelUpPopup] = useState(null);
+  const [pendingLevelReward, setPendingLevelReward] = useState({ level: 0, amount: 0 });
   const [claimMessage, setClaimMessage] = useState("");
   const [claimingReward, setClaimingReward] = useState("");
   const [themeName, setThemeName] = useState(() => {
@@ -294,30 +295,43 @@ export function Dashboard() {
   }, [user?.clientSeed]);
 
   useEffect(() => {
-    if (!user?.level) {
+    if (typeof window === "undefined" || !user?.id || !user?.level) {
       return;
     }
 
-    setLevelUpPopup((current) => {
-      if (!current) {
-        return { seenLevel: user.level, visible: false, reward: 0 };
-      }
+    const storageKey = `${LEVEL_REWARD_STORAGE_KEY}:${user.id}`;
+    const stored = JSON.parse(window.localStorage.getItem(storageKey) || "{}");
+    const lastSeenLevel = Number(stored.lastSeenLevel || user.level);
+    const pendingAmount = Number(stored.amount || 0);
+    const pendingLevel = Number(stored.level || 0);
 
-      if (user.level > current.seenLevel) {
-        return {
-          seenLevel: user.level,
-          visible: true,
-          reward: user.level * 50_000
-        };
-      }
+    if (user.level > lastSeenLevel) {
+      const amount = pendingAmount + user.level * 50_000;
+      const nextPending = {
+        level: user.level,
+        amount,
+        lastSeenLevel: user.level
+      };
+      window.localStorage.setItem(storageKey, JSON.stringify(nextPending));
+      setPendingLevelReward({ level: user.level, amount });
+      return;
+    }
 
-      if (user.level < current.seenLevel) {
-        return { seenLevel: user.level, visible: false, reward: 0 };
-      }
+    if (pendingAmount > 0) {
+      setPendingLevelReward({ level: pendingLevel || user.level, amount: pendingAmount });
+      return;
+    }
 
-      return current;
-    });
-  }, [user?.level]);
+    window.localStorage.setItem(
+      storageKey,
+      JSON.stringify({
+        level: user.level,
+        amount: 0,
+        lastSeenLevel: user.level
+      })
+    );
+    setPendingLevelReward({ level: 0, amount: 0 });
+  }, [user?.id, user?.level]);
 
   useEffect(() => {
     let ignore = false;
@@ -835,6 +849,40 @@ export function Dashboard() {
 
       setUser(data.user);
       setClaimMessage(`+${formatMoney(data.amount)} added to wallet.`);
+      await refreshBalance();
+    } catch (error) {
+      setClaimMessage(error.message);
+    } finally {
+      setClaimingReward("");
+    }
+  }
+
+  async function handleClaimLevelReward() {
+    if (!pendingLevelReward.amount) {
+      return;
+    }
+
+    setClaimingReward("level");
+    setClaimMessage("");
+
+    try {
+      const nextBalance = Number(user.balance || 0) + Number(pendingLevelReward.amount || 0);
+      const data = await api.updateBalance(token, nextBalance);
+      setUser((currentUser) => ({ ...currentUser, ...data.user }));
+
+      if (typeof window !== "undefined" && user?.id) {
+        window.localStorage.setItem(
+          `${LEVEL_REWARD_STORAGE_KEY}:${user.id}`,
+          JSON.stringify({
+            level: user.level,
+            amount: 0,
+            lastSeenLevel: user.level
+          })
+        );
+      }
+
+      setPendingLevelReward({ level: 0, amount: 0 });
+      setClaimMessage(`Claimed ${formatMoney(data.user.balance - user.balance)} from your level reward.`);
       await refreshBalance();
     } catch (error) {
       setClaimMessage(error.message);
@@ -1693,6 +1741,25 @@ export function Dashboard() {
               <div className="mt-4 rounded-2xl border border-orange-400/15 bg-orange-400/10 px-4 py-3 text-sm text-orange-100">
                 Next level reward preview: ${nextLevelReward.toLocaleString()}
               </div>
+              <div className="mt-4 rounded-[1.4rem] border border-emerald-300/15 bg-emerald-400/10 p-5">
+                <p className="text-xs uppercase tracking-[0.22em] text-emerald-100/60">Level Reward</p>
+                <p className="mt-3 text-3xl font-black text-emerald-300">
+                  {pendingLevelReward.amount > 0 ? formatMoney(pendingLevelReward.amount) : "$0.00"}
+                </p>
+                <p className="mt-3 text-sm text-white/70">
+                  {pendingLevelReward.amount > 0
+                    ? `Level ${pendingLevelReward.level} reward is ready. Claim it here whenever you want.`
+                    : "No level rewards are waiting right now. Your next one will stay here until you claim it."}
+                </p>
+                <button
+                  type="button"
+                  onClick={handleClaimLevelReward}
+                  disabled={claimingReward !== "" || pendingLevelReward.amount <= 0}
+                  className="claim-btn glow mt-4 w-full rounded-xl px-4 py-3 font-semibold text-slate-950 disabled:opacity-50"
+                >
+                  {claimingReward === "level" ? "Claiming..." : "Claim Level Reward"}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -2548,35 +2615,6 @@ export function Dashboard() {
         </div>
       </aside>
 
-      <AnimatePresence>
-        {levelUpPopup?.visible && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.94, y: 18 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.96, y: 12 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm"
-          >
-            <div className="w-full max-w-md rounded-[2rem] border border-orange-300/20 bg-[#171824] p-6 text-center shadow-[0_30px_90px_rgba(249,115,22,0.2)]">
-              <p className="text-xs uppercase tracking-[0.3em] text-orange-200/70">Level Up</p>
-              <h3 className="mt-3 text-4xl font-black text-white">Level {levelUpPopup.seenLevel}</h3>
-              <p className="mt-3 text-white/70">You earned a progression reward for leveling up.</p>
-              <div className="mt-5 rounded-[1.5rem] border border-emerald-300/15 bg-emerald-400/10 px-4 py-5">
-                <p className="text-xs uppercase tracking-[0.22em] text-emerald-100/60">Reward</p>
-                <p className="mt-2 text-3xl font-black text-emerald-300">
-                  ${Number(levelUpPopup.reward || 0).toLocaleString()}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setLevelUpPopup((current) => (current ? { ...current, visible: false } : current))}
-                className="mt-5 w-full rounded-2xl bg-orange-500 px-4 py-3 font-semibold text-slate-950 transition hover:bg-orange-400"
-              >
-                Keep Playing
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
