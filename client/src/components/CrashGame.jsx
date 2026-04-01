@@ -259,6 +259,8 @@ export function CrashGame({ token, user, onBalanceChange }) {
   const queuedBets = round?.queuedBets || [];
   const liveEntries = activeBets.filter((entry) => entry.status === "active");
   const cashedEntries = activeBets.filter((entry) => entry.status === "cashed");
+  const manualCashoutEntry = liveEntries[0] || null;
+  const canManualCashout = round?.status === "running" && Boolean(manualCashoutEntry);
   const players = round?.players || [];
   const recentCrashHistory = history.slice(0, 5);
   const statusTone = getStatusTone(round?.status);
@@ -376,20 +378,35 @@ export function CrashGame({ token, user, onBalanceChange }) {
           <button
             type="button"
             onClick={() => {
-              const liveEntry = liveEntries[0];
-              if (liveEntry) {
-                handleCashout(liveEntry.entryId);
+              if (manualCashoutEntry) {
+                handleCashout(manualCashoutEntry.entryId);
               }
             }}
-            disabled={!liveEntries[0] || (loading !== "" && loading !== liveEntries[0]?.entryId)}
-            className="w-full rounded-xl bg-gradient-to-r from-emerald-400 to-lime-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-40"
+            disabled={!canManualCashout || (loading !== "" && loading !== manualCashoutEntry?.entryId)}
+            className={`w-full rounded-xl px-4 py-3 text-sm font-black transition ${
+              canManualCashout
+                ? "bg-gradient-to-r from-emerald-400 to-lime-300 text-slate-950 hover:scale-[1.01]"
+                : "bg-white/10 text-white/45"
+            } disabled:cursor-not-allowed disabled:opacity-100`}
           >
-            {liveEntries[0]
-              ? loading === liveEntries[0].entryId
+            {canManualCashout
+              ? loading === manualCashoutEntry?.entryId
                 ? "Cashing Out..."
                 : `Cash Out ${Number(round?.multiplier || 1).toFixed(2)}x`
-              : "Cash Out"}
+              : queuedBets.length > 0
+                ? "Cash Out When Round Starts"
+                : round?.status === "crashed"
+                  ? "Round Crashed"
+                  : "No Live Bet To Cash Out"}
           </button>
+
+          {!canManualCashout ? (
+            <p className="text-xs text-white/50">
+              {queuedBets.length > 0
+                ? "Your bet is queued. This button will activate once the rocket launches and your bet is live."
+                : "Join a round first, then cash out before the crash."}
+            </p>
+          ) : null}
         </div>
       </div>
 
