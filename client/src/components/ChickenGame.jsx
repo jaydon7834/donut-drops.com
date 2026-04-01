@@ -18,6 +18,9 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
   const [game, setGame] = useState(null);
   const [feedback, setFeedback] = useState("");
   const [loading, setLoading] = useState(false);
+  const [startingRound, setStartingRound] = useState(false);
+  const [stepping, setStepping] = useState(false);
+  const [cashingOut, setCashingOut] = useState(false);
   const [showDeathOverlay, setShowDeathOverlay] = useState(false);
 
   const survivalChance = game?.surviveChance || (risk === "low" ? 0.8 : risk === "high" ? 0.7 : 0.75);
@@ -40,6 +43,7 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
 
   async function handleStart() {
     setLoading(true);
+    setStartingRound(true);
     setFeedback("");
     setShowDeathOverlay(false);
 
@@ -56,6 +60,7 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
       setFeedback(error.message);
     } finally {
       setLoading(false);
+      setStartingRound(false);
     }
   }
 
@@ -65,6 +70,7 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
     }
 
     setLoading(true);
+    setStepping(true);
     setFeedback("Crossing...");
 
     try {
@@ -83,6 +89,7 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
       setFeedback(error.message);
     } finally {
       setLoading(false);
+      setStepping(false);
     }
   }
 
@@ -92,6 +99,7 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
     }
 
     setLoading(true);
+    setCashingOut(true);
 
     try {
       const data = await api.cashoutChicken(token, { gameId: game.gameId });
@@ -103,6 +111,7 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
       setFeedback(error.message);
     } finally {
       setLoading(false);
+      setCashingOut(false);
     }
   }
 
@@ -179,7 +188,7 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
             disabled={loading || Boolean(game?.active)}
             className="w-full rounded-xl bg-emerald-500 px-6 py-3 font-bold text-slate-950 disabled:opacity-50"
           >
-            {loading && !game?.active ? "Starting..." : "Start Round"}
+            {startingRound ? "Starting..." : "Start Round"}
           </button>
 
           <div className="grid grid-cols-2 gap-3">
@@ -189,7 +198,7 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
               disabled={loading || !game?.active}
               className="rounded-xl bg-white/10 px-4 py-3 font-bold text-white disabled:opacity-50"
             >
-              Step
+              {stepping ? "Stepping..." : "Step"}
             </button>
             <button
               type="button"
@@ -197,7 +206,7 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
               disabled={loading || !game?.active}
               className="rounded-xl bg-orange-500 px-4 py-3 font-bold text-slate-950 disabled:opacity-50"
             >
-              Cash Out
+              {cashingOut ? "Cashing Out..." : "Cash Out"}
             </button>
           </div>
 

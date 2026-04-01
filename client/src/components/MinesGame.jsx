@@ -115,6 +115,9 @@ export function MinesGame({ token, user, onBalanceChange }) {
   const [loading, setLoading] = useState(false);
   const [sparkTile, setSparkTile] = useState(null);
   const [mineShake, setMineShake] = useState(null);
+  const [startingRound, setStartingRound] = useState(false);
+  const [revealingTile, setRevealingTile] = useState(false);
+  const [cashingOut, setCashingOut] = useState(false);
   const clickCountRef = useRef(0);
 
   const tiles = useMemo(() => Array.from({ length: 25 }, (_, index) => index), []);
@@ -137,6 +140,7 @@ export function MinesGame({ token, user, onBalanceChange }) {
 
   async function handleStart() {
     setLoading(true);
+    setStartingRound(true);
     setFeedback({ text: "", tone: "neutral" });
     setSettledGame(null);
     clickCountRef.current = 0;
@@ -155,6 +159,7 @@ export function MinesGame({ token, user, onBalanceChange }) {
       setFeedback({ text: error.message, tone: "loss" });
     } finally {
       setLoading(false);
+      setStartingRound(false);
     }
   }
 
@@ -269,8 +274,12 @@ export function MinesGame({ token, user, onBalanceChange }) {
     }
 
     setLoading(true);
+<<<<<<< Updated upstream
     setSparkTile(null);
     setMineShake(null);
+=======
+    setRevealingTile(true);
+>>>>>>> Stashed changes
 
     try {
       await new Promise((resolve) => {
@@ -312,6 +321,7 @@ export function MinesGame({ token, user, onBalanceChange }) {
       setFeedback({ text: error.message, tone: "loss" });
     } finally {
       setLoading(false);
+      setRevealingTile(false);
     }
   }
 
@@ -378,8 +388,31 @@ export function MinesGame({ token, user, onBalanceChange }) {
           <div className="rounded-[1.5rem] border border-white/10 p-4">
             <p className="text-sm text-gray-400">Mines</p>
             <div className="mt-2 flex items-center justify-between">
+<<<<<<< Updated upstream
               <p className="text-xl font-bold text-white">Number of Mines</p>
               <span className="text-xl font-bold text-white">{minesCount}</span>
+=======
+              <p className="text-base font-bold text-white">Number of Mines</p>
+              <span className="text-base font-bold text-white">{minesCount}</span>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={handleStart}
+                disabled={loading || Boolean(activeGame)}
+                className="rounded-xl bg-emerald-500 px-3 py-3 text-sm font-bold text-slate-950 transition hover:bg-emerald-400 disabled:opacity-50"
+              >
+                {startingRound ? "Starting..." : "Place Bet"}
+              </button>
+              <button
+                type="button"
+                onClick={handleCashout}
+                disabled={!activeGame || loading}
+                className="rounded-xl bg-white/10 px-3 py-3 text-sm font-bold text-white transition hover:bg-white/15 disabled:opacity-50"
+              >
+                {cashingOut ? "Cashing Out..." : revealingTile ? "Revealing..." : "Cash Out"}
+              </button>
+>>>>>>> Stashed changes
             </div>
             <input
               type="range"
