@@ -162,6 +162,10 @@ function calculateWinStreak(recentGames) {
   return streak;
 }
 
+function generateClientSeed() {
+  return `donutdrop-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 export function Dashboard() {
   const {
     token,
@@ -591,6 +595,11 @@ export function Dashboard() {
     } finally {
       setSavingSeed(false);
     }
+  }
+
+  function handleRandomizeSeed() {
+    setClientSeed(generateClientSeed());
+    setSeedMessage("Random seed generated. Save it when you're ready.");
   }
 
   async function handleSendChat() {
@@ -1501,12 +1510,23 @@ export function Dashboard() {
           <div className="grid gap-5 lg:grid-cols-[320px,1fr]">
             <section className="glass-panel rounded-[2rem] p-5">
               <p className="text-xs uppercase tracking-[0.3em] text-white/45">Client Seed Control</p>
-              <input
-                value={clientSeed}
-                onChange={(event) => setClientSeed(event.target.value)}
-                className="mt-4 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-accent"
-                placeholder="Enter client seed"
-              />
+              <div className="mt-4 flex items-center gap-2">
+                <input
+                  value={clientSeed}
+                  onChange={(event) => setClientSeed(event.target.value)}
+                  className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-accent"
+                  placeholder="Enter client seed"
+                />
+                <button
+                  type="button"
+                  onClick={handleRandomizeSeed}
+                  className="glow h-10 w-10 shrink-0 rounded-full border border-white/10 bg-white/10 text-sm font-semibold text-white transition hover:bg-white/15"
+                  title="Generate random seed"
+                  aria-label="Generate random seed"
+                >
+                  ↻
+                </button>
+              </div>
               <button
                 type="button"
                 onClick={handleSaveSeed}
