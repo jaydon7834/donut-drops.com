@@ -825,19 +825,7 @@ export function Dashboard() {
   }
 
   async function handleClaimAffiliate() {
-    setAffiliateLoading("claim");
-    setAffiliateMessage("");
-
-    try {
-      const data = await api.claimAffiliate(token);
-      setUser(data.user);
-      setAffiliateMessage(`Claimed ${formatMoney(data.amount)} in affiliate earnings.`);
-      await refreshBalance();
-    } catch (error) {
-      setAffiliateMessage(error.message);
-    } finally {
-      setAffiliateLoading("");
-    }
+    setAffiliateMessage("Affiliate rewards credit instantly when someone uses your code.");
   }
 
   async function handleJoinRain() {
@@ -1750,10 +1738,10 @@ export function Dashboard() {
             <p className="text-sm uppercase tracking-[0.2em] text-indigo-200/70">Affiliate</p>
             <div className="mt-5 grid gap-4 xl:grid-cols-4">
               {[
-                { label: "Commission", value: "1%" },
+                { label: "Reward Per Referral", value: formatMoney(5_000_000) },
                 { label: "Users Referred", value: String(usersReferred) },
-                { label: "Total Earned", value: formatMoney(affiliateEarned) },
-                { label: "Ready To Claim", value: formatMoney(affiliateAvailable) }
+                { label: "Total Rewards", value: formatMoney(affiliateEarned) },
+                { label: "Paid Instantly", value: "Yes" }
               ].map((card) => (
                 <div key={card.label} className="rounded-[1.3rem] border border-white/6 bg-[#11121a] p-5">
                   <p className="text-xs uppercase tracking-[0.2em] text-white/45">{card.label}</p>
@@ -1778,7 +1766,7 @@ export function Dashboard() {
               </label>
 
               <div className="mt-5 rounded-xl bg-black/20 px-5 py-4 text-white/65">
-                You earn 1% of your referrals&apos; wager volume. The more they play, the more you earn.
+                Each time a new player applies your code, you instantly get a 5m reward added to your site balance.
               </div>
               <div className="mt-5 flex gap-3">
                 <input
@@ -1801,21 +1789,20 @@ export function Dashboard() {
             </div>
 
             <div className="rounded-[1.8rem] border border-white/6 bg-[#171824] p-6">
-              <p className="text-sm uppercase tracking-[0.2em] text-indigo-200/70">Claim</p>
+              <p className="text-sm uppercase tracking-[0.2em] text-indigo-200/70">Instant Rewards</p>
               <div className="mt-5 rounded-[1.3rem] bg-[#11121a] p-5">
-                <p className="text-xs uppercase tracking-[0.2em] text-white/45">Ready To Claim</p>
-                <p className="mt-3 text-4xl font-black text-white">{formatMoney(affiliateAvailable)}</p>
+                <p className="text-xs uppercase tracking-[0.2em] text-white/45">Latest Reward Rule</p>
+                <p className="mt-3 text-4xl font-black text-white">{formatMoney(5_000_000)}</p>
               </div>
               <button
                 type="button"
                 onClick={handleClaimAffiliate}
-                disabled={affiliateLoading !== "" || affiliateAvailable <= 0}
-                className="claim-btn glow mt-5 w-full rounded-xl px-4 py-3 font-semibold text-slate-950 disabled:opacity-50"
+                className="claim-btn glow mt-5 w-full rounded-xl px-4 py-3 font-semibold text-slate-950"
               >
-                {affiliateLoading === "claim" ? "Claiming..." : "Claim Earnings"}
+                How It Works
               </button>
               <p className="mt-4 text-sm leading-6 text-white/55">
-                Affiliate commission is based on wager volume, not deposits, and credits instantly when claimed.
+                There is no claim step now. Rewards go straight into your balance the moment someone uses your code.
               </p>
             </div>
           </div>

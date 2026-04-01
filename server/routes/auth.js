@@ -31,6 +31,10 @@ router.post("/register", async (req, res, next) => {
         totalWagered: 0,
         biggestWin: 0
       },
+      affiliateCode: username.toUpperCase(),
+      affiliateCodeUsed: "",
+      affiliateEarned: 0,
+      affiliateAvailable: 0,
       clientSeed: "donutdrop-default",
       nonce: 0
     };

@@ -70,6 +70,10 @@ export async function initializeStore() {
       store.users.set(user.id, {
         ...user,
         createdAt: user.createdAt || new Date().toISOString(),
+        affiliateCode: user.affiliateCode || String(user.username || "").toUpperCase(),
+        affiliateCodeUsed: user.affiliateCodeUsed || "",
+        affiliateEarned: Number(user.affiliateEarned || 0),
+        affiliateAvailable: Number(user.affiliateAvailable || 0),
         redeemedPromoHashes: Array.isArray(user.redeemedPromoHashes)
           ? user.redeemedPromoHashes
           : [],

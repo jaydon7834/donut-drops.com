@@ -88,6 +88,23 @@ export const api = {
       },
       token
     ),
+  applyAffiliate: (token, code) =>
+    request(
+      "/user/affiliate/apply",
+      {
+        method: "POST",
+        body: JSON.stringify({ code })
+      },
+      token
+    ),
+  claimAffiliate: (token) =>
+    request(
+      "/user/affiliate/claim",
+      {
+        method: "POST"
+      },
+      token
+    ),
   updateBalance: (token, balance) =>
     request(
       "/user/update-balance",

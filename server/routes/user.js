@@ -5,6 +5,7 @@ import { findUserByUsername, getRecentGamesForUser, persistUsers, store } from "
 import { createError, sanitizeUser } from "../utils/helpers.js";
 
 const router = Router();
+const AFFILIATE_REWARD = 5_000_000;
 
 router.use(authMiddleware);
 
@@ -20,7 +21,8 @@ router.get("/players", (req, res) => {
     .filter((user) => user.id !== req.user.id)
     .map((user) => ({
       id: user.id,
-      username: user.username
+      username: user.username,
+      affiliateCodeUsed: user.affiliateCodeUsed || ""
     }))
     .sort((a, b) => a.username.localeCompare(b.username));
 
@@ -105,6 +107,65 @@ router.post("/tip", async (req, res, next) => {
   } catch (error) {
     return next(error);
   }
+});
+
+router.post("/affiliate/apply", async (req, res, next) => {
+  try {
+    const code = String(req.body.code || req.body.affiliateCode || req.body || "")
+      .trim()
+      .toUpperCase();
+
+    if (!code) {
+      throw createError("Affiliate code is required.");
+    }
+
+    if (req.user.affiliateCodeUsed) {
+      throw createError("An affiliate code has already been applied to this account.");
+    }
+
+    const referrer = Array.from(store.users.values()).find(
+      (user) => String(user.affiliateCode || user.username || "").toUpperCase() === code
+    );
+
+    if (!referrer) {
+      throw createError("Invalid affiliate code.");
+    }
+
+    if (referrer.id === req.user.id) {
+      throw createError("You cannot apply your own affiliate code.");
+    }
+
+    req.user.affiliateCodeUsed = code;
+    referrer.affiliateEarned = Number((Number(referrer.affiliateEarned || 0) + AFFILIATE_REWARD).toFixed(2));
+    referrer.balance = Number((Number(referrer.balance || 0) + AFFILIATE_REWARD).toFixed(2));
+    await persistUsers();
+
+    emitToUser(referrer.id, "chat:message", {
+      type: "tip",
+      message: {
+        id: `affiliate_${Date.now()}`,
+        username: "system",
+        text: `✨${req.user.username} used your affiliate code. $${AFFILIATE_REWARD.toLocaleString()} was added to your balance.`,
+        createdAt: new Date().toISOString()
+      }
+    });
+
+    return res.json({
+      user: sanitizeUser(req.user),
+      reward: AFFILIATE_REWARD,
+      referrer: sanitizeUser(referrer)
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post("/affiliate/claim", async (req, res) => {
+  return res.json({
+    user: sanitizeUser(req.user),
+    amount: 0,
+    message: "Affiliate rewards are credited instantly."
+  });
 });
 
 export default router;
