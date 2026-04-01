@@ -779,10 +779,11 @@ export function Dashboard() {
     setPromoMessage("");
 
     try {
-      const data = await api.redeemCode(token, promoCode.trim());
+      const normalizedCode = promoCode.trim().toUpperCase();
+      const data = await api.redeemPromoCode(token, { code: normalizedCode });
       setUser(data.user);
       setPromoCode("");
-      setPromoMessage(`Redeemed ${data.code} for ${formatMoney(data.reward)}.`);
+      setPromoMessage(`Redeemed ${normalizedCode} for ${formatMoney(data.amount)}.`);
       await refreshBalance();
     } catch (error) {
       setPromoMessage(error.message);
@@ -1899,6 +1900,10 @@ export function Dashboard() {
               </button>
               <button
                 type="button"
+                onClick={() => {
+                  setActiveTopTab("bonus");
+                  setActiveView("lobby");
+                }}
                 className="mt-3 w-full rounded-xl bg-white/5 px-4 py-4 text-sm font-semibold text-white"
               >
                 Redeem Code
@@ -1912,7 +1917,7 @@ export function Dashboard() {
                   Wallet deposits are staged to feel instant in the lobby once payment clears.
                 </div>
                 <div className="rounded-xl bg-black/20 px-5 py-4">
-                  Promo codes can be wired into bonuses next so the store and bonus center connect.
+                  Promo codes redeem in the Bonus hub, and this button jumps you there instantly.
                 </div>
                 <div className="rounded-xl bg-black/20 px-5 py-4">
                   This section is now clickable and styled like a real marketplace instead of a dead header.
