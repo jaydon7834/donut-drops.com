@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
-import { getIo } from "../socket.js";
+import { emitToUser, getIo } from "../socket.js";
 import {
   nextGameId,
   persistUsers,
@@ -227,7 +227,12 @@ function emitCrashState() {
     return;
   }
 
-  io.emit("crash:state", serializeCrashRound(getCrashStore().currentRound));
+  const round = getCrashStore().currentRound;
+  io.emit("crash:state", serializeCrashRound(round));
+
+  for (const userId of store.users.keys()) {
+    emitToUser(userId, "crash:state", serializeCrashRound(round, userId));
+  }
 }
 
 function settlePlayerWin(player, multiplier) {
