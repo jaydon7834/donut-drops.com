@@ -2607,7 +2607,7 @@ export function Dashboard() {
                 </AnimatePresence>
               </div>
               <a
-                href="https://discord.gg/nr3edCRG"
+                href="https://discord.gg/donutdrops"
                 target="_blank"
                 rel="noreferrer"
                 className="rounded-2xl bg-indigo-500/15 px-5 py-4 font-medium text-indigo-100 transition hover:bg-indigo-500/25"
@@ -2753,9 +2753,14 @@ export function Dashboard() {
         </div>
 
         <div className="mt-4 space-y-3">
-          <div className="rounded-2xl border border-indigo-400/40 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-200">
+          <a
+            href="https://discord.gg/donutdrops"
+            target="_blank"
+            rel="noreferrer"
+            className="block rounded-2xl border border-indigo-400/40 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-200 transition hover:scale-[1.01] hover:border-indigo-300/60 hover:bg-indigo-500/15"
+          >
             Join our Discord!
-          </div>
+          </a>
           {rain.active && (
             <div className="rounded-2xl border border-sky-400/30 bg-sky-500/10 px-4 py-3">
               <div className="flex items-center justify-between gap-3">
