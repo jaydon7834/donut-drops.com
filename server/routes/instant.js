@@ -117,6 +117,18 @@ function broadcastOpenBattles() {
   });
 }
 
+function buildResolvedBattlePayload({ battleId, title, bet, pot, winnerId, players, balance }) {
+  return {
+    battleId,
+    title,
+    bet,
+    pot,
+    winnerId,
+    players,
+    balance
+  };
+}
+
 function resolveInstantResult(gameType, rawValue, payload) {
   if (gameType === "blackjack") {
     const player = 16 + Math.floor(rawValue * 6);
@@ -419,7 +431,11 @@ router.post("/case-battles/:battleId/join", async (req, res, next) => {
     return res.json({
       battle: startedPayload,
       balance: req.user.balance,
-      status: "started"
+      status: "started",
+      resolvedBattle: buildResolvedBattlePayload({
+        ...payload,
+        balance: req.user.balance
+      })
     });
   } catch (error) {
     return next(error);
@@ -528,7 +544,11 @@ router.post("/case-battles/:battleId/call-bot", async (req, res, next) => {
     return res.json({
       battle: startedPayload,
       balance: hostUser.balance,
-      status: "started"
+      status: "started",
+      resolvedBattle: buildResolvedBattlePayload({
+        ...payload,
+        balance: hostUser.balance
+      })
     });
   } catch (error) {
     return next(error);

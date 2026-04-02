@@ -314,6 +314,32 @@ export const api = {
       },
       token
     ),
+  moderateChatUser: (token, payload) =>
+    request(
+      "/chat/moderate",
+      {
+        method: "POST",
+        body: JSON.stringify(payload)
+      },
+      token
+    ),
+  addChatModerationWord: (token, word) =>
+    request(
+      "/chat/words",
+      {
+        method: "POST",
+        body: JSON.stringify({ word })
+      },
+      token
+    ),
+  removeChatModerationWord: (token, word) =>
+    request(
+      `/chat/words/${encodeURIComponent(word)}`,
+      {
+        method: "DELETE"
+      },
+      token
+    ),
   getRain: (token) => request("/rain", {}, token),
   startRain: (token) =>
     request(

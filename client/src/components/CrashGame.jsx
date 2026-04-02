@@ -164,6 +164,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
   const previousStatusRef = useRef("");
   const animationFrameRef = useRef(0);
   const displayMultiplierRef = useRef(1);
+  const stickyEntryRef = useRef("");
 
   useEffect(() => {
     let cancelled = false;
@@ -273,7 +274,8 @@ export function CrashGame({ token, user, onBalanceChange }) {
   const queuedBets = round?.queuedBets || [];
   const liveEntries = activeBets.filter((entry) => entry.status === "active");
   const cashedEntries = activeBets.filter((entry) => entry.status === "cashed");
-  const manualCashoutEntry = liveEntries[0] || null;
+  const manualCashoutEntry =
+    liveEntries.find((entry) => entry.entryId === stickyEntryRef.current) || liveEntries[0] || null;
   const canManualCashout = round?.status === "running" && Boolean(manualCashoutEntry);
   const hasCrashExposure = liveEntries.length > 0 || queuedBets.length > 0;
   const autoCashoutEnabled = String(betSlip.autoCashout || "").trim().length > 0;
@@ -314,6 +316,17 @@ export function CrashGame({ token, user, onBalanceChange }) {
           : hasCrashExposure
             ? "Bet Settled"
             : "No Live Bet";
+
+  useEffect(() => {
+    if (manualCashoutEntry?.entryId) {
+      stickyEntryRef.current = manualCashoutEntry.entryId;
+      return;
+    }
+
+    if (activeBets.length === 0 && queuedBets.length === 0) {
+      stickyEntryRef.current = "";
+    }
+  }, [manualCashoutEntry, activeBets.length, queuedBets.length]);
 
   function updateBetSlip(key, value) {
     setBetSlip((current) => ({ ...current, [key]: value }));

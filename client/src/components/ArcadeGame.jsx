@@ -121,6 +121,44 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
   const caseBattleNeedsBalance = gameType === "case-battles" && caseBattleBet > Number(user?.balance || 0);
   const caseBattleBlocked = caseBattleNeedsMinimum || caseBattleNeedsBalance;
 
+  function applyResolvedBattle(payload) {
+    const self = payload?.players?.find((entry) => entry.id === user.id);
+    const enemy = payload?.players?.find((entry) => entry.id !== user.id);
+
+    setWaitingBattleId("");
+    setActiveBattle({
+      phase: "resolved",
+      battleId: payload?.battleId || "",
+      bet: payload?.bet || 0,
+      pot: payload?.pot || 0,
+      winnerId: payload?.winnerId || "",
+      players: payload?.players || []
+    });
+    setResult({
+      title: payload?.title || "Battle settled",
+      bet: payload?.bet || parseBetInput(betInput),
+      payout: self?.payout || 0,
+      multiplier:
+        payload?.bet && self?.payout ? Number((self.payout / payload.bet).toFixed(2)) : 0,
+      details: {
+        yourDrop: self?.reward?.label || "Unknown",
+        yourRarity: self?.reward?.rarity || "unknown",
+        opponentDrop: enemy?.reward?.label || "Unknown",
+        opponentRarity: enemy?.reward?.rarity || "unknown",
+        image: self?.reward?.image || "",
+        pot: `$${Number(payload?.pot || 0).toFixed(2)}`
+      }
+    });
+    onBalanceChange(payload?.balance || user.balance);
+    setBattleMessage(
+      payload?.winnerId === user.id
+        ? "Another player joined and you won the battle."
+        : payload?.winnerId
+          ? "Another player joined and took the pot."
+          : "Battle pushed. Both players got their stake back."
+    );
+  }
+
   function syncWaitingBattle(battles) {
     if (gameType !== "case-battles") {
       return;
@@ -215,42 +253,7 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
       if (cancelled) {
         return;
       }
-
-      const self = payload?.players?.find((entry) => entry.id === user.id);
-      const enemy = payload?.players?.find((entry) => entry.id !== user.id);
-
-      setWaitingBattleId("");
-      setActiveBattle({
-        phase: "resolved",
-        battleId: payload?.battleId || "",
-        bet: payload?.bet || 0,
-        pot: payload?.pot || 0,
-        winnerId: payload?.winnerId || "",
-        players: payload?.players || []
-      });
-      setResult({
-        title: payload?.title || "Battle settled",
-        bet: payload?.bet || parseBetInput(betInput),
-        payout: self?.payout || 0,
-        multiplier:
-          payload?.bet && self?.payout ? Number((self.payout / payload.bet).toFixed(2)) : 0,
-        details: {
-          yourDrop: self?.reward?.label || "Unknown",
-          yourRarity: self?.reward?.rarity || "unknown",
-          opponentDrop: enemy?.reward?.label || "Unknown",
-          opponentRarity: enemy?.reward?.rarity || "unknown",
-          image: self?.reward?.image || "",
-          pot: `$${Number(payload?.pot || 0).toFixed(2)}`
-        }
-      });
-      onBalanceChange(payload?.balance || user.balance);
-      setBattleMessage(
-        payload?.winnerId === user.id
-          ? "Another player joined and you won the battle."
-          : payload?.winnerId
-            ? "Another player joined and took the pot."
-            : "Battle pushed. Both players got their stake back."
-      );
+      applyResolvedBattle(payload);
     });
 
     return () => {
@@ -354,6 +357,9 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
       });
       onBalanceChange({ balance: data.balance, refresh: false });
       setBattleMessage("You joined the battle. Opening cases...");
+      if (data.resolvedBattle) {
+        window.setTimeout(() => applyResolvedBattle(data.resolvedBattle), 1400);
+      }
     } catch (error) {
       setBattleMessage(error.message);
     } finally {
@@ -403,6 +409,9 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
       setWaitingBattleId("");
       setBattleMessage("Bot called in. Opening cases...");
       onBalanceChange({ balance: data.balance, refresh: false });
+      if (data.resolvedBattle) {
+        window.setTimeout(() => applyResolvedBattle(data.resolvedBattle), 1400);
+      }
     } catch (error) {
       setBattleMessage(error.message);
     } finally {

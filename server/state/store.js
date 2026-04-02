@@ -28,6 +28,8 @@ export const store = {
     }
   ],
   chatTimeouts: new Map(),
+  chatFlags: [],
+  chatCustomWords: [],
   rain: {
     active: false,
     amount: 0,
