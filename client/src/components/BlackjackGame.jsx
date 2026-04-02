@@ -4,7 +4,7 @@ import { api } from "../lib/api.js";
 import { formatBetInput, parseBetInput } from "../lib/betting.js";
 import { triggerGameEffect } from "../lib/gameEffects.js";
 
-const CHIP_VALUES = [10, 25, 100, 500];
+const CHIP_VALUES = [1_000, 1_000_000, 10_000_000, 100_000_000];
 
 function Card({ card }) {
   if (card?.hidden) {
@@ -161,13 +161,14 @@ export function BlackjackGame({ token, onBalanceChange, onBack }) {
                   key={value}
                   type="button"
                   onClick={() => {
-                    setBetAmount(value);
-                    setBetInput(formatBetInput(value));
+                    const nextBet = parseBetInput(betInput || betAmount) + value;
+                    setBetAmount(nextBet);
+                    setBetInput(formatBetInput(nextBet));
                   }}
                   disabled={Boolean(game?.active)}
                   className="rounded-full border border-white/10 bg-white/5 px-2 py-3 text-xs font-bold text-white transition hover:bg-white/10 disabled:opacity-50"
                 >
-                  ${value}
+                  {formatBetInput(value)}
                 </button>
               ))}
             </div>
@@ -237,7 +238,14 @@ export function BlackjackGame({ token, onBalanceChange, onBack }) {
       <div className="min-w-0 flex-1 rounded-2xl bg-[#0b0f1a] p-6">
         <div className="flex h-full w-full flex-col items-center justify-center overflow-hidden">
         <div className="mb-10">
-          <p className="text-gray-400 text-center">Dealer</p>
+          <div className="flex items-center justify-center gap-3">
+            <img
+              src="/images/alien-dealer.png"
+              alt="Alien dealer"
+              className="h-16 w-16 object-contain drop-shadow-[0_0_18px_rgba(163,230,53,0.25)]"
+            />
+            <p className="text-center text-gray-400">Alien Dealer</p>
+          </div>
           <div className="mt-3 flex justify-center gap-2">
             {(game?.dealer || []).map((card, index) => (
               <Card key={`dealer-${index}-${card.hidden ? "hidden" : `${card.value}${card.suit}`}`} card={card} />

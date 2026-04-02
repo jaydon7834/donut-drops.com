@@ -60,8 +60,8 @@ function getRocketPlacement(multiplier, status) {
   };
 }
 
-function getCountdownText(bettingClosesAt) {
-  const remaining = Math.max(0, Math.ceil((Number(bettingClosesAt || 0) - Date.now()) / 1000));
+function getCountdownText(bettingClosesAt, nowValue = Date.now()) {
+  const remaining = Math.max(0, Math.ceil((Number(bettingClosesAt || 0) - nowValue) / 1000));
 
   if (remaining <= 0) {
     return "START";
@@ -159,6 +159,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
   const [loading, setLoading] = useState("");
   const [displayMultiplier, setDisplayMultiplier] = useState(1);
   const [impactFlash, setImpactFlash] = useState(false);
+  const [countdownNow, setCountdownNow] = useState(Date.now());
   const [betSlip, setBetSlip] = useState(createBetSlip());
   const previousStatusRef = useRef("");
   const animationFrameRef = useRef(0);
@@ -254,6 +255,19 @@ export function CrashGame({ token, user, onBalanceChange }) {
     previousStatusRef.current = round?.status || "";
   }, [round?.status]);
 
+  useEffect(() => {
+    if (round?.status !== "countdown") {
+      return undefined;
+    }
+
+    setCountdownNow(Date.now());
+    const intervalId = window.setInterval(() => {
+      setCountdownNow(Date.now());
+    }, 200);
+
+    return () => window.clearInterval(intervalId);
+  }, [round?.bettingClosesAt, round?.status]);
+
   const currentMultiplier = `${displayMultiplier.toFixed(2)}x`;
   const activeBets = round?.activeBets || [];
   const queuedBets = round?.queuedBets || [];
@@ -261,11 +275,12 @@ export function CrashGame({ token, user, onBalanceChange }) {
   const cashedEntries = activeBets.filter((entry) => entry.status === "cashed");
   const manualCashoutEntry = liveEntries[0] || null;
   const canManualCashout = round?.status === "running" && Boolean(manualCashoutEntry);
+  const hasCrashExposure = liveEntries.length > 0 || queuedBets.length > 0;
   const autoCashoutEnabled = String(betSlip.autoCashout || "").trim().length > 0;
   const players = round?.players || [];
   const recentCrashHistory = history.slice(0, 5);
   const statusTone = getStatusTone(round?.status);
-  const countdownText = getCountdownText(round?.bettingClosesAt);
+  const countdownText = getCountdownText(round?.bettingClosesAt, countdownNow);
   const totalPlayerExposure = activeBets.reduce((sum, entry) => sum + Number(entry.bet || 0), 0);
   const totalQueuedExposure = queuedBets.reduce((sum, entry) => sum + Number(entry.bet || 0), 0);
   const projectedCashout = liveEntries.reduce((sum, entry) => sum + Number(entry.bet || 0) * Number(round?.multiplier || 1), 0);
@@ -286,6 +301,19 @@ export function CrashGame({ token, user, onBalanceChange }) {
       })),
     []
   );
+  const cashoutLabel = canManualCashout
+    ? loading === manualCashoutEntry?.entryId
+      ? "Cashing Out..."
+      : `Cash Out @ ${Number(round?.multiplier || 1).toFixed(2)}x`
+    : queuedBets.length > 0
+      ? "Cash Out Armed"
+      : round?.status === "countdown"
+        ? "Waiting For Launch"
+        : round?.status === "crashed"
+          ? "Round Crashed"
+          : hasCrashExposure
+            ? "Bet Settled"
+            : "No Live Bet";
 
   function updateBetSlip(key, value) {
     setBetSlip((current) => ({ ...current, [key]: value }));
@@ -394,7 +422,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
                 : "bg-white/10 text-white/45"
             } disabled:cursor-not-allowed disabled:opacity-100`}
           >
-            {loading === manualCashoutEntry?.entryId ? "Cashing Out..." : "Cash Out"}
+            {cashoutLabel}
           </button>
 
           <p className="text-xs text-white/50">

@@ -295,6 +295,15 @@ export const api = {
       },
       token
     ),
+  callCaseBattleBot: (token, battleId, payload) =>
+    request(
+      `/game/instant/case-battles/${battleId}/call-bot`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload)
+      },
+      token
+    ),
   getChat: (token) => request("/chat", {}, token),
   sendChat: (token, payload) =>
     request(

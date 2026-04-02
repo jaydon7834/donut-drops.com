@@ -46,6 +46,16 @@ const CASE_REWARDS = [
   }
 ];
 const CASE_EDGE_FACTOR = 0.56;
+const CASE_BATTLE_BOT_NAMES = [
+  "astrobot",
+  "voidcall",
+  "neonfang",
+  "vexbot",
+  "hollowchip",
+  "quasar",
+  "starlux",
+  "orbitron"
+];
 
 function getCaseReward(rawValue) {
   let cursor = 0;
@@ -78,6 +88,17 @@ function serializeOpenBattle(battle) {
       username: battle.host.username
     }
   };
+}
+
+function rollCaseBattleBotDrop() {
+  const rawValue = Math.random();
+  return {
+    reward: getCaseReward(rawValue)
+  };
+}
+
+function pickCaseBattleBotName() {
+  return CASE_BATTLE_BOT_NAMES[Math.floor(Math.random() * CASE_BATTLE_BOT_NAMES.length)];
 }
 
 function broadcastOpenBattles() {
@@ -398,6 +419,115 @@ router.post("/case-battles/:battleId/join", async (req, res, next) => {
     return res.json({
       battle: startedPayload,
       balance: req.user.balance,
+      status: "started"
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post("/case-battles/:battleId/call-bot", async (req, res, next) => {
+  try {
+    const battle = store.caseBattles.get(String(req.params.battleId || ""));
+
+    if (!battle || battle.status !== "waiting") {
+      throw createError("That battle is no longer available.", 404);
+    }
+
+    if (battle.host.id !== req.user.id) {
+      throw createError("Only the host can call a bot into this battle.", 403);
+    }
+
+    const hostUser = store.users.get(battle.host.id);
+
+    if (!hostUser) {
+      store.caseBattles.delete(battle.id);
+      broadcastOpenBattles();
+      throw createError("Battle host is no longer available.", 404);
+    }
+
+    const hostDrop = rollCaseBattleDrop(hostUser, req.body.clientSeed);
+    const botDrop = rollCaseBattleBotDrop();
+    const botName = pickCaseBattleBotName();
+    const pot = Number((battle.bet * 2).toFixed(2));
+    const winnerPayout = Number((pot * CASE_EDGE_FACTOR).toFixed(2));
+
+    let hostPayout = 0;
+    let winnerId = null;
+    let title = "Case Battle Push";
+
+    if (hostDrop.reward.multiplier > botDrop.reward.multiplier) {
+      hostPayout = winnerPayout;
+      winnerId = hostUser.id;
+      title = `${hostUser.username} beat ${botName}`;
+    } else if (botDrop.reward.multiplier > hostDrop.reward.multiplier) {
+      title = `${botName} won the battle`;
+    } else {
+      hostPayout = battle.bet;
+    }
+
+    hostUser.balance = Number((hostUser.balance + hostPayout).toFixed(2));
+
+    pushRecentGame({
+      _id: battle.id,
+      userId: hostUser.id,
+      gameType: "case-battles",
+      betAmount: battle.bet,
+      profit: Number((hostPayout - battle.bet).toFixed(2)),
+      status: hostPayout > battle.bet ? "won" : hostPayout === battle.bet ? "push" : "lost"
+    });
+
+    battle.status = "started";
+    store.caseBattles.delete(battle.id);
+    await persistUsers();
+    broadcastOpenBattles();
+
+    const startedPayload = {
+      battleId: battle.id,
+      bet: battle.bet,
+      pot,
+      host: battle.host,
+      opponent: {
+        id: `bot_${battle.id}`,
+        username: botName,
+        isBot: true
+      }
+    };
+
+    const payload = {
+      battleId: battle.id,
+      title,
+      bet: battle.bet,
+      pot,
+      winnerId,
+      players: [
+        {
+          id: hostUser.id,
+          username: hostUser.username,
+          payout: hostPayout,
+          reward: hostDrop.reward
+        },
+        {
+          id: `bot_${battle.id}`,
+          username: botName,
+          payout: winnerId ? 0 : battle.bet,
+          reward: botDrop.reward,
+          isBot: true
+        }
+      ]
+    };
+
+    emitToUser(hostUser.id, "case-battle:started", startedPayload);
+    setTimeout(() => {
+      emitToUser(hostUser.id, "case-battle:resolved", {
+        ...payload,
+        balance: hostUser.balance
+      });
+    }, 1400);
+
+    return res.json({
+      battle: startedPayload,
+      balance: hostUser.balance,
       status: "started"
     });
   } catch (error) {

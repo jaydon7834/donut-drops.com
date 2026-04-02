@@ -383,6 +383,33 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
     }
   }
 
+  async function handleCallBot() {
+    if (!waitingBattleId) {
+      return;
+    }
+
+    setLoading(true);
+    setBattleMessage("");
+
+    try {
+      const data = await api.callCaseBattleBot(token, waitingBattleId, { clientSeed });
+      setActiveBattle({
+        phase: "opening",
+        battleId: waitingBattleId,
+        bet: data.battle.bet,
+        pot: data.battle.pot,
+        players: [data.battle.host, data.battle.opponent]
+      });
+      setWaitingBattleId("");
+      setBattleMessage("Bot called in. Opening cases...");
+      onBalanceChange({ balance: data.balance, refresh: false });
+    } catch (error) {
+      setBattleMessage(error.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function handleBetInputChange(value) {
     setBetInput(value);
     const parsed = parseBetInput(value);
@@ -525,14 +552,24 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
                   </button>
                 </div>
                 {waitingBattleId && (
-                  <button
-                    type="button"
-                    onClick={handleCancelBattle}
-                    disabled={loading}
-                    className="rounded-2xl border border-red-400/20 px-5 py-3 text-sm text-red-200 transition hover:border-red-300/40 hover:text-red-100 disabled:opacity-50"
-                  >
-                    Cancel Battle
-                  </button>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={handleCallBot}
+                      disabled={loading}
+                      className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950 transition hover:scale-[1.02] disabled:opacity-50"
+                    >
+                      Call A Bot
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCancelBattle}
+                      disabled={loading}
+                      className="rounded-2xl border border-red-400/20 px-5 py-3 text-sm text-red-200 transition hover:border-red-300/40 hover:text-red-100 disabled:opacity-50"
+                    >
+                      Cancel Battle
+                    </button>
+                  </div>
                 )}
                 <button
                   type="button"

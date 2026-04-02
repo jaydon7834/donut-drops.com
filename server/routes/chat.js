@@ -7,6 +7,33 @@ import { getIo } from "../socket.js";
 const router = Router();
 const SPAM_LIMIT = 5;
 const TIMEOUT_MS = 3 * 60 * 1000;
+const MODERATION_RULES = [
+  { pattern: /\b(kys|kill yourself|go die)\b/i, label: "self-harm harassment", timeoutMs: 24 * 60 * 60 * 1000 },
+  { pattern: /\b(nigg(?:a|er)?|fagg?(?:ot)?|retard(?:ed)?)\b/i, label: "hate speech", timeoutMs: 12 * 60 * 60 * 1000 },
+  { pattern: /\b(ddos|doxx|swat|rape|pedo|molest)\b/i, label: "extreme abuse", timeoutMs: 6 * 60 * 60 * 1000 },
+  { pattern: /\b(fuck you|bitch|whore|slut|cunt|stfu)\b/i, label: "abusive language", timeoutMs: 30 * 60 * 1000 }
+];
+
+function analyzeMessage(text) {
+  const normalized = String(text || "").trim();
+  const uppercaseRatio =
+    normalized.replace(/[^A-Z]/g, "").length / Math.max(normalized.replace(/[^A-Za-z]/g, "").length, 1);
+
+  for (const rule of MODERATION_RULES) {
+    if (rule.pattern.test(normalized)) {
+      return rule;
+    }
+  }
+
+  if (uppercaseRatio > 0.75 && normalized.length >= 18) {
+    return {
+      label: "aggressive spam",
+      timeoutMs: 10 * 60 * 1000
+    };
+  }
+
+  return null;
+}
 
 router.use(authMiddleware);
 
@@ -35,6 +62,18 @@ router.post("/", (req, res, next) => {
 
     if (text.length > 180) {
       throw createError("Message is too long.");
+    }
+
+    const moderation = analyzeMessage(text);
+
+    if (moderation) {
+      const timeoutUntil = Date.now() + moderation.timeoutMs;
+      store.chatTimeouts.set(req.user.id, timeoutUntil);
+
+      throw createError(
+        `Timed out for ${Math.ceil(moderation.timeoutMs / 60000)} minutes for ${moderation.label}.`,
+        429
+      );
     }
 
     const normalizedText = text.toLowerCase();

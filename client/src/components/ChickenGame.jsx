@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { api } from "../lib/api.js";
 import { formatBetInput, parseBetInput } from "../lib/betting.js";
@@ -22,10 +22,26 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
   const [stepping, setStepping] = useState(false);
   const [cashingOut, setCashingOut] = useState(false);
   const [showDeathOverlay, setShowDeathOverlay] = useState(false);
+  const [deathStage, setDeathStage] = useState("idle");
 
-  const survivalChance = game?.surviveChance || (risk === "low" ? 0.8 : risk === "high" ? 0.7 : 0.75);
+  const survivalChance =
+    game?.surviveChance || (risk === "low" ? 0.8 : risk === "high" ? 0.7 : 0.75);
   const survivalChanceLabel = `${Math.round(survivalChance * 100)}% per step`;
   const nextMultiplier = previewChickenMultiplier((game?.step || 0) + 1, survivalChance);
+  const chickenBottom = useMemo(() => 24 + (game?.step || 0) * 36, [game?.step]);
+
+  useEffect(() => {
+    if (deathStage !== "abducting") {
+      return undefined;
+    }
+
+    const timerId = window.setTimeout(() => {
+      setDeathStage("complete");
+      setShowDeathOverlay(true);
+    }, 1700);
+
+    return () => window.clearTimeout(timerId);
+  }, [deathStage]);
 
   function handleBetInputChange(value) {
     setBetInput(value);
@@ -46,6 +62,7 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
     setStartingRound(true);
     setFeedback("");
     setShowDeathOverlay(false);
+    setDeathStage("idle");
 
     try {
       const data = await api.startChicken(token, {
@@ -79,7 +96,8 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
       setGame(data.game);
       onBalanceChange(data.balance);
       triggerGameEffect(data.game.result === "lose" ? "loss" : "win");
-      setShowDeathOverlay(data.game.result === "lose");
+      setDeathStage(data.game.result === "lose" ? "abducting" : "idle");
+      setShowDeathOverlay(false);
       setFeedback(
         data.game.result === "lose"
           ? "YOU DIED"
@@ -105,7 +123,9 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
       const data = await api.cashoutChicken(token, { gameId: game.gameId });
       setGame(data.game);
       onBalanceChange(data.balance);
-      triggerGameEffect(Number(data.payout || 0) >= Number(data.game?.bet || 0) * 3 ? "big-win" : "win");
+      triggerGameEffect(
+        Number(data.payout || 0) >= Number(data.game?.bet || 0) * 3 ? "big-win" : "win"
+      );
       setFeedback(`Cashed out for $${data.payout.toFixed(2)}.`);
     } catch (error) {
       setFeedback(error.message);
@@ -133,10 +153,18 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
                 className="w-full bg-transparent p-3 text-white outline-none"
               />
               <div className="flex items-center gap-1 pr-2">
-                <button type="button" onClick={() => adjustBet(0.5)} className="rounded-lg bg-white/10 px-2 py-1 text-xs font-semibold text-white">
+                <button
+                  type="button"
+                  onClick={() => adjustBet(0.5)}
+                  className="rounded-lg bg-white/10 px-2 py-1 text-xs font-semibold text-white"
+                >
                   1/2
                 </button>
-                <button type="button" onClick={() => adjustBet(2)} className="rounded-lg bg-white/10 px-2 py-1 text-xs font-semibold text-white">
+                <button
+                  type="button"
+                  onClick={() => adjustBet(2)}
+                  className="rounded-lg bg-white/10 px-2 py-1 text-xs font-semibold text-white"
+                >
                   2x
                 </button>
               </div>
@@ -166,7 +194,9 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-white/65">Step</span>
-              <span className="font-bold text-white">{game?.step || 0}/{totalSteps}</span>
+              <span className="font-bold text-white">
+                {game?.step || 0}/{totalSteps}
+              </span>
             </div>
             <div className="mt-2 flex items-center justify-between">
               <span className="text-white/65">Multiplier</span>
@@ -239,7 +269,9 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
                 <div
                   key={index}
                   className={`absolute left-1/2 flex h-12 w-12 -translate-x-1/2 items-center justify-center rounded-full text-sm font-bold transition ${
-                    reached ? "bg-emerald-500 text-slate-950 shadow-[0_0_25px_rgba(34,197,94,0.3)]" : "bg-white/10 text-white/45"
+                    reached
+                      ? "bg-emerald-500 text-slate-950 shadow-[0_0_25px_rgba(34,197,94,0.3)]"
+                      : "bg-white/10 text-white/45"
                   }`}
                   style={{ bottom: `${bottom}px` }}
                 >
@@ -250,14 +282,43 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
 
             <motion.div
               animate={{
-                y: -((game?.step || 0) * 36),
-                x: showDeathOverlay ? [0, -6, 6, -5, 5, 0] : 0
+                y: deathStage === "abducting" ? [0, -24, -80, -150] : -((game?.step || 0) * 36),
+                opacity: deathStage === "abducting" ? [1, 1, 0.85, 0] : 1,
+                scale: deathStage === "abducting" ? [1, 0.94, 0.75, 0.3] : 1
               }}
-              transition={{ duration: 0.35 }}
+              transition={{ duration: deathStage === "abducting" ? 1.4 : 0.35 }}
               className="absolute left-1/2 bottom-6 -translate-x-1/2 text-lg font-black text-amber-200 drop-shadow-[0_0_20px_rgba(250,204,21,0.45)]"
             >
               🐔
             </motion.div>
+
+            {deathStage === "abducting" && (
+              <motion.div
+                initial={{ opacity: 0, x: 0, y: 0 }}
+                animate={{
+                  opacity: [0, 1, 1, 0.95],
+                  x: [0, 0, 22, 180],
+                  y: [0, -20, -120, -260]
+                }}
+                transition={{ duration: 1.45, ease: "easeInOut" }}
+                className="absolute left-1/2 z-10 -translate-x-1/2"
+                style={{ bottom: `${chickenBottom + 46}px` }}
+              >
+                <div className="relative flex items-start justify-center">
+                  <motion.div
+                    animate={{ opacity: [0.1, 0.55, 0.35, 0] }}
+                    transition={{ duration: 1.2 }}
+                    className="absolute top-[72px] h-40 w-20 bg-[linear-gradient(180deg,rgba(125,211,252,0.75),rgba(56,189,248,0.35),transparent_78%)] blur-[1px]"
+                    style={{ clipPath: "polygon(50% 0%, 100% 100%, 0% 100%)" }}
+                  />
+                  <img
+                    src="/images/ufo.png"
+                    alt="UFO"
+                    className="relative h-28 w-28 object-contain drop-shadow-[0_0_24px_rgba(56,189,248,0.35)]"
+                  />
+                </div>
+              </motion.div>
+            )}
 
             {showDeathOverlay && (
               <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/82 backdrop-blur-sm">
