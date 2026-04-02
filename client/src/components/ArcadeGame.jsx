@@ -632,7 +632,7 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
                         <img
                           src={reward.image}
                           alt={reward.label}
-                          className="h-20 w-20 object-contain mix-blend-screen drop-shadow-[0_10px_18px_rgba(0,0,0,0.35)]"
+                          className="h-20 w-20 object-contain drop-shadow-[0_10px_18px_rgba(0,0,0,0.35)]"
                         />
                         <p className="mt-3 text-[11px] font-black uppercase tracking-[0.28em] text-white/70">
                           {reward.rarity}
@@ -708,7 +708,7 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
                                 <img
                                   src="/images/case-netherite.png"
                                   alt="Battle case"
-                                  className="h-20 w-20 object-contain mix-blend-screen opacity-80"
+                                  className="h-20 w-20 object-contain opacity-80"
                                 />
                               </motion.div>
                             ) : reward ? (
@@ -716,7 +716,7 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
                                 <img
                                   src={reward.image}
                                   alt={reward.label}
-                                  className="mx-auto h-24 w-24 object-contain mix-blend-screen"
+                                  className="mx-auto h-24 w-24 object-contain"
                                 />
                                 <p className="mt-3 text-xs font-black uppercase tracking-[0.24em] text-white/60">
                                   {reward.rarity}

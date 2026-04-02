@@ -62,6 +62,10 @@ function visibleDealerHand(hand, revealAll = false) {
   return [hand[0], { hidden: true }];
 }
 
+function isBlackjack(hand) {
+  return hand.length === 2 && getHandValue(hand) === 21;
+}
+
 function settleRecentGame({ game, userId, profit, status }) {
   pushRecentGame({
     _id: game.gameId,
@@ -102,6 +106,8 @@ router.post("/start", async (req, res, next) => {
       player,
       dealer,
       bet,
+      insuranceBet: 0,
+      insuranceTaken: false,
       active: true,
       createdAt: new Date().toISOString()
     };
@@ -117,6 +123,8 @@ router.post("/start", async (req, res, next) => {
         dealer: visibleDealerHand(dealer),
         playerValue: getHandValue(player),
         dealerValue: getHandValue([dealer[0]]),
+        canInsurance: dealer[0]?.value === "A",
+        insuranceTaken: false,
         active: true
       }
     });
@@ -174,7 +182,90 @@ router.post("/hit", async (req, res, next) => {
         dealer: visibleDealerHand(game.dealer),
         playerValue,
         dealerValue: getHandValue([game.dealer[0]]),
+        canInsurance: game.dealer[0]?.value === "A" && !game.insuranceTaken,
+        insuranceTaken: game.insuranceTaken,
         active: true
+      }
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post("/insurance", async (req, res, next) => {
+  try {
+    const gameId = String(req.body.gameId || "");
+    const game = store.games.get(gameId);
+
+    if (!game || game.userId !== req.user.id || game.gameType !== "blackjack") {
+      throw createError("Game not found.", 404);
+    }
+
+    if (!game.active) {
+      throw createError("This blackjack game is no longer active.");
+    }
+
+    if (game.insuranceTaken) {
+      throw createError("Insurance already taken for this hand.");
+    }
+
+    if (game.dealer?.[0]?.value !== "A") {
+      throw createError("Insurance is only available when the dealer shows an ace.");
+    }
+
+    const insuranceBet = ensurePositiveBet(game.bet, req.user.balance);
+    req.user.balance = Number((req.user.balance - insuranceBet).toFixed(2));
+    game.insuranceBet = insuranceBet;
+    game.insuranceTaken = true;
+
+    if (isBlackjack(game.dealer)) {
+      const playerHasBlackjack = isBlackjack(game.player);
+      const mainPayout = playerHasBlackjack ? game.bet : 0;
+      const insurancePayout = insuranceBet * 3;
+      const payout = Number((mainPayout + insurancePayout).toFixed(2));
+
+      req.user.balance = Number((req.user.balance + payout).toFixed(2));
+      game.active = false;
+
+      settleRecentGame({
+        game,
+        userId: req.user.id,
+        profit: Number((payout - game.bet - insuranceBet).toFixed(2)),
+        status: playerHasBlackjack ? "push" : "won"
+      });
+      await persistUsers();
+
+      return res.json({
+        balance: req.user.balance,
+        game: {
+          gameId: game.gameId,
+          player: game.player,
+          dealer: game.dealer,
+          playerValue: getHandValue(game.player),
+          dealerValue: getHandValue(game.dealer),
+          active: false,
+          result: playerHasBlackjack ? "draw" : "lose",
+          payout,
+          insuranceTaken: true,
+          insuranceResolved: true,
+          canInsurance: false
+        }
+      });
+    }
+
+    await persistUsers();
+
+    return res.json({
+      balance: req.user.balance,
+      game: {
+        gameId: game.gameId,
+        player: game.player,
+        dealer: visibleDealerHand(game.dealer),
+        playerValue: getHandValue(game.player),
+        dealerValue: getHandValue([game.dealer[0]]),
+        active: true,
+        insuranceTaken: true,
+        canInsurance: false
       }
     });
   } catch (error) {
@@ -234,7 +325,9 @@ router.post("/stand", async (req, res, next) => {
         dealerValue,
         active: false,
         result,
-        payout
+        payout,
+        insuranceTaken: game.insuranceTaken,
+        canInsurance: false
       }
     });
   } catch (error) {

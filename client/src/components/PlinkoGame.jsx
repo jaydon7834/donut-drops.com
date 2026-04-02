@@ -49,6 +49,10 @@ function buildKeyframes(path, rows) {
   });
 }
 
+function createRandomSeed() {
+  return `donut-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
   const [betAmount, setBetAmount] = useState(0);
   const [betInput, setBetInput] = useState("");
@@ -325,11 +329,22 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
 
           <div>
             <p className="text-sm text-gray-400">Client Seed</p>
-            <input
-              value={clientSeed}
-              onChange={(event) => setClientSeed(event.target.value)}
-              className="mt-2 w-full rounded-xl bg-[#1e293b] p-3 text-white outline-none"
-            />
+            <div className="mt-2 flex items-center gap-2">
+              <input
+                value={clientSeed}
+                onChange={(event) => setClientSeed(event.target.value)}
+                className="w-full rounded-xl bg-[#1e293b] p-3 text-white outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => setClientSeed(createRandomSeed())}
+                className="rounded-xl border border-rose-400/35 bg-rose-500/10 px-3 py-3 text-xs font-black uppercase tracking-[0.2em] text-rose-200 transition hover:bg-rose-500/20"
+                aria-label="Refresh client seed"
+                title="Refresh client seed"
+              >
+                ↻
+              </button>
+            </div>
           </div>
 
           <button
@@ -382,8 +397,8 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
           </div>
         </div>
 
-        <div className="relative min-h-[520px] xl:min-h-[580px]">
-          <div className="flex h-full w-full items-end justify-center pb-5">
+        <div className="relative min-h-[460px] xl:min-h-[520px]">
+          <div className="flex h-full w-full items-end justify-center pb-1">
             <div className="relative flex w-full justify-center">
               <div className="flex origin-top scale-[0.7] flex-col items-center sm:scale-[0.78] xl:scale-[0.88] 2xl:scale-[0.96]">
                 {Array.from({ length: rows }).map((_, row) => (

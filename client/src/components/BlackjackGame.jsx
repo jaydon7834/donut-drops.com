@@ -6,6 +6,10 @@ import { triggerGameEffect } from "../lib/gameEffects.js";
 
 const CHIP_VALUES = [1_000, 1_000_000, 10_000_000, 100_000_000];
 
+function createRandomSeed() {
+  return `donut-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 function Card({ card }) {
   if (card?.hidden) {
     return <div className="h-24 w-16 rounded-lg bg-slate-700 shadow-lg" />;
@@ -29,6 +33,7 @@ function Card({ card }) {
 export function BlackjackGame({ token, onBalanceChange, onBack }) {
   const [betAmount, setBetAmount] = useState(0);
   const [betInput, setBetInput] = useState("");
+  const [clientSeed, setClientSeed] = useState("donutdrop-default");
   const [game, setGame] = useState(null);
   const [feedback, setFeedback] = useState("");
   const [loading, setLoading] = useState(false);
@@ -53,7 +58,8 @@ export function BlackjackGame({ token, onBalanceChange, onBack }) {
 
     try {
       const data = await api.startBlackjack(token, {
-        bet: parseBetInput(betInput)
+        bet: parseBetInput(betInput),
+        clientSeed
       });
 
       setGame(data.game);
@@ -128,6 +134,32 @@ export function BlackjackGame({ token, onBalanceChange, onBack }) {
     }
   }
 
+  async function handleInsurance() {
+    if (!game?.active || !game?.canInsurance || game?.insuranceTaken) {
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const data = await api.insureBlackjack(token, { gameId: game.gameId });
+      setGame(data.game);
+      onBalanceChange(data.balance);
+      setFeedback(
+        data.game.insuranceResolved
+          ? `Dealer had blackjack. Insurance paid $${data.game.payout.toFixed(2)}.`
+          : "Insurance locked in."
+      );
+      if (data.game.insuranceResolved) {
+        triggerGameEffect("win");
+      }
+    } catch (error) {
+      setFeedback(error.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="flex w-full min-w-0 flex-col gap-6 p-4 xl:flex-row xl:items-stretch xl:p-6">
       <div className="w-full shrink-0 rounded-2xl bg-[#0f172a] p-5 text-white xl:w-[220px]">
@@ -174,6 +206,29 @@ export function BlackjackGame({ token, onBalanceChange, onBack }) {
             </div>
           </div>
 
+          <div>
+            <p className="text-sm text-gray-400">Client Seed</p>
+            <div className="mt-2 flex items-center gap-2">
+              <input
+                value={clientSeed}
+                onChange={(event) => setClientSeed(event.target.value)}
+                className="w-full rounded-xl bg-[#1e293b] p-3 text-white outline-none"
+                placeholder="donutdrop-default"
+                disabled={Boolean(game?.active)}
+              />
+              <button
+                type="button"
+                onClick={() => setClientSeed(createRandomSeed())}
+                disabled={Boolean(game?.active)}
+                className="rounded-xl border border-rose-400/35 bg-rose-500/10 px-3 py-3 text-xs font-black uppercase tracking-[0.2em] text-rose-200 transition hover:bg-rose-500/20 disabled:opacity-50"
+                aria-label="Refresh client seed"
+                title="Refresh client seed"
+              >
+                ↻
+              </button>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-xl bg-[#1e293b] p-3">
               <p className="text-xs uppercase tracking-[0.2em] text-white/45">Player</p>
@@ -213,6 +268,17 @@ export function BlackjackGame({ token, onBalanceChange, onBack }) {
               Stand
             </button>
           </div>
+
+          {game?.active && game?.canInsurance && !game?.insuranceTaken ? (
+            <button
+              type="button"
+              onClick={handleInsurance}
+              disabled={loading}
+              className="w-full rounded-xl bg-cyan-400 px-6 py-3 font-bold text-slate-950 transition hover:bg-cyan-300 disabled:opacity-50"
+            >
+              {loading ? "Checking..." : `Ask For Insurance (${formatBetInput(parseBetInput(betInput || betAmount))})`}
+            </button>
+          ) : null}
 
           <button
             type="button"

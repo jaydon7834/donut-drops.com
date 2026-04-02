@@ -204,6 +204,15 @@ export const api = {
       },
       token
     ),
+  insureBlackjack: (token, payload) =>
+    request(
+      "/game/blackjack/insurance",
+      {
+        method: "POST",
+        body: JSON.stringify(payload)
+      },
+      token
+    ),
   standBlackjack: (token, payload) =>
     request(
       "/game/blackjack/stand",
