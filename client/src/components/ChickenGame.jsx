@@ -59,6 +59,9 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
     ...entry,
     value: previewChickenMultiplier((game?.step || 0) + 1, entry.chance, game?.bet || liveBetAmount)
   }));
+  const roadMultipliers = Array.from({ length: totalSteps }, (_, index) =>
+    previewChickenMultiplier(index + 1, survivalChance, game?.bet || liveBetAmount)
+  );
   const chickenBottom = useMemo(() => 24 + (game?.step || 0) * 36, [game?.step]);
 
   useEffect(() => {
@@ -310,18 +313,19 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
             {Array.from({ length: totalSteps }).map((_, index) => {
               const bottom = 30 + index * 36;
               const reached = (game?.step || 0) > index;
+              const label = `${roadMultipliers[index].toFixed(2)}x`;
 
               return (
                 <div
                   key={index}
-                  className={`absolute left-1/2 flex h-12 w-12 -translate-x-1/2 items-center justify-center rounded-full text-sm font-bold transition ${
+                  className={`absolute left-1/2 flex h-12 min-w-[3.5rem] -translate-x-1/2 items-center justify-center rounded-full px-2 text-sm font-bold transition ${
                     reached
                       ? "bg-emerald-500 text-slate-950 shadow-[0_0_25px_rgba(34,197,94,0.3)]"
                       : "bg-white/10 text-white/45"
                   }`}
                   style={{ bottom: `${bottom}px` }}
                 >
-                  {index + 1}x
+                  {label}
                 </div>
               );
             })}
