@@ -20,7 +20,7 @@ export function GameCard({ title, players, image, accent, onClick }) {
       <div className={`absolute inset-0 bg-gradient-to-br ${accent} opacity-25 transition duration-300 group-hover:opacity-35`} />
       <div className="absolute inset-x-0 bottom-0 p-3 sm:p-4">
         <div className="rounded-[1rem] border border-white/10 bg-black/30 px-3 py-3 backdrop-blur-md">
-          <div className="font-black text-[1.65rem] leading-none tracking-[-0.03em] text-white drop-shadow-[0_3px_10px_rgba(0,0,0,0.5)] sm:text-[1.85rem]">
+          <div className="font-black text-[1.38rem] leading-none tracking-[-0.03em] text-white drop-shadow-[0_3px_10px_rgba(0,0,0,0.5)] sm:text-[1.55rem]">
             {title}
           </div>
           <div className="mt-2 text-xs text-white/78 sm:text-sm">
