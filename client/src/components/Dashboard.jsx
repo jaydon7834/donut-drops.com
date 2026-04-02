@@ -251,6 +251,7 @@ export function Dashboard() {
   const [rainMessage, setRainMessage] = useState("");
   const [joiningRain, setJoiningRain] = useState(false);
   const [startingRain, setStartingRain] = useState(false);
+  const [rainNow, setRainNow] = useState(Date.now());
   const [pendingLevelReward, setPendingLevelReward] = useState({ level: 0, amount: 0 });
   const [claimMessage, setClaimMessage] = useState("");
   const [claimingReward, setClaimingReward] = useState("");
@@ -316,6 +317,19 @@ export function Dashboard() {
     root.style.setProperty("--accent-gradient", currentTheme.accentGradient);
     window.localStorage.setItem(THEME_STORAGE_KEY, themeName);
   }, [currentTheme, themeName]);
+
+  useEffect(() => {
+    if (!rain.active || !rain.endTime) {
+      return undefined;
+    }
+
+    setRainNow(Date.now());
+    const intervalId = window.setInterval(() => {
+      setRainNow(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [rain.active, rain.endTime]);
 
   useEffect(() => {
     if (typeof document === "undefined") {
@@ -1004,6 +1018,8 @@ export function Dashboard() {
   const trackerPath = buildSmoothProfitPath(trackerPoints);
   const trackerAreaPath = buildTrackerAreaPath(trackerPoints, trackerPath);
   const activeTimeoutSeconds = Math.max(0, Math.ceil((chatTimeoutUntil - Date.now()) / 1000));
+  const activeRainSeconds = Math.max(0, Math.ceil((Number(rain.endTime || 0) - rainNow) / 1000));
+  const rainTimerLabel = `${Math.floor(activeRainSeconds / 60)}:${String(activeRainSeconds % 60).padStart(2, "0")}`;
   const timeoutLabel = useMemo(() => {
     const minutes = Math.floor(activeTimeoutSeconds / 60);
     const seconds = activeTimeoutSeconds % 60;
@@ -2679,9 +2695,14 @@ export function Dashboard() {
           {rainMessage && <p className="mt-3 text-xs text-sky-100/75">{rainMessage}</p>}
           {rain.active && (
             <div className="mt-3 rounded-2xl border border-white/10 bg-white/10 px-4 py-3">
-              <p className="text-[11px] font-bold uppercase tracking-[0.26em] text-sky-100/70">
-                Rain Live
-              </p>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.26em] text-sky-100/70">
+                  Rain Live
+                </p>
+                <span className="rounded-full border border-sky-300/25 bg-slate-950/35 px-3 py-1 text-[11px] font-bold text-sky-100/80">
+                  {rainTimerLabel}
+                </span>
+              </div>
               <p className="mt-1 text-sm font-semibold text-white">
                 Live pool {formatCompactNumber(rain.amount || 0)}
               </p>
@@ -2737,9 +2758,14 @@ export function Dashboard() {
           </div>
           {rain.active && (
             <div className="rounded-2xl border border-sky-400/30 bg-sky-500/10 px-4 py-3">
-              <p className="text-[11px] font-bold uppercase tracking-[0.26em] text-sky-100/70">
-                Rain Live
-              </p>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.26em] text-sky-100/70">
+                  Rain Live
+                </p>
+                <span className="rounded-full border border-sky-300/25 bg-slate-950/35 px-3 py-1 text-[11px] font-bold text-sky-100/80">
+                  {rainTimerLabel}
+                </span>
+              </div>
               <p className="mt-1 text-sm font-semibold text-white">
                 Live pool {formatCompactNumber(rain.amount || 0)}
               </p>
