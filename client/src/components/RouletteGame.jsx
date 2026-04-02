@@ -25,7 +25,13 @@ function getColor(number) {
   return redNumbers.has(number) ? "red" : "black";
 }
 
-function RouletteWheel({ spin }) {
+function RouletteWheel({ spin, resultIndex, spinning }) {
+  const pocketAngle = 360 / numbers.length;
+  const targetAngle = ((Number(resultIndex ?? 0) * pocketAngle) - 90) * (Math.PI / 180);
+  const orbitRadius = 166;
+  const ballX = Math.cos(targetAngle) * orbitRadius;
+  const ballY = Math.sin(targetAngle) * orbitRadius;
+
   return (
     <div className="relative">
       <div className="absolute left-1/2 top-[-14px] z-20 h-0 w-0 -translate-x-1/2 border-l-[12px] border-r-[12px] border-b-[22px] border-l-transparent border-r-transparent border-b-orange-400 drop-shadow-[0_0_10px_rgba(251,146,60,0.65)]" />
@@ -60,6 +66,24 @@ function RouletteWheel({ spin }) {
         })}
         <div className="absolute left-1/2 top-1/2 h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/10 bg-slate-950 shadow-[0_0_30px_rgba(0,0,0,0.5)]" />
       </motion.div>
+      <motion.div
+        initial={false}
+        animate={
+          spinning
+            ? {
+                x: [0, 0, ballX * 0.45, ballX],
+                y: [0, 0, ballY * 0.45, ballY],
+                scale: [0.95, 1, 1, 1]
+              }
+            : {
+                x: ballX,
+                y: ballY,
+                scale: 1
+              }
+        }
+        transition={{ duration: 3, ease: [0.16, 1, 0.3, 1] }}
+        className="absolute left-1/2 top-1/2 z-30 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/80 bg-white shadow-[0_0_18px_rgba(255,255,255,0.85)]"
+      />
     </div>
   );
 }
@@ -71,6 +95,7 @@ export function RouletteGame({ token, user, onBalanceChange, onBack }) {
   const [selection, setSelection] = useState("red");
   const [clientSeed, setClientSeed] = useState(user.clientSeed || "donutdrop-default");
   const [spin, setSpin] = useState(0);
+  const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState(null);
   const [feedback, setFeedback] = useState("");
   const [loading, setLoading] = useState(false);
@@ -101,6 +126,7 @@ export function RouletteGame({ token, user, onBalanceChange, onBack }) {
   async function handleSpin() {
     setLoading(true);
     setFeedback("");
+    setSpinning(true);
     let delayedSettle = false;
 
     try {
@@ -135,8 +161,10 @@ export function RouletteGame({ token, user, onBalanceChange, onBack }) {
             ? `Landed on ${data.game.number} ${data.game.color}. You won $${data.game.payout.toFixed(2)}.`
             : `Landed on ${data.game.number} ${data.game.color}. Better luck next spin.`
         );
+        setSpinning(false);
       }, SPIN_SETTLE_MS);
     } catch (error) {
+      setSpinning(false);
       setFeedback(error.message);
     } finally {
       if (delayedSettle) {
@@ -285,7 +313,7 @@ export function RouletteGame({ token, user, onBalanceChange, onBack }) {
 
       <div className="min-w-0 flex-1 rounded-2xl bg-[#0b0f1a] p-6">
         <div className="flex h-full w-full flex-col items-center justify-center overflow-hidden">
-          <RouletteWheel spin={spin} />
+          <RouletteWheel spin={spin} resultIndex={result?.index ?? 0} spinning={spinning} />
 
           <div className="mt-8 w-full max-w-4xl rounded-2xl bg-[#0f172a] p-5 shadow-[0_0_40px_rgba(34,197,94,0.08)]">
             <p className="text-sm uppercase tracking-[0.25em] text-white/45">Betting Board</p>

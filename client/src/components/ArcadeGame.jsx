@@ -102,6 +102,7 @@ function getRewardIndex(label) {
 
 export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
   const meta = gameCopy[gameType];
+  const hideGameCopy = gameType === "cases" || gameType === "case-battles";
   const [bet, setBet] = useState(0);
   const [betInput, setBetInput] = useState("");
   const [optionValue, setOptionValue] = useState(gameType === "roulette" ? "red" : 2);
@@ -435,17 +436,19 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
 
   return (
     <GameLayout
-      eyebrow={meta.title}
-      title={meta.title}
-      subtitle={meta.subtitle}
+      eyebrow={hideGameCopy ? null : meta.title}
+      title={hideGameCopy ? null : meta.title}
+      subtitle={hideGameCopy ? null : meta.subtitle}
       accent="from-orange-500/10 via-purple-500/5 to-emerald-500/10"
       controls={
         <div className="space-y-4">
-          <div className={`rounded-[1.8rem] p-5 ${meta.accent}`}>
-            <p className="text-xs uppercase tracking-[0.35em] text-white/80">{meta.title}</p>
-            <h2 className="mt-3 text-3xl font-black text-white">{meta.title}</h2>
-            <p className="mt-3 max-w-sm text-sm leading-7 text-white/80">{meta.subtitle}</p>
-          </div>
+          {!hideGameCopy ? (
+            <div className={`rounded-[1.8rem] p-5 ${meta.accent}`}>
+              <p className="text-xs uppercase tracking-[0.35em] text-white/80">{meta.title}</p>
+              <h2 className="mt-3 text-3xl font-black text-white">{meta.title}</h2>
+              <p className="mt-3 max-w-sm text-sm leading-7 text-white/80">{meta.subtitle}</p>
+            </div>
+          ) : null}
 
           <div className="rounded-[1.8rem] bg-white/5 p-5">
             <label className="block text-sm text-white/70">
@@ -629,7 +632,7 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
                         <img
                           src={reward.image}
                           alt={reward.label}
-                          className="h-20 w-20 object-contain drop-shadow-[0_10px_18px_rgba(0,0,0,0.35)]"
+                          className="h-20 w-20 object-contain mix-blend-screen drop-shadow-[0_10px_18px_rgba(0,0,0,0.35)]"
                         />
                         <p className="mt-3 text-[11px] font-black uppercase tracking-[0.28em] text-white/70">
                           {reward.rarity}
@@ -660,14 +663,19 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
                     </div>
                     <div className="flex items-center gap-3">
                       {activeBattle.phase === "waiting" && waitingBattleId && (
-                        <button
-                          type="button"
-                          onClick={handleCallBot}
-                          disabled={loading}
-                          className="rounded-2xl bg-white px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-slate-950 transition hover:scale-[1.02] disabled:opacity-50"
-                        >
-                          Call A Bot
-                        </button>
+                        <div className="flex items-center gap-3">
+                          <div className="rounded-full border border-orange-300/20 bg-orange-400/10 px-4 py-2 text-xs uppercase tracking-[0.22em] text-orange-100">
+                            Waiting For Challenger
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleCallBot}
+                            disabled={loading}
+                            className="rounded-2xl bg-white px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-slate-950 transition hover:scale-[1.02] disabled:opacity-50"
+                          >
+                            Call A Bot
+                          </button>
+                        </div>
                       )}
                       <div className="rounded-full border border-white/10 bg-black/25 px-4 py-2 text-xs uppercase tracking-[0.22em] text-white/60">
                         Pot ${Number(activeBattle.pot || 0).toFixed(2)}
@@ -695,12 +703,12 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
                               <motion.div
                                 animate={{ rotate: [0, 360], scale: [0.96, 1.03, 0.96] }}
                                 transition={{ duration: 1, ease: "linear", repeat: Infinity }}
-                                className="flex h-28 w-28 items-center justify-center rounded-3xl border border-white/10 bg-white/5"
+                                className="flex h-28 w-28 items-center justify-center"
                               >
                                 <img
                                   src="/images/case-netherite.png"
                                   alt="Battle case"
-                                  className="h-20 w-20 object-contain opacity-80"
+                                  className="h-20 w-20 object-contain mix-blend-screen opacity-80"
                                 />
                               </motion.div>
                             ) : reward ? (
@@ -708,7 +716,7 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
                                 <img
                                   src={reward.image}
                                   alt={reward.label}
-                                  className="mx-auto h-24 w-24 object-contain"
+                                  className="mx-auto h-24 w-24 object-contain mix-blend-screen"
                                 />
                                 <p className="mt-3 text-xs font-black uppercase tracking-[0.24em] text-white/60">
                                   {reward.rarity}
@@ -725,11 +733,6 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
                     })}
                   </div>
 
-                  {activeBattle.phase === "waiting" && (
-                    <div className="mt-4 rounded-2xl border border-orange-300/20 bg-orange-400/10 px-4 py-3 text-sm text-orange-100">
-                      Your battle is live and waiting for another player to join.
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -743,12 +746,6 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
                   {openBattles.length} waiting
                 </div>
               </div>
-
-              {waitingBattleId && (
-                <div className="mt-4 rounded-2xl border border-orange-400/20 bg-orange-400/10 px-4 py-3 text-sm text-orange-100">
-                  Your battle is live. Waiting for another player to join.
-                </div>
-              )}
 
               <div className="mt-4 space-y-3">
                 {openBattles.length ? (

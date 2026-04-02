@@ -387,12 +387,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
   const controls = (
     <div className="space-y-4 text-white">
       <div>
-        <p className="text-xs uppercase tracking-[0.3em] text-indigo-200/65">Crash Bet</p>
-        <h2 className="mt-3 text-3xl font-black text-white">Time the escape</h2>
-        <p className="mt-3 text-sm leading-6 text-white/60">
-          The game keeps rolling. Join at any time, queue your slips for the next round, then cash them manually or by auto target.
-        </p>
-        <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
+        <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
           <p>Minimum bet: <span className="font-bold text-white">1k</span></p>
         </div>
       </div>
@@ -908,18 +903,6 @@ export function CrashGame({ token, user, onBalanceChange }) {
 
   return (
     <div className="space-y-5">
-      <motion.aside
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="casino-card overflow-hidden rounded-[2rem] bg-gradient-to-br from-yellow-500/20 via-orange-500/10 to-sky-500/20 p-6"
-      >
-        <p className="text-xs uppercase tracking-[0.35em] text-white/45">Crash</p>
-        <h2 className="mt-3 text-4xl font-black text-white">Live multiplayer crash</h2>
-        <p className="mt-3 max-w-3xl text-sm leading-7 text-white/60">
-          Shared rounds, multiple slips, auto cashout targets, and manual exits while the rocket keeps running to the real crash point.
-        </p>
-      </motion.aside>
-
       <div className="grid gap-4 xl:grid-cols-[220px,minmax(0,1fr)] xl:gap-5">
         <motion.aside
           initial={{ opacity: 0, x: -16 }}

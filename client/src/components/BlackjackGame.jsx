@@ -236,37 +236,48 @@ export function BlackjackGame({ token, onBalanceChange, onBack }) {
       </div>
 
       <div className="min-w-0 flex-1 rounded-2xl bg-[#0b0f1a] p-6">
-        <div className="flex h-full w-full flex-col items-center justify-center overflow-hidden">
-        <div className="mb-10">
-          <div className="flex items-center justify-center gap-3">
-            <img
-              src="/images/alien-dealer.png"
-              alt="Alien dealer"
-              className="h-16 w-16 object-contain drop-shadow-[0_0_18px_rgba(163,230,53,0.25)]"
-            />
-            <p className="text-center text-gray-400">Alien Dealer</p>
+        <div className="flex h-full w-full flex-col justify-between overflow-hidden rounded-[1.8rem] border border-white/6 bg-[#0d0f18] p-6">
+          <div className="flex flex-col items-center">
+            <div className="flex items-center justify-center gap-3">
+              <img
+                src="/images/alien-dealer.png"
+                alt="Alien dealer"
+                className="h-16 w-16 object-contain drop-shadow-[0_0_18px_rgba(163,230,53,0.25)]"
+              />
+              <p className="text-center text-gray-400">Alien Dealer</p>
+            </div>
+            <div className="mt-4 min-h-[6rem] flex justify-center gap-2">
+              {(game?.dealer || []).length ? (
+                (game?.dealer || []).map((card, index) => (
+                  <Card key={`dealer-${index}-${card.hidden ? "hidden" : `${card.value}${card.suit}`}`} card={card} />
+                ))
+              ) : (
+                <p className="self-center text-center text-white/45">No cards dealt</p>
+              )}
+            </div>
           </div>
-          <div className="mt-3 flex justify-center gap-2">
-            {(game?.dealer || []).map((card, index) => (
-              <Card key={`dealer-${index}-${card.hidden ? "hidden" : `${card.value}${card.suit}`}`} card={card} />
-            ))}
-          </div>
-        </div>
 
-        <div>
-          <p className="text-gray-400 text-center">You</p>
-          <div className="mt-3 flex justify-center gap-2">
-            {(game?.player || []).map((card, index) => (
-              <Card key={`player-${index}-${card.value}${card.suit}`} card={card} />
-            ))}
+          <div className="flex flex-col items-center gap-3 py-6">
+            <div className="min-w-[14rem] bg-[linear-gradient(90deg,transparent,rgba(99,102,241,0.15),transparent)] px-6 py-2 text-center text-xs font-black uppercase tracking-[0.28em] text-indigo-200/75">
+              Blackjack Pays 3:2
+            </div>
+            <div className="min-w-[12rem] bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.08),transparent)] px-6 py-2 text-center text-[11px] font-black uppercase tracking-[0.24em] text-white/45">
+              Insurance Pays 2:1
+            </div>
           </div>
-        </div>
 
-        {!game && (
-          <div className="mt-10 text-center text-white/55">
-            Start a hand to deal cards to the table.
+          <div className="flex flex-col items-center">
+            <p className="text-gray-400 text-center">You</p>
+            <div className="mt-4 min-h-[6rem] flex justify-center gap-2">
+              {(game?.player || []).length ? (
+                (game?.player || []).map((card, index) => (
+                  <Card key={`player-${index}-${card.value}${card.suit}`} card={card} />
+                ))
+              ) : (
+                <p className="self-center text-center text-white/45">No cards dealt</p>
+              )}
+            </div>
           </div>
-        )}
         </div>
       </div>
     </div>

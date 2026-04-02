@@ -2696,6 +2696,7 @@ export function Dashboard() {
           </p>
         </div>
 
+        {showAdminPanel ? (
         <div className="mt-4 rounded-2xl border border-sky-400/15 bg-sky-500/10 p-4">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -2747,6 +2748,7 @@ export function Dashboard() {
             </div>
           )}
         </div>
+        ) : null}
 
         <div className="mt-4 rounded-2xl bg-white/5 p-4">
           <p className="text-sm font-semibold text-white">Tip a player</p>

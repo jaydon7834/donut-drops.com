@@ -469,17 +469,18 @@ router.post("/case-battles/:battleId/call-bot", async (req, res, next) => {
     const winnerPayout = Number((pot * CASE_EDGE_FACTOR).toFixed(2));
 
     let hostPayout = 0;
+    let botPayout = 0;
     let winnerId = null;
-    let title = "Case Battle Push";
+    let title = `${botName} won the battle`;
 
     if (hostDrop.reward.multiplier > botDrop.reward.multiplier) {
       hostPayout = winnerPayout;
       winnerId = hostUser.id;
       title = `${hostUser.username} beat ${botName}`;
-    } else if (botDrop.reward.multiplier > hostDrop.reward.multiplier) {
-      title = `${botName} won the battle`;
     } else {
-      hostPayout = battle.bet;
+      botPayout = winnerPayout;
+      winnerId = `bot_${battle.id}`;
+      title = `${botName} edged the battle`;
     }
 
     hostUser.balance = Number((hostUser.balance + hostPayout).toFixed(2));
@@ -490,7 +491,7 @@ router.post("/case-battles/:battleId/call-bot", async (req, res, next) => {
       gameType: "case-battles",
       betAmount: battle.bet,
       profit: Number((hostPayout - battle.bet).toFixed(2)),
-      status: hostPayout > battle.bet ? "won" : hostPayout === battle.bet ? "push" : "lost"
+      status: hostPayout > battle.bet ? "won" : "lost"
     });
 
     battle.status = "started";
@@ -526,7 +527,7 @@ router.post("/case-battles/:battleId/call-bot", async (req, res, next) => {
         {
           id: `bot_${battle.id}`,
           username: botName,
-          payout: winnerId ? 0 : battle.bet,
+          payout: botPayout,
           reward: botDrop.reward,
           isBot: true
         }

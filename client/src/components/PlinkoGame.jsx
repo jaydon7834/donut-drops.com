@@ -125,13 +125,15 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
         setResult(data.game);
         setFeedback(`Latest hit: ${data.game.multiplier}x`);
         onBalanceChange(data.balance);
-        triggerGameEffect(
-          Number(data.game.payout || 0) > Number(data.game.bet || 0)
-            ? Number(data.game.payout || 0) >= Number(data.game.bet || 0) * 3
-              ? "big-win"
-              : "win"
-            : "loss"
-        );
+        window.setTimeout(() => {
+          triggerGameEffect(
+            Number(data.game.payout || 0) > Number(data.game.bet || 0)
+              ? Number(data.game.payout || 0) >= Number(data.game.bet || 0) * 3
+                ? "big-win"
+                : "win"
+              : "loss"
+          );
+        }, 1450);
 
         window.setTimeout(() => {
           setActiveBalls((current) => current.filter((entry) => entry.id !== ballId));
@@ -380,10 +382,10 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
           </div>
         </div>
 
-        <div className="relative min-h-[520px] xl:min-h-[600px]">
-          <div className="flex h-full w-full items-center justify-center pb-12">
+        <div className="relative min-h-[520px] xl:min-h-[580px]">
+          <div className="flex h-full w-full items-end justify-center pb-5">
             <div className="relative flex w-full justify-center">
-              <div className="mt-2 flex origin-top scale-[0.7] flex-col items-center sm:scale-[0.78] xl:scale-[0.88] 2xl:scale-[0.96]">
+              <div className="flex origin-top scale-[0.7] flex-col items-center sm:scale-[0.78] xl:scale-[0.88] 2xl:scale-[0.96]">
                 {Array.from({ length: rows }).map((_, row) => (
                   <div key={row} className="flex justify-center">
                     {Array.from({ length: row + 1 }).map((__, index) => (

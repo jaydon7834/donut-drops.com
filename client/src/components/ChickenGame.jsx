@@ -49,7 +49,6 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
 
   const survivalChance =
     game?.surviveChance || (risk === "low" ? 0.8 : risk === "high" ? 0.7 : 0.75);
-  const survivalChanceLabel = `${Math.round(survivalChance * 100)}% per step`;
   const nextMultiplier = previewChickenMultiplier((game?.step || 0) + 1, survivalChance, game?.bet || liveBetAmount);
   const riskMultiplierPreview = [
     { key: "low", chance: 0.8 },
@@ -250,10 +249,6 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
             <div className="mt-2 flex items-center justify-between">
               <span className="text-white/65">Multiplier</span>
               <span className="font-bold text-white">{(game?.multiplier || 1).toFixed(2)}x</span>
-            </div>
-            <div className="mt-2 flex items-center justify-between">
-              <span className="text-white/65">Survival Chance</span>
-              <span className="font-bold text-emerald-300">{survivalChanceLabel}</span>
             </div>
             <div className="mt-2 flex items-center justify-between">
               <span className="text-white/65">Next Multiplier</span>
