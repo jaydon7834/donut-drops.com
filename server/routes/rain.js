@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
-import { store } from "../state/store.js";
+import { persistUsers, store } from "../state/store.js";
 import { createError, isAdminUser } from "../utils/helpers.js";
-import { getIo } from "../socket.js";
+import { emitToUser, getIo } from "../socket.js";
 
 const router = Router();
 const RAIN_DURATION_MS = 3 * 60 * 1000;
@@ -94,9 +94,36 @@ function broadcastChatRainMessage(message) {
   });
 }
 
-function endRain() {
+async function endRain() {
   const io = getIo();
-  const participantCount = store.rain.participants.length;
+  const participantIds = [...store.rain.participants];
+  const participantCount = participantIds.length;
+  const totalAmount = Number(store.rain.amount || 0);
+  const splitAmount =
+    participantCount > 0 ? Number((totalAmount / participantCount).toFixed(2)) : 0;
+
+  if (participantCount > 0 && splitAmount > 0) {
+    participantIds.forEach((userId) => {
+      const participant = store.users.get(userId);
+      if (!participant) {
+        return;
+      }
+
+      participant.balance = Number((Number(participant.balance || 0) + splitAmount).toFixed(2));
+
+      emitToUser(participant.id, "chat:message", {
+        type: "tip",
+        message: {
+          id: `rain_${Date.now()}_${participant.id}`,
+          username: "system",
+          text: `Rain ended. You received $${splitAmount.toLocaleString()} from the pool.`,
+          createdAt: new Date().toISOString()
+        }
+      });
+    });
+
+    await persistUsers();
+  }
 
   store.rain.active = false;
   store.rain.amount = 0;
@@ -112,7 +139,8 @@ function endRain() {
 
   if (io) {
     io.emit("rain:end", {
-      participants: participantCount
+      participants: participantCount,
+      splitAmount
     });
   }
 
@@ -137,7 +165,9 @@ function startRain(amountOverride = null) {
     clearTimeout(store.rain.timer);
   }
 
-  store.rain.timer = setTimeout(endRain, RAIN_DURATION_MS);
+  store.rain.timer = setTimeout(() => {
+    endRain().catch(() => {});
+  }, RAIN_DURATION_MS);
 
   if (io) {
     io.emit("rain:start", {
