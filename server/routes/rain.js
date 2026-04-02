@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
 import { store } from "../state/store.js";
-import { createError } from "../utils/helpers.js";
+import { createError, isAdminUser } from "../utils/helpers.js";
 import { getIo } from "../socket.js";
 
 const router = Router();
@@ -15,7 +15,11 @@ function canManageRain(user) {
     .map((value) => value.trim())
     .filter(Boolean);
 
-  return envList.length > 0 && envList.includes(String(user.id));
+  if (envList.length > 0) {
+    return envList.includes(String(user.id));
+  }
+
+  return isAdminUser(user);
 }
 
 function getRainAmount() {
@@ -32,6 +36,16 @@ function getRainAmount() {
   ];
 
   return presets[Math.floor(Math.random() * presets.length)];
+}
+
+function normalizeRainAmount(value) {
+  const amount = Number(value);
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw createError("Rain amount must be greater than 0.");
+  }
+
+  return Number(amount.toFixed(2));
 }
 
 function serializeRain(user) {
@@ -105,11 +119,11 @@ function endRain() {
   scheduleNextRain();
 }
 
-function startRain() {
+function startRain(amountOverride = null) {
   const io = getIo();
 
   store.rain.active = true;
-  store.rain.amount = getRainAmount();
+  store.rain.amount = amountOverride == null ? getRainAmount() : normalizeRainAmount(amountOverride);
   store.rain.participants = [];
   store.rain.endTime = Date.now() + RAIN_DURATION_MS;
   store.rain.nextStartAt = 0;
@@ -159,7 +173,7 @@ router.post("/start", (req, res, next) => {
       throw createError("Rain is already active.");
     }
 
-    startRain();
+    startRain(req.body.amount ?? null);
 
     return res.status(201).json({
       rain: serializeRain(req.user)

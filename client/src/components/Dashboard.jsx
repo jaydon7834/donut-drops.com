@@ -220,6 +220,7 @@ export function Dashboard() {
   const [adminBalanceAmount, setAdminBalanceAmount] = useState("1m");
   const [adminPromoForm, setAdminPromoForm] = useState({ code: "", reward: "1b" });
   const [adminPromoCodes, setAdminPromoCodes] = useState([]);
+  const [adminRainAmount, setAdminRainAmount] = useState("1m");
   const [players, setPlayers] = useState([]);
   const [tipForm, setTipForm] = useState({ username: "", amount: "100" });
   const [tipMessage, setTipMessage] = useState("");
@@ -968,9 +969,12 @@ export function Dashboard() {
     setRainMessage("");
 
     try {
-      const data = await api.startRain(token);
+      const amount = showAdminPanel ? parseBetInput(adminRainAmount) : undefined;
+      const data = await api.startRain(token, amount ? { amount } : {});
       setRain(data.rain);
-      setRainMessage("Rain launched live.");
+      setRainMessage(
+        amount ? `Rain launched live for ${formatMoney(amount)}.` : "Rain launched live."
+      );
     } catch (error) {
       setRainMessage(error.message);
     } finally {
@@ -2841,6 +2845,23 @@ export function Dashboard() {
                   className="mt-2 w-full rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-950 disabled:opacity-60"
                 >
                   Give Balance
+                </button>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                <p className="text-xs uppercase tracking-[0.22em] text-white/45">Rain Amount</p>
+                <input
+                  value={adminRainAmount}
+                  onChange={(event) => setAdminRainAmount(event.target.value)}
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none"
+                  placeholder="1m"
+                />
+                <button
+                  type="button"
+                  onClick={handleStartRain}
+                  disabled={startingRain || rain.active}
+                  className="mt-2 w-full rounded-2xl bg-sky-400 px-4 py-3 text-sm font-semibold text-slate-950 disabled:opacity-60"
+                >
+                  {startingRain ? "Starting..." : "Start Rain"}
                 </button>
               </div>
               <div className="rounded-2xl border border-white/10 bg-black/20 p-3">

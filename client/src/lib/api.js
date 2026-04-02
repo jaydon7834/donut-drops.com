@@ -368,11 +368,12 @@ export const api = {
       token
     ),
   getRain: (token) => request("/rain", {}, token),
-  startRain: (token) =>
+  startRain: (token, payload = {}) =>
     request(
       "/rain/start",
       {
-        method: "POST"
+        method: "POST",
+        body: JSON.stringify(payload)
       },
       token
     ),
