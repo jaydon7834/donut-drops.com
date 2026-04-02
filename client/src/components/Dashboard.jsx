@@ -2345,36 +2345,22 @@ export function Dashboard() {
         </motion.div>
       )}
 
-      <aside className="glass-panel hidden w-[190px] shrink-0 rounded-[2rem] py-6 xl:block">
-        <div className="px-6">
-          <p className="text-3xl font-black text-white">
-            Donut<span className="text-accent">Drop</span>
-          </p>
-        </div>
-        <div className="mt-8 border-t border-white/5 px-3 pt-6">
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTopTab("");
-              setActiveView("lobby");
-            }}
-            className={`mb-2 w-full rounded-2xl px-4 py-3 text-left text-sm transition ${
-              activeView === "lobby" && !activeTopTab
-                ? "bg-emerald-500/15 text-emerald-100"
-                : "bg-white/5 text-white/65 hover:bg-white/10 hover:text-white"
-            }`}
-          >
-            Home
-          </button>
-          <button
-            type="button"
-            onClick={() => setTrackerOpen((current) => !current)}
-            className={`mb-4 w-full rounded-2xl px-4 py-3 text-left text-sm transition ${
-              trackerOpen
-                ? "bg-cyan-500/15 text-cyan-100"
-                : "bg-white/5 text-white/65 hover:bg-white/10 hover:text-white"
-            }`}
-          >
+        <aside className="glass-panel hidden w-[190px] shrink-0 rounded-[2rem] py-6 xl:block">
+          <div className="px-6">
+            <p className="text-3xl font-black text-white">
+              Donut<span className="text-accent">Drop</span>
+            </p>
+          </div>
+          <div className="mt-8 border-t border-white/5 px-3 pt-6">
+            <button
+              type="button"
+              onClick={() => setTrackerOpen((current) => !current)}
+              className={`mb-4 w-full rounded-2xl px-4 py-3 text-left text-sm transition ${
+                trackerOpen
+                  ? "bg-cyan-500/15 text-cyan-100"
+                  : "bg-white/5 text-white/65 hover:bg-white/10 hover:text-white"
+              }`}
+            >
             Stake Loss Calculator
           </button>
           <p className="px-3 text-xs uppercase tracking-[0.35em] text-white/35">Games</p>
@@ -2437,14 +2423,14 @@ export function Dashboard() {
                   </button>
                 ))}
               </div>
-              <h1 className="mt-4 text-3xl font-semibold text-white">
-                {topNavItems.some((item) => item.toLowerCase() === activeTopTab)
-                  ? `${activeTopTab.charAt(0).toUpperCase() + activeTopTab.slice(1)} hub`
-                  : activeView === "lobby"
-                  ? "Casino lobby with playable games"
-                  : `${activeView.charAt(0).toUpperCase() + activeView.slice(1)} table`}
-              </h1>
-            </div>
+                {activeView !== "lobby" || topNavItems.some((item) => item.toLowerCase() === activeTopTab) ? (
+                  <h1 className="mt-4 text-3xl font-semibold text-white">
+                    {topNavItems.some((item) => item.toLowerCase() === activeTopTab)
+                      ? `${activeTopTab.charAt(0).toUpperCase() + activeTopTab.slice(1)} hub`
+                      : `${activeView.charAt(0).toUpperCase() + activeView.slice(1)} table`}
+                  </h1>
+                ) : null}
+              </div>
 
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-3">
@@ -2502,17 +2488,7 @@ export function Dashboard() {
               >
                 {effectsEnabled ? "✨ Effects" : "🚫 Effects"}
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTopTab("");
-                  setActiveView("lobby");
-                }}
-                className="rounded-2xl border border-white/10 px-5 py-4 text-white/75 transition hover:border-white/25 hover:text-white"
-              >
-                Home
-              </button>
-              <WalletDisplay balance={user.balance} />
+                <WalletDisplay balance={user.balance} />
               <button
                 type="button"
                 onClick={openWallet}
