@@ -112,9 +112,13 @@ export function RouletteGame({ token, user, onBalanceChange, onBack }) {
       });
 
       const pocketAngle = 360 / numbers.length;
-      const finalAngle = 360 * 5 - data.game.index * pocketAngle;
+      const centerOffset = pocketAngle / 2;
+      const normalizedCurrent = ((spin % 360) + 360) % 360;
+      const targetRotation = (360 - (data.game.index * pocketAngle + centerOffset) + 360) % 360;
+      const delta = (targetRotation - normalizedCurrent + 360) % 360;
+      const finalAngle = spin + 360 * 5 + delta;
 
-      setSpin((current) => current + finalAngle + 360);
+      setSpin(finalAngle);
       delayedSettle = true;
       window.setTimeout(() => {
         setResult(data.game);

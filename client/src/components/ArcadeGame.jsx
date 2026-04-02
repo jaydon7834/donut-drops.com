@@ -561,15 +561,7 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
                   </button>
                 </div>
                 {waitingBattleId && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={handleCallBot}
-                      disabled={loading}
-                      className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950 transition hover:scale-[1.02] disabled:opacity-50"
-                    >
-                      Call A Bot
-                    </button>
+                  <div className="grid grid-cols-1 gap-3">
                     <button
                       type="button"
                       onClick={handleCancelBattle}
@@ -666,8 +658,20 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
                             : "Battle Result"}
                       </h3>
                     </div>
-                    <div className="rounded-full border border-white/10 bg-black/25 px-4 py-2 text-xs uppercase tracking-[0.22em] text-white/60">
-                      Pot ${Number(activeBattle.pot || 0).toFixed(2)}
+                    <div className="flex items-center gap-3">
+                      {activeBattle.phase === "waiting" && waitingBattleId && (
+                        <button
+                          type="button"
+                          onClick={handleCallBot}
+                          disabled={loading}
+                          className="rounded-2xl bg-white px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-slate-950 transition hover:scale-[1.02] disabled:opacity-50"
+                        >
+                          Call A Bot
+                        </button>
+                      )}
+                      <div className="rounded-full border border-white/10 bg-black/25 px-4 py-2 text-xs uppercase tracking-[0.22em] text-white/60">
+                        Pot ${Number(activeBattle.pot || 0).toFixed(2)}
+                      </div>
                     </div>
                   </div>
 

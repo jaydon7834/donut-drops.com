@@ -6,9 +6,31 @@ import { triggerGameEffect } from "../lib/gameEffects.js";
 
 const totalSteps = 10;
 
-function previewChickenMultiplier(step, surviveChance) {
+function getChickenHouseEdgeFactor(bet) {
+  const normalizedBet = Number(bet) || 1_000;
+
+  if (normalizedBet >= 100_000_000) {
+    return 0.6;
+  }
+
+  if (normalizedBet >= 10_000_000) {
+    return 0.65;
+  }
+
+  if (normalizedBet >= 1_000_000) {
+    return 0.7;
+  }
+
+  if (normalizedBet >= 100_000) {
+    return 0.75;
+  }
+
+  return 0.8;
+}
+
+function previewChickenMultiplier(step, surviveChance, bet) {
   const fairMultiplier = Math.pow(1 / surviveChance, step);
-  return Math.min(Number((fairMultiplier * 0.96).toFixed(2)), 100);
+  return Math.min(Number((fairMultiplier * getChickenHouseEdgeFactor(bet)).toFixed(2)), 100);
 }
 
 export function ChickenGame({ token, onBalanceChange, onBack }) {
@@ -23,11 +45,20 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
   const [cashingOut, setCashingOut] = useState(false);
   const [showDeathOverlay, setShowDeathOverlay] = useState(false);
   const [deathStage, setDeathStage] = useState("idle");
+  const liveBetAmount = parseBetInput(betInput || betAmount || 0);
 
   const survivalChance =
     game?.surviveChance || (risk === "low" ? 0.8 : risk === "high" ? 0.7 : 0.75);
   const survivalChanceLabel = `${Math.round(survivalChance * 100)}% per step`;
-  const nextMultiplier = previewChickenMultiplier((game?.step || 0) + 1, survivalChance);
+  const nextMultiplier = previewChickenMultiplier((game?.step || 0) + 1, survivalChance, game?.bet || liveBetAmount);
+  const riskMultiplierPreview = [
+    { key: "low", chance: 0.8 },
+    { key: "medium", chance: 0.75 },
+    { key: "high", chance: 0.7 }
+  ].map((entry) => ({
+    ...entry,
+    value: previewChickenMultiplier((game?.step || 0) + 1, entry.chance, game?.bet || liveBetAmount)
+  }));
   const chickenBottom = useMemo(() => 24 + (game?.step || 0) * 36, [game?.step]);
 
   useEffect(() => {
@@ -189,6 +220,21 @@ export function ChickenGame({ token, onBalanceChange, onBack }) {
                   >
                     {mode}
                   </button>
+                ))}
+              </div>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                {riskMultiplierPreview.map((entry) => (
+                  <div
+                    key={entry.key}
+                    className={`rounded-xl px-2 py-2 ${
+                      (game?.risk || risk) === entry.key
+                        ? "bg-emerald-500/20 text-emerald-200"
+                        : "bg-white/5 text-white/55"
+                    }`}
+                  >
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em]">{entry.key}</p>
+                    <p className="mt-1 text-sm font-black text-white">{entry.value.toFixed(2)}x</p>
+                  </div>
                 ))}
               </div>
             </div>
