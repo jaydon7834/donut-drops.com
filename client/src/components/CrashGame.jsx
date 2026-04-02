@@ -277,6 +277,7 @@ export function CrashGame({ token, user, onBalanceChange }) {
   const manualCashoutEntry =
     liveEntries.find((entry) => entry.entryId === stickyEntryRef.current) || liveEntries[0] || null;
   const canManualCashout = round?.status === "running" && Boolean(manualCashoutEntry);
+  const hasRoundExposure = activeBets.length > 0;
   const hasCrashExposure = liveEntries.length > 0 || queuedBets.length > 0;
   const autoCashoutEnabled = String(betSlip.autoCashout || "").trim().length > 0;
   const players = round?.players || [];
@@ -307,12 +308,12 @@ export function CrashGame({ token, user, onBalanceChange }) {
     ? loading === manualCashoutEntry?.entryId
       ? "Cashing Out..."
       : `Cash Out @ ${Number(round?.multiplier || 1).toFixed(2)}x`
-    : queuedBets.length > 0
+    : queuedBets.length > 0 || hasRoundExposure
       ? "Cash Out Armed"
-      : round?.status === "countdown"
-        ? "Waiting For Launch"
-        : round?.status === "crashed"
+      : round?.status === "crashed"
           ? "Round Crashed"
+          : round?.status === "countdown"
+            ? "Waiting For Launch"
           : hasCrashExposure
             ? "Bet Settled"
             : "No Live Bet";
@@ -441,8 +442,8 @@ export function CrashGame({ token, user, onBalanceChange }) {
           <p className="text-xs text-white/50">
             {canManualCashout
               ? `Ready at ${Number(round?.multiplier || 1).toFixed(2)}x`
-              : queuedBets.length > 0
-                ? "Your bet is queued. Cash out becomes available when the round starts."
+              : queuedBets.length > 0 || (hasRoundExposure && round?.status !== "crashed")
+                ? "Your slip is armed. Cash out becomes available as soon as the round is live."
                 : round?.status === "crashed"
                   ? "This round already crashed."
                   : autoCashoutEnabled

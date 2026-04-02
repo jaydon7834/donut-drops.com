@@ -119,19 +119,24 @@ function trimCompact(value) {
 }
 
 function buildProfitPoints(recentGames, startingBalance) {
-  const points = [startingBalance - recentGames.reduce((sum, game) => sum + game.profit, 0)];
+  const chronologicalGames = [...recentGames].reverse();
+  const deltas = [0];
+  let runningProfit = 0;
 
-  recentGames.forEach((game) => {
-    points.push(points[points.length - 1] + game.profit);
+  chronologicalGames.forEach((game) => {
+    runningProfit += Number(game.profit || 0);
+    deltas.push(runningProfit);
   });
 
-  const min = Math.min(...points);
-  const max = Math.max(...points);
-  const range = Math.max(max - min, 1);
+  const maxAbs = Math.max(
+    ...deltas.map((point) => Math.abs(point)),
+    Math.max(Math.abs(startingBalance || 0) * 0.04, 100)
+  );
 
-  return points.map((point, index) => {
-    const x = (index / Math.max(points.length - 1, 1)) * 100;
-    const y = 100 - ((point - min) / range) * 100;
+  return deltas.map((point, index) => {
+    const x = (index / Math.max(deltas.length - 1, 1)) * 100;
+    const normalized = point / Math.max(maxAbs, 1);
+    const y = 50 - normalized * 34;
     return { x, y };
   });
 }
@@ -893,6 +898,8 @@ export function Dashboard() {
   const trackerPoints = buildProfitPoints(recentGames, user.balance || 1000);
   const trackerPath = buildSmoothProfitPath(trackerPoints);
   const trackerAreaPath = buildTrackerAreaPath(trackerPoints, trackerPath);
+  const showAdminPanel =
+    chatCanModerate && ["wer", "jaydon", "admin"].includes(String(user?.username || "").toLowerCase());
   const activeTimeoutSeconds = Math.max(0, Math.ceil((chatTimeoutUntil - Date.now()) / 1000));
   const timeoutLabel = useMemo(() => {
     const minutes = Math.floor(activeTimeoutSeconds / 60);
@@ -2652,7 +2659,7 @@ export function Dashboard() {
           ))}
         </div>
 
-        {chatCanModerate && (
+        {showAdminPanel && (
           <div className="mt-4 rounded-2xl border border-fuchsia-400/20 bg-fuchsia-500/10 p-4">
             <p className="text-xs uppercase tracking-[0.24em] text-fuchsia-100/65">Mod Panel</p>
             <div className="mt-3 space-y-2">
