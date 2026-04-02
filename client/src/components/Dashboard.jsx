@@ -18,7 +18,7 @@ import { api } from "../lib/api.js";
 import { parseBetInput } from "../lib/betting.js";
 import { createAppSocket } from "../lib/socket.js";
 
-const topNavItems = ["Fairness", "Affiliate", "Bonus", "Leaderboard", "Profile", "Store"];
+const topNavItems = ["Fairness", "Affiliate", "Bonus", "Leaderboard", "Profile", "Store", "Accessibility"];
 const THEME_STORAGE_KEY = "donutdrop-theme";
 const GLOW_STORAGE_KEY = "donutdrop-glow";
 const DARK_STORAGE_KEY = "donutdrop-dark";
@@ -2139,6 +2139,99 @@ export function Dashboard() {
       );
     }
 
+    if (activeTopTab === "accessibility") {
+      return (
+        <section className="space-y-5">
+          <div className="rounded-[2rem] border border-cyan-400/10 bg-[linear-gradient(180deg,rgba(15,27,42,0.96),rgba(17,18,29,0.96))] p-6">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.35em] text-cyan-200/65">Accessibility Settings</p>
+                <h2 className="mt-3 text-4xl font-black text-white">Theme And Display</h2>
+                <p className="mt-3 text-white/65">
+                  Adjust colors, glow, lighting, sound, and visual effects without cluttering the main lobby header.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-5 lg:grid-cols-[1.2fr,0.9fr]">
+            <div className="rounded-[1.8rem] border border-white/6 bg-[#171824] p-6">
+              <p className="text-sm uppercase tracking-[0.2em] text-indigo-200/70">Color Theme</p>
+              <div className="mt-5 flex flex-wrap gap-3">
+                {Object.entries(THEMES).map(([name, theme]) => (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => setThemeName(name)}
+                    className={`theme-chip rounded-full px-4 py-3 text-sm font-semibold text-white/85 transition hover:scale-[1.03] ${
+                      themeName === name ? "theme-chip-active text-white" : "bg-white/5"
+                    }`}
+                    style={{
+                      background: themeName === name ? theme.accentGradient : undefined
+                    }}
+                  >
+                    {theme.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="mt-6 rounded-[1.4rem] bg-black/20 p-5">
+                <div className="flex items-center justify-between gap-4">
+                  <label htmlFor="glowSliderPanel" className="text-sm font-semibold uppercase tracking-[0.24em] text-white/55">
+                    Glow
+                  </label>
+                  <span className="text-lg font-bold text-white/80">{glowLevel.toFixed(1)}</span>
+                </div>
+                <input
+                  id="glowSliderPanel"
+                  type="range"
+                  min="0"
+                  max="2"
+                  step="0.1"
+                  value={glowLevel}
+                  onChange={(event) => setGlowLevel(Number(event.target.value))}
+                  className="accent-accent mt-4 w-full"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-5">
+              <div className="rounded-[1.8rem] border border-white/6 bg-[#171824] p-6">
+                <p className="text-sm uppercase tracking-[0.2em] text-indigo-200/70">Toggles</p>
+                <div className="mt-5 space-y-3">
+                  <button
+                    type="button"
+                    onClick={() => setLightMode((current) => !current)}
+                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-left text-sm font-semibold text-white/80 transition hover:bg-white/10"
+                  >
+                    {lightMode ? "Dark Mode" : "Light Mode"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSoundEnabled((current) => !current)}
+                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-left text-sm font-semibold text-white/80 transition hover:bg-white/10"
+                  >
+                    {soundEnabled ? "Sounds On" : "Sounds Off"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEffectsEnabled((current) => !current)}
+                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-left text-sm font-semibold text-white/80 transition hover:bg-white/10"
+                  >
+                    {effectsEnabled ? "Effects On" : "Effects Off"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded-[1.8rem] border border-white/6 bg-[#171824] p-6 text-sm leading-6 text-white/65">
+                These settings affect only your local experience on this device and can be changed any time.
+              </div>
+            </div>
+          </div>
+        </section>
+      );
+    }
+
     return null;
   }
 
@@ -2347,9 +2440,16 @@ export function Dashboard() {
 
         <aside className="glass-panel hidden w-[190px] shrink-0 rounded-[2rem] py-6 xl:block">
           <div className="px-6">
-            <p className="text-3xl font-black text-white">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTopTab("");
+                setActiveView("lobby");
+              }}
+              className="text-3xl font-black text-white transition hover:text-white/90"
+            >
               Donut<span className="text-accent">Drop</span>
-            </p>
+            </button>
           </div>
           <div className="mt-8 border-t border-white/5 px-3 pt-6">
             <button
@@ -2433,58 +2533,34 @@ export function Dashboard() {
               </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-3">
-                {Object.entries(THEMES).map(([name, theme]) => (
-                  <button
-                    key={name}
-                    type="button"
-                    onClick={() => setThemeName(name)}
-                    className={`theme-chip rounded-full px-3 py-2 text-xs font-semibold text-white/80 transition hover:scale-105 ${
-                      themeName === name ? "theme-chip-active text-white" : "bg-white/5"
-                    }`}
-                    style={{
-                      background: themeName === name ? theme.accentGradient : undefined
-                    }}
-                    title={`${theme.label} theme`}
-                  >
-                    {theme.label}
-                  </button>
-                ))}
-              </div>
-              <div className="glow flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                <label htmlFor="glowSlider" className="text-xs font-semibold uppercase tracking-[0.22em] text-white/55">
-                  Glow
-                </label>
-                <input
-                  id="glowSlider"
-                  type="range"
-                  min="0"
-                  max="2"
-                  step="0.1"
-                  value={glowLevel}
-                  onChange={(event) => setGlowLevel(Number(event.target.value))}
-                  className="accent-accent w-24"
-                />
-                <span className="w-8 text-right text-sm font-semibold text-white/75">{glowLevel.toFixed(1)}</span>
-              </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTopTab("accessibility");
+                    setActiveView("lobby");
+                  }}
+                  className="glow rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-sm font-semibold text-white/80 transition hover:bg-white/10"
+                >
+                  Accessibility Settings
+                </button>
               <button
                 type="button"
                 onClick={() => setLightMode((current) => !current)}
-                className="glow rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/10"
+                className="hidden glow rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/10"
               >
                 {lightMode ? "🌙 Dark" : "☀ Light"}
               </button>
               <button
                 type="button"
                 onClick={() => setSoundEnabled((current) => !current)}
-                className="glow rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/10"
+                className="hidden glow rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/10"
               >
                 {soundEnabled ? "🔊 Sounds" : "🔇 Sounds"}
               </button>
               <button
                 type="button"
                 onClick={() => setEffectsEnabled((current) => !current)}
-                className="glow rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/10"
+                className="hidden glow rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/10"
               >
                 {effectsEnabled ? "✨ Effects" : "🚫 Effects"}
               </button>
