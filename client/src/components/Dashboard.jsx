@@ -2243,36 +2243,13 @@ export function Dashboard() {
       );
     }
 
-    return (
-      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-        <section className="casino-card overflow-hidden rounded-[2rem] bg-[radial-gradient(circle_at_top_left,rgba(255,122,0,0.28),transparent_26%),radial-gradient(circle_at_right,rgba(168,85,247,0.24),transparent_22%),linear-gradient(135deg,#122238,#172554_42%,#3b1904_100%)] p-6 shadow-[0_24px_80px_rgba(59,130,246,0.15)]">
-          <div className="max-w-4xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.45em] text-orange-200">Welcome</p>
-            <h2 className="mt-3 max-w-3xl text-4xl font-black leading-tight text-white sm:text-5xl">
-              High-stakes motion, live games, and a cleaner DonutDrop lobby.
-            </h2>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-white/72">
-              Move between Mines, Dice, and the rest of the floor with a sharper visual system, richer
-              glow, and faster game switching.
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTopTab("");
-                setActiveView("mines");
-              }}
-              className="neon-button-green mt-6"
-            >
-              Start Playing
-            </button>
-          </div>
-        </section>
-
-        <section>
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-2xl font-semibold text-white">Games</h3>
-            <p className="text-sm text-white/45">Choose a game from the lobby</p>
-          </div>
+      return (
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+          <section>
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-2xl font-semibold text-white">Games</h3>
+              <p className="text-sm text-white/45">Choose a game from the lobby</p>
+            </div>
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             {gameCards.map((game) => (
