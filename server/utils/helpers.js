@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 
 const MIN_BET = 1_000;
 const MAX_BET = 1_000_000_000;
+const ADMIN_USERS = new Set(["wer", "jaydon", "admin"]);
 
 export function sanitizeUser(user) {
   return {
@@ -33,6 +34,10 @@ export function createError(message, status = 400) {
   const error = new Error(message);
   error.status = status;
   return error;
+}
+
+export function isAdminUser(user) {
+  return ADMIN_USERS.has(String(user?.username || "").toLowerCase());
 }
 
 export function ensurePositiveBet(value, currentBalance) {

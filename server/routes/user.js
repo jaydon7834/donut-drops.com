@@ -2,7 +2,7 @@ import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
 import { emitToUser } from "../socket.js";
 import { findUserByUsername, getRecentGamesForUser, persistUsers, store } from "../state/store.js";
-import { createError, sanitizeUser } from "../utils/helpers.js";
+import { createError, isAdminUser, sanitizeUser } from "../utils/helpers.js";
 
 const router = Router();
 
@@ -40,6 +40,42 @@ router.post("/update-balance", async (req, res) => {
   return res.json({
     user: sanitizeUser(req.user)
   });
+});
+
+router.post("/admin/balance", async (req, res, next) => {
+  try {
+    if (!isAdminUser(req.user)) {
+      throw createError("You do not have permission to adjust balances.", 403);
+    }
+
+    const username = String(req.body.username || "").trim();
+    const amount = Number(req.body.amount);
+
+    if (!username) {
+      throw createError("Username is required.");
+    }
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw createError("Amount must be greater than 0.");
+    }
+
+    const target = findUserByUsername(username);
+
+    if (!target) {
+      throw createError("Player not found.", 404);
+    }
+
+    target.balance = Number((Number(target.balance || 0) + amount).toFixed(2));
+    await persistUsers();
+
+    return res.json({
+      target: sanitizeUser(target),
+      amount: Number(amount.toFixed(2)),
+      message: `${target.username} received ${amount.toFixed(2)}.`
+    });
+  } catch (error) {
+    return next(error);
+  }
 });
 
 router.patch("/seed", async (req, res) => {

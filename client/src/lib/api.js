@@ -60,6 +60,24 @@ export const api = {
       },
       token
     ),
+  getAdminPromoCodes: (token) => request("/wallet/promo/admin", {}, token),
+  createAdminPromoCode: (token, payload) =>
+    request(
+      "/wallet/promo/admin",
+      {
+        method: "POST",
+        body: JSON.stringify(payload)
+      },
+      token
+    ),
+  deleteAdminPromoCode: (token, promoId) =>
+    request(
+      `/wallet/promo/admin/${promoId}`,
+      {
+        method: "DELETE"
+      },
+      token
+    ),
   createCryptoOrder: (token, payload) =>
     request(
       "/wallet/crypto/order",
@@ -111,6 +129,15 @@ export const api = {
       {
         method: "POST",
         body: JSON.stringify({ balance })
+      },
+      token
+    ),
+  adminAdjustBalance: (token, payload) =>
+    request(
+      "/user/admin/balance",
+      {
+        method: "POST",
+        body: JSON.stringify(payload)
       },
       token
     ),

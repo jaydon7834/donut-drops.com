@@ -12,6 +12,10 @@ export const store = {
   games: new Map(),
   pendingDeposits: new Map(),
   cryptoOrders: new Map(),
+  adminConfig: {
+    seededPromo: false,
+    promoCodes: []
+  },
   houseStats: {
     totalBets: 0,
     totalPayouts: 0,
@@ -57,54 +61,78 @@ const __dirname = path.dirname(__filename);
 export const USERS_FILE = process.env.USERS_FILE
   ? path.resolve(process.env.USERS_FILE)
   : path.join(__dirname, "..", "users.json");
+export const CONFIG_FILE = process.env.CONFIG_FILE
+  ? path.resolve(process.env.CONFIG_FILE)
+  : path.join(path.dirname(USERS_FILE), "config.json");
 
 async function ensureUsersDirectory() {
   await fs.mkdir(path.dirname(USERS_FILE), { recursive: true });
 }
 
 export async function initializeStore() {
+  await ensureUsersDirectory();
+
   try {
-    await ensureUsersDirectory();
     const raw = await fs.readFile(USERS_FILE, "utf8");
     const parsed = JSON.parse(raw);
 
-    if (!Array.isArray(parsed)) {
-      return;
-    }
-
-    parsed.forEach((user) => {
-      store.users.set(user.id, {
-        ...user,
-        createdAt: user.createdAt || new Date().toISOString(),
-        affiliateCode: user.affiliateCode || String(user.username || "").toUpperCase(),
-        affiliateCodeUsed: user.affiliateCodeUsed || "",
-        affiliateEarned: Number(user.affiliateEarned || 0),
-        affiliateAvailable: Number(user.affiliateAvailable || 0),
-        affiliateRewardGranted: Boolean(user.affiliateRewardGranted),
-        redeemedPromoHashes: Array.isArray(user.redeemedPromoHashes)
-          ? user.redeemedPromoHashes
-          : [],
-        stats: {
-          winStreak: user.stats?.winStreak || 0,
-          totalWagered: user.stats?.totalWagered || 0,
-          biggestWin: user.stats?.biggestWin || 0
-        }
+    if (Array.isArray(parsed)) {
+      parsed.forEach((user) => {
+        store.users.set(user.id, {
+          ...user,
+          createdAt: user.createdAt || new Date().toISOString(),
+          affiliateCode: user.affiliateCode || String(user.username || "").toUpperCase(),
+          affiliateCodeUsed: user.affiliateCodeUsed || "",
+          affiliateEarned: Number(user.affiliateEarned || 0),
+          affiliateAvailable: Number(user.affiliateAvailable || 0),
+          affiliateRewardGranted: Boolean(user.affiliateRewardGranted),
+          redeemedPromoHashes: Array.isArray(user.redeemedPromoHashes)
+            ? user.redeemedPromoHashes
+            : [],
+          stats: {
+            winStreak: user.stats?.winStreak || 0,
+            totalWagered: user.stats?.totalWagered || 0,
+            biggestWin: user.stats?.biggestWin || 0
+          }
+        });
       });
-    });
 
-    const highestUserId = parsed.reduce((max, user) => {
-      const match = String(user.id || "").match(/^user_(\d+)$/);
-      return match ? Math.max(max, Number(match[1])) : max;
-    }, 0);
+      const highestUserId = parsed.reduce((max, user) => {
+        const match = String(user.id || "").match(/^user_(\d+)$/);
+        return match ? Math.max(max, Number(match[1])) : max;
+      }, 0);
 
-    userSequence = highestUserId + 1;
+      userSequence = highestUserId + 1;
+    }
   } catch (error) {
-    if (error.code === "ENOENT") {
-      await persistUsers();
-      return;
+    if (error.code !== "ENOENT") {
+      throw error;
     }
 
-    throw error;
+    await persistUsers();
+  }
+
+  try {
+    const raw = await fs.readFile(CONFIG_FILE, "utf8");
+    const parsed = JSON.parse(raw);
+    store.adminConfig = {
+      seededPromo: Boolean(parsed?.seededPromo),
+      promoCodes: Array.isArray(parsed?.promoCodes)
+        ? parsed.promoCodes.map((entry) => ({
+            id: entry.id,
+            code: String(entry.code || ""),
+            codeHash: String(entry.codeHash || ""),
+            reward: Number(entry.reward || 0),
+            createdAt: entry.createdAt || new Date().toISOString()
+          }))
+        : []
+    };
+  } catch (error) {
+    if (error.code !== "ENOENT") {
+      throw error;
+    }
+
+    await persistConfig();
   }
 }
 
@@ -113,6 +141,22 @@ export async function persistUsers() {
   await fs.writeFile(
     USERS_FILE,
     JSON.stringify(Array.from(store.users.values()), null, 2),
+    "utf8"
+  );
+}
+
+export async function persistConfig() {
+  await ensureUsersDirectory();
+  await fs.writeFile(
+    CONFIG_FILE,
+    JSON.stringify(
+      {
+        seededPromo: store.adminConfig.seededPromo,
+        promoCodes: store.adminConfig.promoCodes
+      },
+      null,
+      2
+    ),
     "utf8"
   );
 }

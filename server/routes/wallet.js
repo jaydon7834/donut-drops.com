@@ -1,14 +1,15 @@
 import crypto from "crypto";
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
-import { persistUsers, store } from "../state/store.js";
-import { createError, sanitizeUser } from "../utils/helpers.js";
+import { persistConfig, persistUsers, store } from "../state/store.js";
+import { createError, isAdminUser, sanitizeUser } from "../utils/helpers.js";
 
 const router = Router();
 const BOT_SECRET = process.env.MINECRAFT_BOT_SECRET || "donutdrop-bot-secret";
 const CRYPTO_CONFIRM_SECRET = process.env.CRYPTO_CONFIRM_SECRET || BOT_SECRET;
 const MINECRAFT_DEPOSIT_BOT_NAME = "a5ew";
-const PROMO_CODE_HASH =
+const PROMO_SEED_CODE = process.env.PROMO_CODE || "werisdaddy";
+const PROMO_SEED_HASH =
   process.env.PROMO_CODE_HASH ||
   "33b05e2bd7b899d1ff433ec7a5002ac2b93974268cca79795aed4784c1c02d63";
 const PROMO_REWARD = 1_000_000_000;
@@ -56,6 +57,31 @@ function roundToDecimals(value, decimals) {
 
 function hashPromoCode(value) {
   return crypto.createHash("sha256").update(String(value || "").trim().toLowerCase()).digest("hex");
+}
+
+function ensurePromoSeed() {
+  if (store.adminConfig.seededPromo) {
+    return false;
+  }
+
+  store.adminConfig.promoCodes.push({
+    id: "promo_seed_1",
+    code: PROMO_SEED_CODE,
+    codeHash: PROMO_SEED_HASH,
+    reward: PROMO_REWARD,
+    createdAt: new Date().toISOString()
+  });
+  store.adminConfig.seededPromo = true;
+  return true;
+}
+
+function createPromoView(entry) {
+  return {
+    id: entry.id,
+    code: entry.code,
+    reward: entry.reward,
+    createdAt: entry.createdAt
+  };
 }
 
 function calculateDonutCredit(usdAmount) {
@@ -133,6 +159,10 @@ router.use(authMiddleware);
 
 router.post("/promo/redeem", async (req, res, next) => {
   try {
+    if (ensurePromoSeed()) {
+      await persistConfig();
+    }
+
     const code = String(req.body.code || "").trim();
 
     if (!code) {
@@ -143,22 +173,115 @@ router.post("/promo/redeem", async (req, res, next) => {
       ? req.user.redeemedPromoHashes
       : [];
 
-    if (req.user.redeemedPromoHashes.includes(PROMO_CODE_HASH)) {
-      throw createError("This promo code has already been claimed.");
-    }
+    const codeHash = hashPromoCode(code);
+    const promo = store.adminConfig.promoCodes.find((entry) => entry.codeHash === codeHash);
 
-    if (hashPromoCode(code) !== PROMO_CODE_HASH) {
+    if (!promo) {
       throw createError("Invalid promo code.");
     }
 
-    req.user.redeemedPromoHashes.push(PROMO_CODE_HASH);
-    req.user.balance = Number((req.user.balance + PROMO_REWARD).toFixed(2));
+    if (req.user.redeemedPromoHashes.includes(codeHash)) {
+      throw createError("This promo code has already been claimed.");
+    }
+
+    req.user.redeemedPromoHashes.push(codeHash);
+    req.user.balance = Number((req.user.balance + promo.reward).toFixed(2));
     await persistUsers();
 
     return res.json({
-      amount: PROMO_REWARD,
+      amount: promo.reward,
       user: sanitizeUser(req.user),
       message: "Promo code redeemed."
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.get("/promo/admin", async (req, res, next) => {
+  try {
+    if (ensurePromoSeed()) {
+      await persistConfig();
+    }
+
+    if (!isAdminUser(req.user)) {
+      throw createError("You do not have permission to manage promo codes.", 403);
+    }
+
+    return res.json({
+      promoCodes: store.adminConfig.promoCodes.map(createPromoView)
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post("/promo/admin", async (req, res, next) => {
+  try {
+    if (ensurePromoSeed()) {
+      await persistConfig();
+    }
+
+    if (!isAdminUser(req.user)) {
+      throw createError("You do not have permission to manage promo codes.", 403);
+    }
+
+    const code = String(req.body.code || "").trim();
+    const reward = Number(req.body.reward);
+
+    if (!code) {
+      throw createError("Promo code is required.");
+    }
+
+    if (!Number.isFinite(reward) || reward <= 0) {
+      throw createError("Reward must be greater than 0.");
+    }
+
+    const codeHash = hashPromoCode(code);
+    if (store.adminConfig.promoCodes.some((entry) => entry.codeHash === codeHash)) {
+      throw createError("That promo code already exists.");
+    }
+
+    store.adminConfig.promoCodes.unshift({
+      id: `promo_${Date.now()}_${crypto.randomBytes(3).toString("hex")}`,
+      code,
+      codeHash,
+      reward: Number(reward.toFixed(2)),
+      createdAt: new Date().toISOString()
+    });
+    await persistConfig();
+
+    return res.status(201).json({
+      promoCodes: store.adminConfig.promoCodes.map(createPromoView)
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.delete("/promo/admin/:promoId", async (req, res, next) => {
+  try {
+    if (ensurePromoSeed()) {
+      await persistConfig();
+    }
+
+    if (!isAdminUser(req.user)) {
+      throw createError("You do not have permission to manage promo codes.", 403);
+    }
+
+    const beforeCount = store.adminConfig.promoCodes.length;
+    store.adminConfig.promoCodes = store.adminConfig.promoCodes.filter(
+      (entry) => entry.id !== String(req.params.promoId || "")
+    );
+
+    if (store.adminConfig.promoCodes.length === beforeCount) {
+      throw createError("Promo code not found.", 404);
+    }
+
+    await persistConfig();
+
+    return res.json({
+      promoCodes: store.adminConfig.promoCodes.map(createPromoView)
     });
   } catch (error) {
     return next(error);

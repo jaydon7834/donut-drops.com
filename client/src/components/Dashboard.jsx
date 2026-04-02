@@ -217,6 +217,9 @@ export function Dashboard() {
   const [customWords, setCustomWords] = useState([]);
   const [modMessage, setModMessage] = useState("");
   const [moderatingAction, setModeratingAction] = useState("");
+  const [adminBalanceAmount, setAdminBalanceAmount] = useState("1m");
+  const [adminPromoForm, setAdminPromoForm] = useState({ code: "", reward: "1b" });
+  const [adminPromoCodes, setAdminPromoCodes] = useState([]);
   const [players, setPlayers] = useState([]);
   const [tipForm, setTipForm] = useState({ username: "", amount: "100" });
   const [tipMessage, setTipMessage] = useState("");
@@ -297,6 +300,8 @@ export function Dashboard() {
   const xpProgress = Math.min((xp / Math.max(xpRequired, 1)) * 100, 100);
   const nextLevelReward = (level + 1) * 50_000;
   const currentTheme = THEMES[themeName] || THEMES.green;
+  const showAdminPanel =
+    chatCanModerate && ["wer", "jaydon", "admin"].includes(String(user?.username || "").toLowerCase());
 
   useEffect(() => {
     if (typeof document === "undefined") {
@@ -623,6 +628,36 @@ export function Dashboard() {
   useEffect(() => {
     let cancelled = false;
 
+    async function loadAdminPromoCodes() {
+      if (!token || !showAdminPanel) {
+        if (!cancelled) {
+          setAdminPromoCodes([]);
+        }
+        return;
+      }
+
+      try {
+        const data = await api.getAdminPromoCodes(token);
+        if (!cancelled) {
+          setAdminPromoCodes(data.promoCodes || []);
+        }
+      } catch {
+        if (!cancelled) {
+          setAdminPromoCodes([]);
+        }
+      }
+    }
+
+    loadAdminPromoCodes();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [showAdminPanel, token]);
+
+  useEffect(() => {
+    let cancelled = false;
+
     async function loadPlayers() {
       if (!token) {
         return;
@@ -774,6 +809,72 @@ export function Dashboard() {
     }
   }
 
+  async function handleAdminGiveBalance() {
+    if (!modForm.username.trim()) {
+      setModMessage("Enter a username first.");
+      return;
+    }
+
+    setModeratingAction("give-balance");
+    setModMessage("");
+
+    try {
+      const amount = parseBetInput(adminBalanceAmount);
+      const data = await api.adminAdjustBalance(token, {
+        username: modForm.username.trim(),
+        amount
+      });
+      setModMessage(`Added ${formatMoney(data.amount)} to ${data.target.username}.`);
+      if (String(data.target.username).toLowerCase() === String(user?.username || "").toLowerCase()) {
+        setUser(data.target);
+      }
+    } catch (error) {
+      setModMessage(error.message);
+    } finally {
+      setModeratingAction("");
+    }
+  }
+
+  async function handleCreatePromoCode() {
+    if (!adminPromoForm.code.trim()) {
+      setModMessage("Enter a promo code first.");
+      return;
+    }
+
+    setModeratingAction("promo-create");
+    setModMessage("");
+
+    try {
+      const reward = parseBetInput(adminPromoForm.reward);
+      const data = await api.createAdminPromoCode(token, {
+        code: adminPromoForm.code.trim(),
+        reward
+      });
+      setAdminPromoCodes(data.promoCodes || []);
+      setAdminPromoForm({ code: "", reward: adminPromoForm.reward });
+      setModMessage("Promo code added.");
+    } catch (error) {
+      setModMessage(error.message);
+    } finally {
+      setModeratingAction("");
+    }
+  }
+
+  async function handleDeletePromoCode(promoId) {
+    setModeratingAction(`promo-delete-${promoId}`);
+    setModMessage("");
+
+    try {
+      const data = await api.deleteAdminPromoCode(token, promoId);
+      setAdminPromoCodes(data.promoCodes || []);
+      setModMessage("Promo code deleted.");
+    } catch (error) {
+      setModMessage(error.message);
+    } finally {
+      setModeratingAction("");
+    }
+  }
+
   async function handleTip() {
     setTipping(true);
     setTipMessage("");
@@ -898,8 +999,6 @@ export function Dashboard() {
   const trackerPoints = buildProfitPoints(recentGames, user.balance || 1000);
   const trackerPath = buildSmoothProfitPath(trackerPoints);
   const trackerAreaPath = buildTrackerAreaPath(trackerPoints, trackerPath);
-  const showAdminPanel =
-    chatCanModerate && ["wer", "jaydon", "admin"].includes(String(user?.username || "").toLowerCase());
   const activeTimeoutSeconds = Math.max(0, Math.ceil((chatTimeoutUntil - Date.now()) / 1000));
   const timeoutLabel = useMemo(() => {
     const minutes = Math.floor(activeTimeoutSeconds / 60);
@@ -2727,6 +2826,73 @@ export function Dashboard() {
               >
                 Add Banned Word
               </button>
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                <p className="text-xs uppercase tracking-[0.22em] text-white/45">Grant Balance</p>
+                <input
+                  value={adminBalanceAmount}
+                  onChange={(event) => setAdminBalanceAmount(event.target.value)}
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none"
+                  placeholder="1m"
+                />
+                <button
+                  type="button"
+                  onClick={handleAdminGiveBalance}
+                  disabled={Boolean(moderatingAction)}
+                  className="mt-2 w-full rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-950 disabled:opacity-60"
+                >
+                  Give Balance
+                </button>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                <p className="text-xs uppercase tracking-[0.22em] text-white/45">Bonus Codes</p>
+                <input
+                  value={adminPromoForm.code}
+                  onChange={(event) =>
+                    setAdminPromoForm((current) => ({ ...current, code: event.target.value }))
+                  }
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none"
+                  placeholder="Promo code"
+                />
+                <input
+                  value={adminPromoForm.reward}
+                  onChange={(event) =>
+                    setAdminPromoForm((current) => ({ ...current, reward: event.target.value }))
+                  }
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none"
+                  placeholder="1b"
+                />
+                <button
+                  type="button"
+                  onClick={handleCreatePromoCode}
+                  disabled={Boolean(moderatingAction)}
+                  className="mt-2 w-full rounded-2xl bg-sky-400 px-4 py-3 text-sm font-semibold text-slate-950 disabled:opacity-60"
+                >
+                  Add Promo Code
+                </button>
+                {adminPromoCodes.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {adminPromoCodes.map((promo) => (
+                      <div
+                        key={promo.id}
+                        className="flex items-center justify-between rounded-2xl bg-white/5 px-3 py-2 text-xs text-white/80"
+                      >
+                        <div>
+                          <p className="font-semibold text-white">{promo.code}</p>
+                          <p className="text-white/45">{formatMoney(promo.reward)}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleDeletePromoCode(promo.id)}
+                          disabled={Boolean(moderatingAction)}
+                          className="rounded-xl bg-rose-500/80 px-3 py-2 font-semibold text-white disabled:opacity-60"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               {customWords.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {customWords.map((word) => (
