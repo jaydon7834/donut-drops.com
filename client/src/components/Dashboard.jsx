@@ -2533,16 +2533,6 @@ export function Dashboard() {
               </div>
 
             <div className="flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveTopTab("accessibility");
-                    setActiveView("lobby");
-                  }}
-                  className="glow rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-sm font-semibold text-white/80 transition hover:bg-white/10"
-                >
-                  Accessibility Settings
-                </button>
               <button
                 type="button"
                 onClick={() => setLightMode((current) => !current)}
