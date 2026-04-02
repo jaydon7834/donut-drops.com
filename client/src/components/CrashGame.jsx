@@ -317,6 +317,15 @@ export function CrashGame({ token, user, onBalanceChange }) {
           : hasCrashExposure
             ? "Bet Settled"
             : "No Live Bet";
+  const actionStatusMessage = canManualCashout
+    ? `Ready at ${Number(round?.multiplier || 1).toFixed(2)}x`
+    : queuedBets.length > 0 || (hasRoundExposure && round?.status !== "crashed")
+      ? "Your slip is armed. Cash out becomes available as soon as the round is live."
+      : round?.status === "crashed"
+        ? "This round already crashed."
+        : autoCashoutEnabled
+          ? "Auto cashout is armed, but you can still cash out manually before it hits."
+          : "Leave auto cashout blank if you want to play manual only.";
 
   useEffect(() => {
     if (manualCashoutEntry?.entryId) {
@@ -422,34 +431,28 @@ export function CrashGame({ token, user, onBalanceChange }) {
             />
           </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              if (manualCashoutEntry) {
-                handleCashout(manualCashoutEntry.entryId);
-              }
-            }}
-            disabled={!canManualCashout || (loading !== "" && loading !== manualCashoutEntry?.entryId)}
-            className={`w-full rounded-xl px-4 py-3 text-sm font-black transition ${
-              canManualCashout
-                ? "bg-gradient-to-r from-emerald-400 to-lime-300 text-slate-950 hover:scale-[1.01]"
-                : "bg-white/10 text-white/45"
-            } disabled:cursor-not-allowed disabled:opacity-100`}
-          >
-            {cashoutLabel}
-          </button>
+          <div className="rounded-2xl border border-white/10 bg-black/10 p-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (manualCashoutEntry) {
+                  handleCashout(manualCashoutEntry.entryId);
+                }
+              }}
+              disabled={!canManualCashout || (loading !== "" && loading !== manualCashoutEntry?.entryId)}
+              className={`min-h-[3.5rem] w-full rounded-xl px-4 py-3 text-sm font-black transition ${
+                canManualCashout
+                  ? "bg-gradient-to-r from-emerald-400 to-lime-300 text-slate-950 hover:scale-[1.01]"
+                  : "bg-white/10 text-white/45"
+              } disabled:cursor-not-allowed disabled:opacity-100`}
+            >
+              {cashoutLabel}
+            </button>
 
-          <p className="text-xs text-white/50">
-            {canManualCashout
-              ? `Ready at ${Number(round?.multiplier || 1).toFixed(2)}x`
-              : queuedBets.length > 0 || (hasRoundExposure && round?.status !== "crashed")
-                ? "Your slip is armed. Cash out becomes available as soon as the round is live."
-                : round?.status === "crashed"
-                  ? "This round already crashed."
-                  : autoCashoutEnabled
-                    ? "Auto cashout is armed, but you can still cash out manually before it hits."
-                    : "Leave auto cashout blank if you want to play manual only."}
-          </p>
+            <p className="mt-2 min-h-[2.5rem] text-xs leading-5 text-white/50">
+              {actionStatusMessage}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -509,7 +512,9 @@ export function CrashGame({ token, user, onBalanceChange }) {
         </div>
       ) : null}
 
-      {feedback ? <p className="text-sm text-white/70">{feedback}</p> : null}
+      <div className="min-h-[1.25rem]">
+        {feedback ? <p className="text-sm text-white/70">{feedback}</p> : null}
+      </div>
     </div>
   );
 
