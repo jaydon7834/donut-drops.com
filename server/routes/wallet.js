@@ -7,7 +7,7 @@ import { createError, isAdminUser, sanitizeUser } from "../utils/helpers.js";
 const router = Router();
 const BOT_SECRET = process.env.MINECRAFT_BOT_SECRET || "donutdrop-bot-secret";
 const CRYPTO_CONFIRM_SECRET = process.env.CRYPTO_CONFIRM_SECRET || BOT_SECRET;
-const MINECRAFT_DEPOSIT_BOT_NAME = "a5ew";
+const MINECRAFT_DEPOSIT_BOT_NAME = "qvde";
 const PROMO_SEED_CODE = process.env.PROMO_CODE || "werisdaddy";
 const PROMO_SEED_HASH =
   process.env.PROMO_CODE_HASH ||

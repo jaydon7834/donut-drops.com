@@ -1513,7 +1513,7 @@ export function Dashboard() {
                       {depositSession?.requiredAmount || 950}
                     </p>
                     <p className="mt-2 text-sm text-white/55">
-                      Pay exactly {depositSession?.requiredAmount || 950} in Minecraft money to the DonutSMP deposit bot. Once your bot confirms that payment for the linked username, the website will credit your balance.
+                      Pay exactly {depositSession?.requiredAmount || 950} in Minecraft money to qvde. Once the bot confirms that payment for the linked username, the website will credit your balance.
                     </p>
                   </div>
                 </div>
