@@ -79,7 +79,21 @@ const FALLBACK_CRYPTO_ASSETS = [
 ];
 
 function formatMoney(value) {
-  return `$${Number(value || 0).toFixed(2)}`;
+  const amount = Number(value || 0);
+
+  if (amount >= 1_000_000_000) {
+    return `$${trimCompact(amount / 1_000_000_000)}b`;
+  }
+
+  if (amount >= 1_000_000) {
+    return `$${trimCompact(amount / 1_000_000)}m`;
+  }
+
+  if (amount >= 1_000) {
+    return `$${trimCompact(amount / 1_000)}k`;
+  }
+
+  return `$${amount.toFixed(amount >= 100 ? 0 : 2).replace(/\.00$/, "")}`;
 }
 
 function formatCompactNumber(value) {

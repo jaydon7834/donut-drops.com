@@ -1,5 +1,27 @@
 import { motion } from "framer-motion";
 
+function formatWalletAmount(value) {
+  const amount = Number(value || 0);
+
+  if (amount >= 1_000_000_000) {
+    return `${trimCompact(amount / 1_000_000_000)}b`;
+  }
+
+  if (amount >= 1_000_000) {
+    return `${trimCompact(amount / 1_000_000)}m`;
+  }
+
+  if (amount >= 1_000) {
+    return `${trimCompact(amount / 1_000)}k`;
+  }
+
+  return amount.toFixed(amount >= 100 ? 0 : 2).replace(/\.00$/, "");
+}
+
+function trimCompact(value) {
+  return value.toFixed(value >= 10 ? 0 : 1).replace(/\.0$/, "");
+}
+
 export function Header({ user, activeGame, setActiveGame, onLogout }) {
   return (
     <motion.header
@@ -15,7 +37,7 @@ export function Header({ user, activeGame, setActiveGame, onLogout }) {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="rounded-2xl bg-white/5 px-4 py-3">
           <p className="text-xs uppercase tracking-[0.3em] text-white/45">Wallet</p>
-          <p className="mt-1 text-xl font-semibold text-mint">${user.balance?.toFixed(2)}</p>
+          <p className="mt-1 text-xl font-semibold text-mint">${formatWalletAmount(user.balance)}</p>
         </div>
 
         <div className="flex rounded-full bg-white/5 p-1">

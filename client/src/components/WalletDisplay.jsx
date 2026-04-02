@@ -1,6 +1,28 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 
+function formatWalletAmount(value) {
+  const amount = Number(value || 0);
+
+  if (amount >= 1_000_000_000) {
+    return `${trimCompact(amount / 1_000_000_000)}b`;
+  }
+
+  if (amount >= 1_000_000) {
+    return `${trimCompact(amount / 1_000_000)}m`;
+  }
+
+  if (amount >= 1_000) {
+    return `${trimCompact(amount / 1_000)}k`;
+  }
+
+  return amount.toFixed(amount >= 100 ? 0 : 2).replace(/\.00$/, "");
+}
+
+function trimCompact(value) {
+  return value.toFixed(value >= 10 ? 0 : 1).replace(/\.0$/, "");
+}
+
 export function WalletDisplay({ balance }) {
   const previousBalance = useRef(balance || 0);
   const [flash, setFlash] = useState("neutral");
@@ -37,7 +59,7 @@ export function WalletDisplay({ balance }) {
           flash === "win" ? "text-emerald-300" : flash === "loss" ? "text-rose-300" : "text-mint"
         }`}
       >
-        ${Number(balance || 0).toFixed(2)}
+        ${formatWalletAmount(balance)}
       </motion.p>
     </motion.div>
   );

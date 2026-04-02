@@ -1,3 +1,25 @@
+function formatWalletAmount(value) {
+  const amount = Number(value || 0);
+
+  if (amount >= 1_000_000_000) {
+    return `${trimCompact(amount / 1_000_000_000)}b`;
+  }
+
+  if (amount >= 1_000_000) {
+    return `${trimCompact(amount / 1_000_000)}m`;
+  }
+
+  if (amount >= 1_000) {
+    return `${trimCompact(amount / 1_000)}k`;
+  }
+
+  return amount.toFixed(amount >= 100 ? 0 : 2).replace(/\.00$/, "");
+}
+
+function trimCompact(value) {
+  return value.toFixed(value >= 10 ? 0 : 1).replace(/\.0$/, "");
+}
+
 export function Sidebar({ user, recentGames, clientSeed, setClientSeed, onSaveSeed, savingSeed }) {
   const stats = {
     winStreak: user.stats?.winStreak || 0,
@@ -14,7 +36,7 @@ export function Sidebar({ user, recentGames, clientSeed, setClientSeed, onSaveSe
         <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
           <div className="rounded-2xl bg-white/5 p-4">
             <p className="text-white/45">Balance</p>
-            <p className="mt-2 text-lg font-semibold text-mint">${user.balance?.toFixed(2)}</p>
+            <p className="mt-2 text-lg font-semibold text-mint">${formatWalletAmount(user.balance)}</p>
           </div>
           <div className="rounded-2xl bg-white/5 p-4">
             <p className="text-white/45">Nonce</p>
