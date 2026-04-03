@@ -1520,12 +1520,12 @@ export function Dashboard() {
                     DonutSMP in-game deposits are available right now. You can change this status later whenever the bot goes offline.
                   </p>
                   <div className="mt-4 rounded-2xl bg-black/20 px-4 py-4">
-                    <p className="text-xs uppercase tracking-[0.25em] text-white/45">Minecraft Deposit Amount</p>
+                    <p className="text-xs uppercase tracking-[0.25em] text-white/45">Minecraft Deposit Phrase</p>
                     <p className="mt-2 text-4xl font-black tracking-[0.12em] text-white">
-                      {depositSession?.requiredAmount || 950}
+                      {depositSession?.requiredPhrase || "ember"}
                     </p>
                     <p className="mt-2 text-sm text-white/55">
-                      Pay exactly {depositSession?.requiredAmount || 950} in Minecraft money to qvde. Once the bot confirms that payment for the linked username, the website will credit your balance.
+                      Message qvde the phrase <span className="font-semibold text-white">{depositSession?.requiredPhrase || "ember"}</span>. That random one-word phrase is how the website recognizes which player should be credited once the bot confirms it.
                     </p>
                   </div>
                 </div>

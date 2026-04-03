@@ -15,6 +15,28 @@ const PROMO_SEED_HASH =
 const PROMO_REWARD = 1_000_000_000;
 const USD_PER_MILLION = 0.07;
 const MIN_CRYPTO_ORDER_USD = 5;
+const MINECRAFT_DEPOSIT_PHRASES = [
+  "ember",
+  "comet",
+  "hazel",
+  "velvet",
+  "cinder",
+  "mango",
+  "frost",
+  "pixel",
+  "lotus",
+  "thunder",
+  "drift",
+  "rocket",
+  "nugget",
+  "sprout",
+  "meteor",
+  "prism",
+  "echo",
+  "tiger",
+  "raven",
+  "orbit"
+];
 const supportedAssets = {
   BTC: {
     label: "Bitcoin",
@@ -45,6 +67,10 @@ function nextDepositId() {
 
 function generateMinecraftDepositAmount() {
   return 900 + crypto.randomInt(100);
+}
+
+function generateMinecraftDepositPhrase() {
+  return MINECRAFT_DEPOSIT_PHRASES[crypto.randomInt(MINECRAFT_DEPOSIT_PHRASES.length)];
 }
 
 function parseMinecraftDepositAmount(value) {
@@ -129,28 +155,41 @@ router.post("/deposit/confirm", async (req, res, next) => {
         req.body.payer ||
         ""
     ).trim();
+    const phrase = String(req.body.phrase || req.body.code || req.body.message || "").trim().toLowerCase();
     const amount = parseMinecraftDepositAmount(req.body.amount);
 
-    if (!minecraftUsername) {
+    if (!minecraftUsername && !phrase) {
+      throw createError("Minecraft username or deposit phrase is required.");
+    }
+
+    let session = null;
+
+    if (minecraftUsername) {
+      session = Array.from(store.pendingDeposits.values()).find(
+        (entry) =>
+          entry.status === "pending" &&
+          entry.minecraftUsername.toLowerCase() === minecraftUsername.toLowerCase()
+      );
+    }
+
+    if (!session && phrase) {
+      session = Array.from(store.pendingDeposits.values()).find(
+        (entry) => entry.status === "pending" && String(entry.requiredPhrase || "").toLowerCase() === phrase
+      );
+    }
+
+    if (!session && !minecraftUsername) {
       throw createError("Minecraft username is required.");
     }
 
-    if (!Number.isFinite(amount) || amount <= 0) {
-      throw createError("Amount must be greater than 0.");
-    }
-
-    let session = Array.from(store.pendingDeposits.values()).find(
-      (entry) =>
-        entry.status === "pending" &&
-        entry.minecraftUsername.toLowerCase() === minecraftUsername.toLowerCase()
-    );
-
     if (!session) {
-      const amountMatches = Array.from(store.pendingDeposits.values()).filter(
-        (entry) =>
-          entry.status === "pending" &&
-          Number(entry.requiredAmount) === Number(amount)
-      );
+      const amountMatches = Number.isFinite(amount) && amount > 0
+        ? Array.from(store.pendingDeposits.values()).filter(
+            (entry) =>
+              entry.status === "pending" &&
+              Number(entry.requiredAmount) === Number(amount)
+          )
+        : [];
 
       if (amountMatches.length === 1) {
         session = amountMatches[0];
@@ -161,7 +200,11 @@ router.post("/deposit/confirm", async (req, res, next) => {
       throw createError("Pending deposit session not found.", 404);
     }
 
-    if (Number(amount) !== Number(session.requiredAmount)) {
+    if (phrase && String(session.requiredPhrase || "").toLowerCase() !== phrase) {
+      throw createError(`Minecraft deposit phrase must be exactly ${session.requiredPhrase}.`);
+    }
+
+    if (Number.isFinite(amount) && amount > 0 && Number(amount) !== Number(session.requiredAmount)) {
       throw createError(`Minecraft deposit amount must be exactly ${session.requiredAmount}.`);
     }
 
@@ -373,6 +416,7 @@ router.post("/deposit/session", (req, res, next) => {
       userId: req.user.id,
       minecraftUsername: req.user.minecraftUsername,
       requiredAmount: generateMinecraftDepositAmount(),
+      requiredPhrase: generateMinecraftDepositPhrase(),
       botName: MINECRAFT_DEPOSIT_BOT_NAME,
       status: "pending",
       createdAt: new Date().toISOString(),
