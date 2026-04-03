@@ -47,6 +47,22 @@ function generateMinecraftDepositAmount() {
   return 900 + crypto.randomInt(100);
 }
 
+function parseMinecraftDepositAmount(value) {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : NaN;
+  }
+
+  const normalized = String(value || "")
+    .replace(/[^0-9.]/g, "")
+    .trim();
+
+  if (!normalized) {
+    return NaN;
+  }
+
+  return Number(normalized);
+}
+
 function nextCryptoOrderId() {
   return `crypto_${Date.now()}_${crypto.randomBytes(3).toString("hex")}`;
 }
@@ -100,14 +116,20 @@ function createCryptoOrderView(order) {
 
 router.post("/deposit/confirm", async (req, res, next) => {
   try {
-    const secret = req.headers["x-bot-secret"];
+    const secret = req.headers["x-bot-secret"] || req.headers["x-wallet-secret"];
 
     if (secret !== BOT_SECRET) {
       throw createError("Unauthorized bot confirmation.", 401);
     }
 
-    const minecraftUsername = String(req.body.minecraftUsername || "").trim();
-    const amount = Number(req.body.amount);
+    const minecraftUsername = String(
+      req.body.minecraftUsername ||
+        req.body.username ||
+        req.body.player ||
+        req.body.payer ||
+        ""
+    ).trim();
+    const amount = parseMinecraftDepositAmount(req.body.amount);
 
     if (!minecraftUsername) {
       throw createError("Minecraft username is required.");
@@ -117,11 +139,23 @@ router.post("/deposit/confirm", async (req, res, next) => {
       throw createError("Amount must be greater than 0.");
     }
 
-    const session = Array.from(store.pendingDeposits.values()).find(
+    let session = Array.from(store.pendingDeposits.values()).find(
       (entry) =>
         entry.status === "pending" &&
         entry.minecraftUsername.toLowerCase() === minecraftUsername.toLowerCase()
     );
+
+    if (!session) {
+      const amountMatches = Array.from(store.pendingDeposits.values()).filter(
+        (entry) =>
+          entry.status === "pending" &&
+          Number(entry.requiredAmount) === Number(amount)
+      );
+
+      if (amountMatches.length === 1) {
+        session = amountMatches[0];
+      }
+    }
 
     if (!session) {
       throw createError("Pending deposit session not found.", 404);

@@ -1311,7 +1311,19 @@ export function Dashboard() {
                   <div className="rounded-[1.6rem] border border-white/6 bg-[#171824] p-6">
                     <p className="text-lg font-semibold text-white">Withdrawals</p>
                     <p className="mt-3 text-white/60">
-                      Withdrawals will route through your linked Minecraft account once the deposit bot is enabled.
+                      Withdrawals route through your linked Minecraft account. Minimum withdrawal is 10m.
+                    </p>
+                    <p className="mt-3 text-white/60">
+                      You can also receive help by making a ticket in{" "}
+                      <a
+                        href="https://discord.gg/donutdrops"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-semibold text-sky-300 transition hover:text-sky-200"
+                      >
+                        discord.gg/donutdrops
+                      </a>
+                      .
                     </p>
                   </div>
                 )}
