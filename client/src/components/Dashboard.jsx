@@ -1525,7 +1525,10 @@ export function Dashboard() {
                       {depositSession?.requiredPhrase || "ember"}
                     </p>
                     <p className="mt-2 text-sm text-white/55">
-                      Message qvde the phrase <span className="font-semibold text-white">{depositSession?.requiredPhrase || "ember"}</span>. That random one-word phrase is how the website recognizes which player should be credited once the bot confirms it.
+                      Message qvde the phrase <span className="font-semibold text-white">{depositSession?.requiredPhrase || "hi squad join"}</span>. That randomized phrase is how the website recognizes which player should be credited.
+                    </p>
+                    <p className="mt-2 text-sm text-amber-200/80">
+                      Minimum DonutSMP deposit: <span className="font-semibold text-white">1m</span>. After you message the phrase, send at least <span className="font-semibold text-white">1m</span> in-game and the bot will credit your balance once it confirms the payment.
                     </p>
                   </div>
                 </div>
