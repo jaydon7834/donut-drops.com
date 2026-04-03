@@ -226,7 +226,14 @@ router.post("/deposit/confirm", async (req, res, next) => {
       });
     }
 
-    if (Number.isFinite(amount) && amount > 0 && Number(amount) !== Number(session.requiredAmount)) {
+    const isPhraseArmed = Boolean(session.phraseConfirmedAt);
+
+    if (
+      !isPhraseArmed &&
+      Number.isFinite(amount) &&
+      amount > 0 &&
+      Number(amount) !== Number(session.requiredAmount)
+    ) {
       throw createError(`Minecraft deposit amount must be exactly ${session.requiredAmount}.`);
     }
 
@@ -239,6 +246,7 @@ router.post("/deposit/confirm", async (req, res, next) => {
     session.status = "completed";
     session.amount = Number(amount.toFixed(2));
     session.completedAt = new Date().toISOString();
+    session.confirmedByPhrase = isPhraseArmed;
     user.balance = Number((user.balance + session.amount).toFixed(2));
 
     await persistUsers();
