@@ -215,6 +215,17 @@ router.post("/deposit/confirm", async (req, res, next) => {
       throw createError(`Minecraft deposit phrase must be exactly ${session.requiredPhrase}.`);
     }
 
+    if (phrase && (!Number.isFinite(amount) || amount <= 0)) {
+      session.phraseConfirmedAt = new Date().toISOString();
+
+      return res.json({
+        ok: true,
+        armed: true,
+        depositId: session.id,
+        phrase: session.requiredPhrase
+      });
+    }
+
     if (Number.isFinite(amount) && amount > 0 && Number(amount) !== Number(session.requiredAmount)) {
       throw createError(`Minecraft deposit amount must be exactly ${session.requiredAmount}.`);
     }
