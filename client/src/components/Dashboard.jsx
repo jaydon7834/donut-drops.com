@@ -1311,7 +1311,7 @@ export function Dashboard() {
                   <div className="rounded-[1.6rem] border border-white/6 bg-[#171824] p-6">
                     <p className="text-lg font-semibold text-white">Withdrawals</p>
                     <p className="mt-3 text-white/60">
-                      Withdrawals route through your linked Minecraft account. Minimum withdrawal is 10m.
+                      Withdrawals route through your linked Minecraft account. Minimum withdrawal is 100m.
                     </p>
                     <p className="mt-3 text-white/60">
                       You can also receive help by making a ticket in{" "}
