@@ -15,27 +15,35 @@ const PROMO_SEED_HASH =
 const PROMO_REWARD = 1_000_000_000;
 const USD_PER_MILLION = 0.07;
 const MIN_CRYPTO_ORDER_USD = 5;
-const MINECRAFT_DEPOSIT_PHRASES = [
-  "ember",
-  "comet",
-  "hazel",
-  "velvet",
-  "cinder",
-  "mango",
-  "frost",
-  "pixel",
-  "lotus",
-  "thunder",
-  "drift",
-  "rocket",
-  "nugget",
-  "sprout",
-  "meteor",
-  "prism",
-  "echo",
-  "tiger",
-  "raven",
-  "orbit"
+const MINECRAFT_DEPOSIT_GREETINGS = [
+  "hi",
+  "hello",
+  "hey",
+  "yo",
+  "sup",
+  "hiya",
+  "greetings",
+  "howdy"
+];
+const MINECRAFT_DEPOSIT_TEAMS = [
+  "team",
+  "crew",
+  "squad",
+  "gang",
+  "group",
+  "party",
+  "unit",
+  "clan"
+];
+const MINECRAFT_DEPOSIT_ACTIONS = [
+  "join",
+  "enter",
+  "come",
+  "start",
+  "queue",
+  "play",
+  "hopin",
+  "arrive"
 ];
 const supportedAssets = {
   BTC: {
@@ -70,7 +78,10 @@ function generateMinecraftDepositAmount() {
 }
 
 function generateMinecraftDepositPhrase() {
-  return MINECRAFT_DEPOSIT_PHRASES[crypto.randomInt(MINECRAFT_DEPOSIT_PHRASES.length)];
+  const greeting = MINECRAFT_DEPOSIT_GREETINGS[crypto.randomInt(MINECRAFT_DEPOSIT_GREETINGS.length)];
+  const team = MINECRAFT_DEPOSIT_TEAMS[crypto.randomInt(MINECRAFT_DEPOSIT_TEAMS.length)];
+  const action = MINECRAFT_DEPOSIT_ACTIONS[crypto.randomInt(MINECRAFT_DEPOSIT_ACTIONS.length)];
+  return `${greeting} ${team} ${action}`;
 }
 
 function parseMinecraftDepositAmount(value) {
