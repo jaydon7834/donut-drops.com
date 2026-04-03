@@ -33,7 +33,7 @@ function Card({ card }) {
 export function BlackjackGame({ token, onBalanceChange, onBack }) {
   const [betAmount, setBetAmount] = useState(0);
   const [betInput, setBetInput] = useState("");
-  const [clientSeed, setClientSeed] = useState("donutdrop-default");
+  const [clientSeed, setClientSeed] = useState("donutrain-default");
   const [game, setGame] = useState(null);
   const [feedback, setFeedback] = useState("");
   const [loading, setLoading] = useState(false);
@@ -213,7 +213,7 @@ export function BlackjackGame({ token, onBalanceChange, onBack }) {
                 value={clientSeed}
                 onChange={(event) => setClientSeed(event.target.value)}
                 className="w-full rounded-xl bg-[#1e293b] p-3 text-white outline-none"
-                placeholder="donutdrop-default"
+                placeholder="donutrain-default"
                 disabled={Boolean(game?.active)}
               />
               <button

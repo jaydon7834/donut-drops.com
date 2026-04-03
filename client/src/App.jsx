@@ -9,7 +9,7 @@ export default function App() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-hero-glow px-6 text-white">
         <div className="glass-panel rounded-3xl px-8 py-6 text-center">
-          <p className="text-sm uppercase tracking-[0.3em] text-accent">DonutDrop</p>
+          <p className="text-sm uppercase tracking-[0.3em] text-accent">DonutRain</p>
           <p className="mt-3 text-lg text-white/70">Loading your vault...</p>
         </div>
       </div>

@@ -27,7 +27,7 @@ export const store = {
     {
       id: "chat_seed_1",
       username: "system",
-      text: "Welcome to DonutDrop chat.",
+      text: "Welcome to DonutRain chat.",
       createdAt: new Date().toISOString()
     }
   ],

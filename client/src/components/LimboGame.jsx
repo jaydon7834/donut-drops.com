@@ -61,7 +61,7 @@ export function LimboGame({ token, user, onBalanceChange, onBack }) {
   const [betInput, setBetInput] = useState("");
   const [target, setTarget] = useState(2);
   const [targetInput, setTargetInput] = useState("2.00");
-  const [clientSeed, setClientSeed] = useState(user.clientSeed || "donutdrop-default");
+  const [clientSeed, setClientSeed] = useState(user.clientSeed || "donutrain-default");
   const [displayMultiplier, setDisplayMultiplier] = useState(1);
   const [result, setResult] = useState(null);
   const [rolling, setRolling] = useState(false);

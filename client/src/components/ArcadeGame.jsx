@@ -106,7 +106,7 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
   const [bet, setBet] = useState(0);
   const [betInput, setBetInput] = useState("");
   const [optionValue, setOptionValue] = useState(gameType === "roulette" ? "red" : 2);
-  const [clientSeed, setClientSeed] = useState(user.clientSeed || "donutdrop-default");
+  const [clientSeed, setClientSeed] = useState(user.clientSeed || "donutrain-default");
   const [result, setResult] = useState(null);
   const [feedback, setFeedback] = useState("");
   const [loading, setLoading] = useState(false);
@@ -190,7 +190,7 @@ export function ArcadeGame({ token, gameType, user, onBalanceChange, onBack }) {
   }
 
   useEffect(() => {
-    setClientSeed(user.clientSeed || "donutdrop-default");
+    setClientSeed(user.clientSeed || "donutrain-default");
   }, [user.clientSeed]);
 
   useEffect(() => {

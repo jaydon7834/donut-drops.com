@@ -150,7 +150,7 @@ export function AuthPanel() {
       >
         <div className="mb-6">
           <p className="text-xs font-semibold uppercase tracking-[0.42em] text-orange-300/80">
-            DonutDrop
+            DonutRain
           </p>
           <h2 className="mt-4 text-3xl font-black text-white">
             {mode === "login" ? "Login to your vault" : "Create your player account"}

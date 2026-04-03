@@ -1868,10 +1868,10 @@ export function Dashboard() {
             </section>
 
             <FairnessCard
-              title="How DonutDrop verifies rounds"
+              title="How DonutRain verifies rounds"
               data={{
                 serverSeedHash: "Shown before play so the hidden server seed is committed in advance.",
-                clientSeed: `Current player seed: ${clientSeed || "donutdrop-default"}`,
+                clientSeed: `Current player seed: ${clientSeed || "donutrain-default"}`,
                 nonce: `Current nonce: ${user.nonce}`,
                 formula: "SHA256(serverSeed:clientSeed:nonce) generates deterministic game randomness."
               }}
@@ -1882,7 +1882,7 @@ export function Dashboard() {
     }
 
     if (activeTopTab === "affiliate") {
-      const referralLink = `https://donut-drops.com/?ref=${affiliateCode}`;
+      const referralLink = `https://donutrain.com/?ref=${affiliateCode}`;
       const usersReferred = players.filter(
         (player) => String(player.affiliateCodeUsed || "").toUpperCase() === affiliateCode
       ).length;
@@ -2074,7 +2074,7 @@ export function Dashboard() {
             <div className="mt-5 rounded-xl bg-black/20 px-5 py-4 text-white/60">
               {gamesPlayed === 0
                 ? "No games played yet. Start playing to see your stats here."
-                : "Your account stats update live as you play across DonutDrop."}
+                : "Your account stats update live as you play across DonutRain."}
             </div>
           </div>
         </section>
@@ -2463,7 +2463,7 @@ export function Dashboard() {
               }}
               className="text-3xl font-black text-white transition hover:text-white/90"
             >
-              Donut<span className="text-accent">Drop</span>
+              Donut<span className="text-accent">Rain</span>
             </button>
           </div>
           <div className="mt-8 border-t border-white/5 px-3 pt-6">

@@ -28,7 +28,7 @@ const userSchema = new mongoose.Schema(
     },
     clientSeed: {
       type: String,
-      default: "donutdrop-default"
+      default: "donutrain-default"
     },
     nonce: {
       type: Number,

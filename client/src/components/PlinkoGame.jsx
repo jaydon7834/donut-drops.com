@@ -60,7 +60,7 @@ export function PlinkoGame({ token, user, onBalanceChange, onBack }) {
   const [risk, setRisk] = useState("medium");
   const [ballCount, setBallCount] = useState(1);
   const [autoDrop, setAutoDrop] = useState(false);
-  const [clientSeed, setClientSeed] = useState(user.clientSeed || "donutdrop-default");
+  const [clientSeed, setClientSeed] = useState(user.clientSeed || "donutrain-default");
   const [activeBalls, setActiveBalls] = useState([]);
   const [result, setResult] = useState(null);
   const [feedback, setFeedback] = useState("");

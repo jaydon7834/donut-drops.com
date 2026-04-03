@@ -9,7 +9,7 @@ export function createServerSeedHash(serverSeed) {
 }
 
 export function createFairContext(user, clientSeedInput) {
-  const clientSeed = String(clientSeedInput || user.clientSeed || "donutdrop-default")
+  const clientSeed = String(clientSeedInput || user.clientSeed || "donutrain-default")
     .trim()
     .slice(0, 64);
   const serverSeed = createServerSeed();

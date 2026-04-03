@@ -108,7 +108,7 @@ export function MinesGame({ token, user, onBalanceChange }) {
   const [betAmount, setBetAmount] = useState(0);
   const [betInput, setBetInput] = useState("");
   const [minesCount, setMinesCount] = useState(1);
-  const [clientSeed, setClientSeed] = useState(user.clientSeed || "donutdrop-default");
+  const [clientSeed, setClientSeed] = useState(user.clientSeed || "donutrain-default");
   const [activeGame, setActiveGame] = useState(null);
   const [settledGame, setSettledGame] = useState(null);
   const [feedback, setFeedback] = useState({ text: "", tone: "neutral" });

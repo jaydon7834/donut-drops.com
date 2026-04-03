@@ -93,7 +93,7 @@ export function RouletteGame({ token, user, onBalanceChange, onBack }) {
   const [betAmount, setBetAmount] = useState(0);
   const [betType, setBetType] = useState("color");
   const [selection, setSelection] = useState("red");
-  const [clientSeed, setClientSeed] = useState(user.clientSeed || "donutdrop-default");
+  const [clientSeed, setClientSeed] = useState(user.clientSeed || "donutrain-default");
   const [spin, setSpin] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState(null);

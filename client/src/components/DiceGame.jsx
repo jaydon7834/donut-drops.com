@@ -34,7 +34,7 @@ export function DiceGame({ token, user, onBalanceChange }) {
   const [betInput, setBetInput] = useState("");
   const [target, setTarget] = useState(55);
   const [condition, setCondition] = useState("under");
-  const [clientSeed, setClientSeed] = useState(user.clientSeed || "donutdrop-default");
+  const [clientSeed, setClientSeed] = useState(user.clientSeed || "donutrain-default");
   const [result, setResult] = useState(null);
   const [displayRoll, setDisplayRoll] = useState("--");
   const [feedback, setFeedback] = useState({ text: "", tone: "neutral" });

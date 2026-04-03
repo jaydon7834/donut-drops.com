@@ -36,7 +36,7 @@ router.post("/register", async (req, res, next) => {
       affiliateEarned: 0,
       affiliateAvailable: 0,
       affiliateRewardGranted: false,
-      clientSeed: "donutdrop-default",
+      clientSeed: "donutrain-default",
       nonce: 0
     };
 

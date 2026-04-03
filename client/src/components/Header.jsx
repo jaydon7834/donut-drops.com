@@ -30,7 +30,7 @@ export function Header({ user, activeGame, setActiveGame, onLogout }) {
       className="glass-panel flex flex-col gap-4 rounded-3xl p-5 lg:flex-row lg:items-center lg:justify-between"
     >
       <div>
-        <p className="text-xs uppercase tracking-[0.35em] text-accent">DonutDrop</p>
+        <p className="text-xs uppercase tracking-[0.35em] text-accent">DonutRain</p>
         <h1 className="mt-2 text-3xl font-semibold text-white">Casino motion with verifiable odds</h1>
       </div>
 
