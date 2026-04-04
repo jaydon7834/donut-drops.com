@@ -1006,6 +1006,7 @@ export function Dashboard() {
   const affiliateEarned = Number(user?.affiliateEarned || 0);
   const gamesPlayed = recentGames.length;
   const winCount = recentGames.filter((game) => game.profit > 0).length;
+  const lossCount = recentGames.filter((game) => game.profit <= 0).length;
   const biggestWin = user.stats?.biggestWin ?? recentGames.reduce((max, game) => Math.max(max, game.profit), 0);
   const winStreak = user.stats?.winStreak ?? calculateWinStreak(recentGames);
   const winRate = gamesPlayed ? ((winCount / gamesPlayed) * 100).toFixed(1) : "0.0";
@@ -2440,14 +2441,22 @@ export function Dashboard() {
 
           <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
             <div className="rounded-xl bg-black/20 p-3">
-              <p className="text-white/45">Balance</p>
-              <p className="mt-1 font-bold text-white">{formatMoney(user.balance)}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/35">Profit</p>
+              <p className={`mt-2 text-2xl font-black ${totalProfit >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
+                {totalProfit >= 0 ? "" : "-"}{formatMoney(Math.abs(totalProfit))}
+              </p>
             </div>
             <div className="rounded-xl bg-black/20 p-3">
-              <p className="text-white/45">Net</p>
-              <p className={`mt-1 font-bold ${totalProfit >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
-                {totalProfit >= 0 ? "+" : "-"}{formatMoney(Math.abs(totalProfit))}
-              </p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/35">Wins</p>
+              <p className="mt-2 text-2xl font-black text-white">{winCount}</p>
+            </div>
+            <div className="rounded-xl bg-black/20 p-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/35">Wagered</p>
+              <p className="mt-2 text-2xl font-black text-white">{formatMoney(totalWagered)}</p>
+            </div>
+            <div className="rounded-xl bg-black/20 p-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/35">Losses</p>
+              <p className="mt-2 text-2xl font-black text-rose-300">{lossCount}</p>
             </div>
           </div>
         </motion.div>
@@ -2469,7 +2478,11 @@ export function Dashboard() {
           <div className="mt-8 border-t border-white/5 px-3 pt-6">
             <button
               type="button"
-              onClick={() => setTrackerOpen((current) => !current)}
+              onClick={() => {
+                setActiveTopTab("");
+                setActiveView("lobby");
+                setTrackerOpen(true);
+              }}
               className={`mb-4 w-full rounded-2xl px-4 py-3 text-left text-sm transition ${
                 trackerOpen
                   ? "bg-cyan-500/15 text-cyan-100"
