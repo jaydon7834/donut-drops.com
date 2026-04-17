@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext.jsx";
 
-const SAVED_LOGIN_KEY = "donutdrop-saved-login";
+const SAVED_LOGIN_KEY = "donutrain-saved-login";
 const initialForms = {
   login: { username: "", password: "" },
   register: { username: "", password: "" }

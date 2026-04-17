@@ -38,8 +38,8 @@ export function ThemeEffects({ accentColor }) {
     explosionImageRef.current = explosionImage;
 
     try {
-      soundEnabledRef.current = window.localStorage.getItem("donutdrop-sound") !== "off";
-      effectsEnabledRef.current = window.localStorage.getItem("donutdrop-effects") !== "off";
+      soundEnabledRef.current = window.localStorage.getItem("donutrain-sound") !== "off";
+      effectsEnabledRef.current = window.localStorage.getItem("donutrain-effects") !== "off";
     } catch {
       soundEnabledRef.current = true;
       effectsEnabledRef.current = true;
@@ -252,14 +252,14 @@ export function ThemeEffects({ accentColor }) {
     draw();
     window.addEventListener("resize", resize);
     window.addEventListener("mousemove", handlePointerMove);
-    window.addEventListener("donutdrop:settings", handleSettings);
-    window.addEventListener("donutdrop:game-effect", handleGameEffect);
+    window.addEventListener("donutrain:settings", handleSettings);
+    window.addEventListener("donutrain:game-effect", handleGameEffect);
 
     return () => {
       window.removeEventListener("resize", resize);
       window.removeEventListener("mousemove", handlePointerMove);
-      window.removeEventListener("donutdrop:settings", handleSettings);
-      window.removeEventListener("donutdrop:game-effect", handleGameEffect);
+      window.removeEventListener("donutrain:settings", handleSettings);
+      window.removeEventListener("donutrain:game-effect", handleGameEffect);
 
       if (frameRef.current) {
         window.cancelAnimationFrame(frameRef.current);

@@ -1,4 +1,4 @@
-# DonutDrop
+# DonutRain
 
 Full-stack casino-style game platform with JWT auth, MongoDB persistence, a provably fair system, and a React/Tailwind/Framer Motion frontend.
 

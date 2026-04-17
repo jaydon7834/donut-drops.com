@@ -19,12 +19,12 @@ import { parseBetInput } from "../lib/betting.js";
 import { createAppSocket } from "../lib/socket.js";
 
 const topNavItems = ["Fairness", "Affiliate", "Bonus", "Leaderboard", "Profile", "Store", "Accessibility"];
-const THEME_STORAGE_KEY = "donutdrop-theme";
-const GLOW_STORAGE_KEY = "donutdrop-glow";
-const DARK_STORAGE_KEY = "donutdrop-dark";
-const SOUND_STORAGE_KEY = "donutdrop-sound";
-const EFFECTS_STORAGE_KEY = "donutdrop-effects";
-const LEVEL_REWARD_STORAGE_KEY = "donutdrop-level-reward";
+const THEME_STORAGE_KEY = "donutrain-theme";
+const GLOW_STORAGE_KEY = "donutrain-glow";
+const DARK_STORAGE_KEY = "donutrain-dark";
+const SOUND_STORAGE_KEY = "donutrain-sound";
+const EFFECTS_STORAGE_KEY = "donutrain-effects";
+const LEVEL_REWARD_STORAGE_KEY = "donutrain-level-reward";
 const THEMES = {
   green: {
     label: "Green",
@@ -77,6 +77,7 @@ const FALLBACK_CRYPTO_ASSETS = [
   { symbol: "ETH", label: "Ethereum", address: "0xF8914Bb5a5fe8e3df8256877c4ed1E7F6d0BE190", minUsdAmount: 5, donutsPerOrder: 71_428_571 },
   { symbol: "SOL", label: "Solana", address: "ExWCCU5SJbYePDX59itfm69hDAiFg9EgLUCG34Z187cg", minUsdAmount: 5, donutsPerOrder: 71_428_571 }
 ];
+const SELLAUTH_STORE_URL = "https://donutrain.mysellauth.com/";
 
 function formatMoney(value) {
   const amount = Number(value || 0);
@@ -188,7 +189,7 @@ function calculateWinStreak(recentGames) {
 }
 
 function generateClientSeed() {
-  return `donutdrop-${Math.random().toString(36).slice(2, 10)}`;
+  return `donutrain-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 export function Dashboard() {
@@ -243,6 +244,7 @@ export function Dashboard() {
   const [walletMessage, setWalletMessage] = useState("");
   const [cryptoAssets, setCryptoAssets] = useState([]);
   const [selectedCrypto, setSelectedCrypto] = useState("BTC");
+  const [storeMethod, setStoreMethod] = useState("BTC");
   const [cryptoOrder, setCryptoOrder] = useState(null);
   const [cryptoTxHash, setCryptoTxHash] = useState("");
   const [cryptoUsdInput, setCryptoUsdInput] = useState("5.00");
@@ -296,6 +298,16 @@ export function Dashboard() {
   const availableCryptoAssets = cryptoAssets.length ? cryptoAssets : FALLBACK_CRYPTO_ASSETS;
   const selectedCryptoAsset =
     availableCryptoAssets.find((asset) => asset.symbol === selectedCrypto) || availableCryptoAssets[0];
+  const storeDepositMethods = [
+    ...availableCryptoAssets.map((asset) => ({
+      id: asset.symbol,
+      label: asset.symbol,
+      detail: asset.label
+    })),
+    { id: "CARD", label: "Card", detail: "Credit / debit" },
+    { id: "PAYPAL", label: "PayPal", detail: "Wallet checkout" },
+    { id: "CASHAPP", label: "CashApp", detail: "Quick pay" }
+  ];
   const level = user?.level || 1;
   const xp = user?.xp || 0;
   const xpRequired = user?.xpRequired || 500;
@@ -356,7 +368,7 @@ export function Dashboard() {
 
     window.localStorage.setItem(SOUND_STORAGE_KEY, soundEnabled ? "on" : "off");
     window.dispatchEvent(
-      new CustomEvent("donutdrop:settings", {
+      new CustomEvent("donutrain:settings", {
         detail: {
           soundEnabled,
           effectsEnabled
@@ -372,7 +384,7 @@ export function Dashboard() {
 
     window.localStorage.setItem(EFFECTS_STORAGE_KEY, effectsEnabled ? "on" : "off");
     window.dispatchEvent(
-      new CustomEvent("donutdrop:settings", {
+      new CustomEvent("donutrain:settings", {
         detail: {
           soundEnabled,
           effectsEnabled
@@ -2112,21 +2124,36 @@ export function Dashboard() {
                 Purchase coins instantly with Bitcoin, CashApp, PayPal, or Credit Card.
               </p>
 
-              <div className="mt-5 flex gap-3 text-sm font-semibold text-white/65">
-                {["BTC", "Card", "CashApp", "PayPal"].map((method) => (
-                  <div key={method} className="rounded-xl bg-white/5 px-3 py-2">
-                    {method}
-                  </div>
-                ))}
+              <div className="mt-5">
+                <p className="text-xs uppercase tracking-[0.22em] text-white/45">Deposit With</p>
+                <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {storeDepositMethods.map((method) => (
+                    <button
+                      key={method.id}
+                      type="button"
+                      onClick={() => setStoreMethod(method.id)}
+                      className={`rounded-2xl border px-4 py-3 text-left transition ${
+                        storeMethod === method.id
+                          ? "border-yellow-300/40 bg-yellow-300/12 text-white"
+                          : "border-white/10 bg-white/5 text-white/65 hover:bg-white/10"
+                      }`}
+                    >
+                      <p className="text-sm font-bold">{method.label}</p>
+                      <p className="mt-1 text-xs text-white/50">{method.detail}</p>
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              <button
-                type="button"
-                onClick={openWallet}
-                className="mt-5 w-full rounded-xl bg-gradient-to-r from-yellow-300 to-amber-400 px-4 py-4 text-lg font-bold text-slate-950"
+              <a
+                href={SELLAUTH_STORE_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-5 flex w-full items-center justify-between rounded-xl bg-gradient-to-r from-yellow-300 to-amber-400 px-4 py-4 text-lg font-bold text-slate-950"
               >
-                Purchase
-              </button>
+                <span>Purchase with {storeMethod}</span>
+                <span className="text-sm font-semibold uppercase tracking-[0.12em]">Open Store</span>
+              </a>
               <button
                 type="button"
                 onClick={openRedeemCodeScreen}
@@ -2352,13 +2379,36 @@ export function Dashboard() {
       );
     }
 
-      return (
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-          <section>
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-2xl font-semibold text-white">Games</h3>
-              <p className="text-sm text-white/45">Choose a game from the lobby</p>
-            </div>
+    return (
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+        <section className="casino-card overflow-hidden rounded-[2rem] bg-[radial-gradient(circle_at_top_left,rgba(255,122,0,0.28),transparent_26%),radial-gradient(circle_at_right,rgba(168,85,247,0.24),transparent_22%),linear-gradient(135deg,#122238,#172554_42%,#3b1904_100%)] p-6 shadow-[0_24px_80px_rgba(59,130,246,0.15)]">
+          <div className="max-w-4xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.45em] text-orange-200">Welcome</p>
+            <h2 className="mt-3 max-w-3xl text-4xl font-black leading-tight text-white sm:text-5xl">
+              High-stakes motion, live games, and a cleaner DonutRain lobby.
+            </h2>
+            <p className="mt-4 max-w-2xl text-base leading-7 text-white/72">
+              Move between Mines, Dice, and the rest of the floor with a sharper visual system, richer
+              glow, and faster game switching.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTopTab("");
+                setActiveView("mines");
+              }}
+              className="neon-button-green mt-6"
+            >
+              Start Playing
+            </button>
+          </div>
+        </section>
+
+        <section>
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-2xl font-semibold text-white">Games</h3>
+            <p className="text-sm text-white/45">Choose a game from the lobby</p>
+          </div>
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             {gameCards.map((game) => (

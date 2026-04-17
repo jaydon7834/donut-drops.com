@@ -87,12 +87,12 @@ initializeStore()
     initializeSocket(server);
     initializeRainScheduler();
     initializeCrashEngine();
-    console.log(`DonutDrop users file: ${USERS_FILE}`);
+    console.log(`DonutRain users file: ${USERS_FILE}`);
     server.listen(PORT, () => {
-      console.log(`DonutDrop API running on http://localhost:${PORT}`);
+      console.log(`DonutRain API running on http://localhost:${PORT}`);
     });
   })
   .catch((error) => {
-    console.error("Failed to initialize DonutDrop storage", error);
+    console.error("Failed to initialize DonutRain storage", error);
     process.exit(1);
   });

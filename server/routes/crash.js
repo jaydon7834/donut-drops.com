@@ -144,7 +144,7 @@ function getCurrentMultiplier(round, now = Date.now()) {
 function getCrashPoint(roundNumber) {
   const serverSeed = createServerSeed();
   const serverSeedHash = createServerSeedHash(serverSeed);
-  const { hash, value } = hashToFloat(serverSeed, "donutdrop-crash", roundNumber);
+  const { hash, value } = hashToFloat(serverSeed, "donutrain-crash", roundNumber);
   const rawPoint = CRASH_HOUSE_EDGE / Math.max(0.000001, 1 - value);
   const crashPoint = Number(Math.min(MAX_CRASH_POINT, Math.max(1, rawPoint)).toFixed(2));
 

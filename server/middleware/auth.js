@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import { store } from "../state/store.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "donutdrop-dev-secret";
+const JWT_SECRET = process.env.JWT_SECRET || "donutrain-dev-secret";
 
 export function signSession(userId) {
   return jwt.sign({ userId }, JWT_SECRET, { expiresIn: "7d" });

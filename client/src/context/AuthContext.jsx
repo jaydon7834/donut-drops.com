@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { api } from "../lib/api.js";
 
 const AuthContext = createContext(null);
-const storedToken = localStorage.getItem("donutdrop-token");
+const storedToken = localStorage.getItem("donutrain-token");
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(storedToken || "");
@@ -13,10 +13,10 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     if (token) {
-      localStorage.setItem("donutdrop-token", token);
+      localStorage.setItem("donutrain-token", token);
       refreshBalance(token).finally(() => setLoading(false));
     } else {
-      localStorage.removeItem("donutdrop-token");
+      localStorage.removeItem("donutrain-token");
       setUser(null);
       setRecentGames([]);
       setLoading(false);

@@ -4,7 +4,7 @@ export function triggerGameEffect(type, options = {}) {
   }
 
   window.dispatchEvent(
-    new CustomEvent("donutdrop:game-effect", {
+    new CustomEvent("donutrain:game-effect", {
       detail: {
         type,
         ...options
